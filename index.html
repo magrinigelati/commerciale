@@ -581,7 +581,7 @@ async function uffUtenti(v){
 /* ================= DOCUMENTI ================= */
 const CARTELLE=['Modulo ordini','Elenco gusti','Listini','Depliant e cataloghi','Foto prodotti','Certificazioni','Dichiarazioni','Altro'];
 const RUOLI_DOC=[['agente','Agenti'],['padroncino','Padroncini'],['concessionario','Concessionari']];
-const ordCart=c=>{const i=CARTELLE.indexOf(c);return i<0?CARTELLE.length-1.5:i};
+const ordCart=c=>{const i=CARTELLE.indexOf(c);return i<0?CARTELLE.length-2:i}; // le cartelle nuove stanno prima di "Altro"
 function icona(p){return /\.(jpe?g|png|webp|gif)$/i.test(p)?'Foto':/\.pdf$/i.test(p)?'PDF':'File'}
 async function leggiDocumenti(){
   const {data,error}=await sb.from('documenti').select('*').order('ordine').order('titolo');
