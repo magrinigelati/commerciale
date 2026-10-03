@@ -1,0 +1,7 @@
+# Su GitHub (repository pubblico) va SOLO la pagina web: mai script, Excel, csv, configurazioni, SQL
+*.py
+*.sql
+*.xlsx
+*.csv
+config*.txt
+.env

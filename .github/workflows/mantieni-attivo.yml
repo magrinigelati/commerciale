@@ -1,0 +1,16 @@
+name: Mantieni attivo il database
+on:
+  schedule:
+    - cron: "17 6 */3 * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Richiesta al database
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: sb_publishable_WpkN9i7kxuDtPJTgMlIDJA_5HgvZpuH" \
+            "https://gzdpxvzenxfpoikrmknt.supabase.co/rest/v1/ping?select=id&limit=1")
+          echo "Risposta: $code"
+          test "$code" = "200"
