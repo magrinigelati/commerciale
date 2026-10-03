@@ -472,10 +472,10 @@ function righeTesto(o){return (o.righe||[]).map(r=>{const p=byId[r.p];return p?{
 function dettaglioHtml(o){return `<div class="list">${righeTesto(o).map(r=>`<div class="sr"><span class="q">${r.q}<i>${r.u==='pz'?'pz':'ct'}</i></span><div class="n">${esc(r.n)}<small>${esc(r.c)}</small></div></div>`).join('')}</div>${o.note?`<p class="note">Note: ${esc(o.note)}</p>`:''}`}
 async function renderOrd(v){
   v.innerHTML='<div class="empty">Carico gli ordini…</div>';
-  const {data,error}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').order('id',{ascending:false}).limit(40);
+  const {data,error}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').order('id',{ascending:false}).limit(5);
   if(error){v.innerHTML='<div class="empty">Non riesco a leggere gli ordini. Riprova tra poco.</div>';return}
   if(!data.length){v.innerHTML='<div class="empty">Non hai ancora inviato ordini.</div>';return}
-  v.innerHTML=`<div class="lbl">I tuoi ordini</div><div class="list">${data.map(o=>`<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${o.id} · carico del ${dataIt(o.data)}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · inviato ${new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="od${o.id}" hidden style="padding:0 12px 12px"></div>`).join('')}</div>`;
+  v.innerHTML=`<div class="lbl">I tuoi ultimi 5 ordini</div><div class="list">${data.map(o=>`<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${o.id} · carico del ${dataIt(o.data)}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · inviato ${new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="od${o.id}" hidden style="padding:0 12px 12px"></div>`).join('')}</div>`;
   v.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=data.find(x=>x.id==b.dataset.o);const d=$('#od'+o.id);d.hidden=!d.hidden;if(!d.hidden){d.innerHTML=dettaglioHtml(o)+`<div class="btns"><button class="btn" data-pdf="${o.id}">Scarica PDF</button></div>`;d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,ME)}});
 }
 
