@@ -131,6 +131,9 @@ textarea{width:100%;min-height:140px;padding:12px;border:1px solid var(--line);b
 html,body{margin:0}
 [hidden]{display:none!important}
 .tabs{grid-template-columns:repeat(var(--ntab,3),1fr)}
+.tabs button{font-size:15px;letter-spacing:.03em;padding:10px 2px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.tabs.t5 button{font-size:13px;letter-spacing:0}
+a.btn{text-decoration:none}
 .screen{max-width:420px;margin:0 auto;padding:48px 20px}
 .screen h1{font-family:var(--f-display);font-size:30px;text-transform:uppercase;letter-spacing:.04em;margin:0 0 4px}
 .screen p{color:var(--muted);margin:0 0 20px}
@@ -252,9 +255,9 @@ async function avvia(){
   freq=store.get('mc_freq_'+ME.id,{});
   $('#me-n').textContent=(u.nome_stampa||u.nome||u.username).toUpperCase();
   $('#data').value=st.data;$('#data').onchange=e=>{st.data=e.target.value;save()};
-  const tabs=[['fam','Carico'],['sum','Riepilogo'],['ord','Ordini']];
+  const tabs=[['fam','Carico'],['sum','Riepilogo'],['ord','Ordini'],['doc','Documenti']];
   if(['ufficio','admin'].includes(u.ruolo))tabs.push(['uff','Ufficio']);
-  $('#tabs').style.setProperty('--ntab',tabs.length);
+  $('#tabs').style.setProperty('--ntab',tabs.length);$('#tabs').classList.toggle('t5',tabs.length>=5);
   $('#tabs').innerHTML=tabs.map(([v,l],i)=>`<button role="tab" aria-selected="${i===0}" data-v="${v}">${l}</button>`).join('');
   $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   show('s-app');log('accesso');render();
@@ -505,9 +508,9 @@ async function scaricaPdf(o,utente){
 /* ================= UFFICIO ================= */
 let uffTab='ordini',uffData=oggi();
 async function renderUff(v){
-  v.innerHTML=`<div class="seg"><button data-t="ordini" aria-pressed="${uffTab==='ordini'}">Ordini</button><button data-t="utenti" aria-pressed="${uffTab==='utenti'}">Account</button></div><div id="uv"></div>`;
+  v.innerHTML=`<div class="seg"><button data-t="ordini" aria-pressed="${uffTab==='ordini'}">Ordini</button><button data-t="utenti" aria-pressed="${uffTab==='utenti'}">Account</button><button data-t="documenti" aria-pressed="${uffTab==='documenti'}">Documenti</button></div><div id="uv"></div>`;
   v.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{uffTab=b.dataset.t;renderUff(v)});
-  if(uffTab==='ordini')uffOrdini($('#uv'));else uffUtenti($('#uv'));
+  if(uffTab==='ordini')uffOrdini($('#uv'));else if(uffTab==='documenti')uffDocumenti($('#uv'));else uffUtenti($('#uv'));
 }
 async function uffOrdini(v){
   v.innerHTML=`<div class="field"><label for="ud">Ordini con carico del giorno</label><input id="ud" type="date" value="${uffData}"></div><div id="ul"><div class="empty">Carico…</div></div>`;
@@ -563,9 +566,80 @@ async function uffUtenti(v){
   lista();
 }
 
+
+/* ================= DOCUMENTI ================= */
+const CARTELLE=['Modulo ordini','Elenco gusti','Listini','Depliant e cataloghi','Foto prodotti','Certificazioni','Dichiarazioni','Altro'];
+const RUOLI_DOC=[['agente','Agenti'],['padroncino','Padroncini'],['concessionario','Concessionari']];
+const ordCart=c=>{const i=CARTELLE.indexOf(c);return i<0?CARTELLE.length-1.5:i};
+function icona(p){return /\.(jpe?g|png|webp|gif)$/i.test(p)?'Foto':/\.pdf$/i.test(p)?'PDF':'File'}
+async function leggiDocumenti(){
+  const {data,error}=await sb.from('documenti').select('*').order('ordine').order('titolo');
+  if(error)throw error;
+  const urls={};
+  if(data.length){const {data:s}=await sb.storage.from('documenti').createSignedUrls(data.map(d=>d.percorso),3600);(s||[]).forEach(x=>{if(x.signedUrl)urls[x.path]=x.signedUrl})}
+  return data.map(d=>({...d,url:urls[d.percorso]}));
+}
+function gruppi(docs){const g={};docs.forEach(d=>(g[d.categoria]=g[d.categoria]||[]).push(d));return Object.keys(g).sort((a,b)=>ordCart(a)-ordCart(b)||a.localeCompare(b)).map(c=>[c,g[c]])}
+let docCart=null;
+async function renderDoc(v){
+  v.innerHTML='<div class="empty">Carico i documenti…</div>';
+  let docs;try{docs=await leggiDocumenti()}catch(e){v.innerHTML='<div class="empty">Non riesco a leggere i documenti. Riprova tra poco.</div>';return}
+  if(!docs.length){v.innerHTML='<div class="empty">Non ci sono ancora documenti.</div>';return}
+  const G=gruppi(docs);
+  if(docCart===null||!G.some(([c])=>c===docCart)){
+    v.innerHTML=`<div class="lbl">Documenti</div><div class="fams">${G.map(([c,ds])=>`<button class="fam" data-c="${esc(c)}"><b>${esc(c)}</b><span>${ds.length} ${ds.length===1?'file':'file'}</span></button>`).join('')}</div>`;
+    v.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{docCart=b.dataset.c;renderDoc(v);window.scrollTo(0,0)});return}
+  const ds=G.find(([c])=>c===docCart)[1];
+  v.innerHTML=`<div class="back"><button id="bk">‹ Documenti</button><h2>${esc(docCart)}</h2></div><div class="list">${ds.map(d=>`<a class="oi" style="color:inherit;text-decoration:none" href="${esc(d.url||'#')}" target="_blank" rel="noopener" data-d="${d.id}"><div class="n"><b>${esc(d.titolo)}</b><small>${icona(d.percorso)} · aggiornato il ${new Date(d.caricato_il).toLocaleDateString('it-IT')}</small></div><span class="pill">Apri</span></a>`).join('')}</div>
+   <p class="note">Il file si apre in una nuova scheda: da lì puoi salvarlo o condividerlo.</p>`;
+  $('#bk').onclick=()=>{docCart=null;renderDoc(v)};
+  v.querySelectorAll('[data-d]').forEach(a=>a.addEventListener('click',()=>log('apertura_documento',a.querySelector('b').textContent)));
+}
+function slug(s){return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9.]+/g,'-').replace(/^-|-$/g,'').slice(0,60)||'file'}
+async function uffDocumenti(v){
+  v.innerHTML=`<div class="card"><h3>Carica un documento</h3>
+   <form id="fd"><div class="grid2">
+   <div class="field"><label for="dc">Cartella</label><select id="dc">${CARTELLE.map(c=>`<option>${esc(c)}</option>`).join('')}<option value="__nuova">Nuova cartella…</option></select></div>
+   <div class="field" id="dcn-w" hidden><label for="dcn">Nome nuova cartella</label><input id="dcn" placeholder="es. Schede tecniche"></div>
+   <div class="field"><label for="dt">Titolo</label><input id="dt" placeholder="es. Certificato IFS Food 2026" required></div></div>
+   <div class="field"><label>Chi lo vede</label><div class="mrow">${RUOLI_DOC.map(([r,l])=>`<label style="display:flex;gap:6px;align-items:center;font-weight:500"><input type="checkbox" name="dr" value="${r}" ${r!=='concessionario'?'checked':''}> ${l}</label>`).join('')}</div></div>
+   <div class="field"><label for="df">File (PDF o foto, massimo 50 MB)</label><input id="df" type="file" accept=".pdf,image/*" required></div>
+   <button class="btn main" id="dgo">Carica</button><div class="msg" id="dm"></div>
+   <p class="note">Se nella stessa cartella esiste già un documento con lo stesso titolo, viene sostituito dalla nuova versione.</p></form></div>
+   <div class="lbl">Documenti caricati</div><div id="dl"><div class="empty">Carico…</div></div>`;
+  $('#dc').onchange=()=>{$('#dcn-w').hidden=$('#dc').value!=='__nuova'};
+  $('#fd').onsubmit=async e=>{e.preventDefault();const m=$('#dm');const err=s=>{m.className='msg err';m.textContent=s};
+    const cat=$('#dc').value==='__nuova'?$('#dcn').value.trim():$('#dc').value;const titolo=$('#dt').value.trim();const file=$('#df').files[0];
+    const ruoli=[...document.querySelectorAll('[name=dr]:checked')].map(x=>x.value);
+    if(!cat)return err('Scrivi il nome della nuova cartella.');if(!file)return err('Scegli un file.');if(!ruoli.length)return err('Scegli almeno chi lo vede.');
+    if(file.size>50*1024*1024)return err('Il file supera 50 MB: comprimilo prima di caricarlo.');
+    $('#dgo').disabled=true;m.className='msg';m.textContent='Caricamento in corso…';
+    const ext=(file.name.match(/\.[a-z0-9]+$/i)||[''])[0].toLowerCase();
+    const percorso=`${slug(cat)}/${Date.now()}-${slug(titolo)}${ext}`;
+    const up=await sb.storage.from('documenti').upload(percorso,file,{contentType:file.type||undefined,upsert:false});
+    if(up.error){$('#dgo').disabled=false;return err('Caricamento non riuscito: '+up.error.message)}
+    const {data:old}=await sb.from('documenti').select('id,percorso').eq('categoria',cat).ilike('titolo',titolo);
+    let res;
+    if(old&&old.length){res=await sb.from('documenti').update({percorso,ruoli,caricato_il:new Date().toISOString()}).eq('id',old[0].id);if(!res.error)await sb.storage.from('documenti').remove([old[0].percorso])}
+    else res=await sb.from('documenti').insert({titolo,categoria:cat,percorso,ruoli,ordine:ordCart(cat)});
+    $('#dgo').disabled=false;
+    if(res.error){await sb.storage.from('documenti').remove([percorso]);return err('Salvataggio non riuscito: '+res.error.message)}
+    m.className='msg ok';m.textContent=(old&&old.length?'Sostituito: ':'Caricato: ')+titolo;$('#dt').value='';$('#df').value='';lista()};
+  async function lista(){
+    let docs;try{docs=await leggiDocumenti()}catch(e){$('#dl').innerHTML='<div class="empty">Errore: '+esc(e.message)+'</div>';return}
+    if(!docs.length){$('#dl').innerHTML='<div class="empty">Nessun documento caricato.</div>';return}
+    $('#dl').innerHTML=gruppi(docs).map(([c,ds])=>`<div class="lbl sub">${esc(c)}</div><div class="list">${ds.map(d=>`<div class="oi" style="flex-wrap:wrap"><div class="n"><b>${esc(d.titolo)}</b><small>${icona(d.percorso)} · visibile a: ${d.ruoli.map(r=>(RUOLI_DOC.find(x=>x[0]===r)||[r,r])[1]).join(', ')} · ${new Date(d.caricato_il).toLocaleDateString('it-IT')}</small></div>
+      <div class="btns" style="width:100%;margin-top:6px"><a class="btn" href="${esc(d.url||'#')}" target="_blank" rel="noopener">Apri</a><button class="btn" data-del="${d.id}">Elimina</button></div></div>`).join('')}</div>`).join('');
+    $('#dl').querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(b.dataset.c!=='1'){b.dataset.c='1';b.textContent='Conferma elimina';return}
+      const d=docs.find(x=>x.id==b.dataset.del);const {error}=await sb.from('documenti').delete().eq('id',d.id);if(error){alert(error.message);return}
+      await sb.storage.from('documenti').remove([d.percorso]);lista()});
+  }
+  lista();
+}
+
 /* ================= AVVIO ================= */
 async function render(){const v=$('#view');
-  if(view==='fam')renderFam(v);else if(view==='sum')renderSum(v);else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);bar()}
+  if(view==='fam')renderFam(v);else if(view==='sum')renderSum(v);else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);bar()}
 sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')show('s-login')});
 avvia();
 </script>
