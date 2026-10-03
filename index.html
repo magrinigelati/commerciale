@@ -138,6 +138,7 @@ html,body{margin:0}
 .field label{font-weight:600;font-size:14px}
 .field input,.field select{padding:13px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:17px}
 .screen .btn{width:100%}
+.help a{color:inherit}
 .help{margin-top:18px;padding:12px;border-radius:10px;background:var(--ice);font-size:14px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
 .card h3{margin:0 0 4px;font-family:var(--f-display);font-size:18px;text-transform:uppercase;letter-spacing:.03em}
@@ -170,7 +171,7 @@ html,body{margin:0}
     <button class="btn main" id="l-go">Entra</button>
     <div class="msg err" id="l-msg"></div>
   </form>
-  <div class="help">Password dimenticata? <b>Chiama l'ufficio</b>: ti daremo una password provvisoria.</div>
+  <div class="help">Password dimenticata? Chiamaci in ufficio al <a href="tel:+390858941066"><b>085 8941066</b></a> oppure scrivici a <a href="mailto:info@magrinigelati.it"><b>info@magrinigelati.it</b></a>: reimpostiamo il tuo accesso e ti assegniamo una password provvisoria, da cambiare al primo ingresso.</div>
 </section>
 
 <!-- CAMBIO PASSWORD -->
@@ -178,8 +179,8 @@ html,body{margin:0}
   <h1>Nuova password</h1>
   <p>Al primo accesso scegli una password tua. Ti servirà solo se cambi telefono: questo resta collegato.</p>
   <form id="f-pass">
-    <div class="field"><label for="p1">Nuova password (almeno 8 caratteri)</label><input id="p1" type="password" autocomplete="new-password" minlength="8" required></div>
-    <div class="field"><label for="p2">Ripeti la password</label><input id="p2" type="password" autocomplete="new-password" minlength="8" required></div>
+    <div class="field"><label for="p1">Nuova password (almeno 6 caratteri)</label><input id="p1" type="password" autocomplete="new-password" minlength="6" required></div>
+    <div class="field"><label for="p2">Ripeti la password</label><input id="p2" type="password" autocomplete="new-password" minlength="6" required></div>
     <button class="btn main">Salva e continua</button>
     <div class="msg err" id="p-msg"></div>
   </form>
