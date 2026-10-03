@@ -134,6 +134,15 @@ html,body{margin:0}
 .tabs button{font-size:15px;letter-spacing:.03em;padding:10px 2px;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .tabs.t5 button{font-size:13px;letter-spacing:0}
 a.btn{text-decoration:none}
+.home{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:left;display:flex;flex-direction:column;gap:6px;min-height:96px}
+.tile b{font-family:var(--f-display);font-weight:700;font-size:21px;line-height:1.1;text-transform:uppercase;letter-spacing:.02em}
+.tile span{font-size:13px;color:var(--muted)}
+.tile.big{grid-column:1/-1;background:var(--accent);border-color:var(--accent);color:var(--accent-ink);min-height:120px;justify-content:flex-end}
+.tile.big b{font-size:28px}.tile.big span{color:var(--accent-ink);opacity:.85}
+.tile.uff{grid-column:1/-1;border-style:dashed}
+.brand #home{padding:6px 12px}
+
 .screen{max-width:420px;margin:0 auto;padding:48px 20px}
 .screen h1{font-family:var(--f-display);font-size:30px;text-transform:uppercase;letter-spacing:.04em;margin:0 0 4px}
 .screen p{color:var(--muted);margin:0 0 20px}
@@ -192,7 +201,7 @@ a.btn{text-decoration:none}
 <!-- APP -->
 <div id="s-app" hidden>
 <header class="top">
-  <div class="brand"><h1>Foglio di carico</h1><small>Magrini Gelati</small></div>
+  <div class="brand"><h1 id="titolo">Area commerciale</h1><button id="home" class="who-x" hidden>‹ Home</button><small id="marchio">Magrini Gelati</small></div>
   <div class="who">
     <div class="me"><span class="who-n" id="me-n"></span><button id="esci" class="who-x">Esci</button></div>
     <input id="data" type="date" aria-label="Data del carico">
@@ -219,7 +228,7 @@ const dataIt=s=>{const [y,m,d]=String(s).slice(0,10).split('-');return `${d}/${m
 function show(id){['s-login','s-pass','s-app'].forEach(s=>$('#'+s).hidden=s!==id)}
 
 let ME=null, S=[], P=[], byId={}, MANT=[], SUBFAM=[];
-let st, freq, view='fam', fam=null, sub=null, query='';
+let st, freq, view='home', fam=null, sub=null, query='';
 const DKEY=()=>'mc_bozza_'+ME.id;
 
 /* ================= ACCESSO ================= */
@@ -255,9 +264,8 @@ async function avvia(){
   freq=store.get('mc_freq_'+ME.id,{});
   $('#me-n').textContent=(u.nome_stampa||u.nome||u.username).toUpperCase();
   $('#data').value=st.data;$('#data').onchange=e=>{st.data=e.target.value;save()};
-  const tabs=[['fam','Carico'],['sum','Riepilogo'],['ord','Ordini'],['doc','Documenti']];
-  if(['ufficio','admin'].includes(u.ruolo))tabs.push(['uff','Ufficio']);
-  $('#tabs').style.setProperty('--ntab',tabs.length);$('#tabs').classList.toggle('t5',tabs.length>=5);
+  const tabs=[['fam','Carico'],['sum','Riepilogo']];
+  $('#tabs').style.setProperty('--ntab',tabs.length);
   $('#tabs').innerHTML=tabs.map(([v,l],i)=>`<button role="tab" aria-selected="${i===0}" data-v="${v}">${l}</button>`).join('');
   $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   show('s-app');log('accesso');render();
@@ -302,6 +310,9 @@ function bar(){
   $('#go').disabled=view==='sum'&&!righe;
 }
 $('#go').onclick=()=>{if(view==='sum')confermaInvio();else go('sum')};
+const TITOLI={home:'Area commerciale',fam:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio'};
+function testata(){const h=view==='home';$('#home').hidden=h;$('#marchio').hidden=!h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!(view==='fam'||view==='sum');$('#data').hidden=!(view==='fam'||view==='sum')}
+$('#home').onclick=()=>{docCart=null;go('home')};
 function go(v){view=v;if(v!=='fam'){fam=null;sub=null}document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));render();window.scrollTo(0,0)}
 
 /* ================= RIGHE PRODOTTO ================= */
@@ -580,7 +591,7 @@ async function leggiDocumenti(){
   return data.map(d=>({...d,url:urls[d.percorso]}));
 }
 function gruppi(docs){const g={};docs.forEach(d=>(g[d.categoria]=g[d.categoria]||[]).push(d));return Object.keys(g).sort((a,b)=>ordCart(a)-ordCart(b)||a.localeCompare(b)).map(c=>[c,g[c]])}
-let docCart=null;
+let docCart=null,docDaHome=false;
 async function renderDoc(v){
   v.innerHTML='<div class="empty">Carico i documenti…</div>';
   let docs;try{docs=await leggiDocumenti()}catch(e){v.innerHTML='<div class="empty">Non riesco a leggere i documenti. Riprova tra poco.</div>';return}
@@ -590,9 +601,9 @@ async function renderDoc(v){
     v.innerHTML=`<div class="lbl">Documenti</div><div class="fams">${G.map(([c,ds])=>`<button class="fam" data-c="${esc(c)}"><b>${esc(c)}</b><span>${ds.length} ${ds.length===1?'file':'file'}</span></button>`).join('')}</div>`;
     v.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{docCart=b.dataset.c;renderDoc(v);window.scrollTo(0,0)});return}
   const ds=G.find(([c])=>c===docCart)[1];
-  v.innerHTML=`<div class="back"><button id="bk">‹ Documenti</button><h2>${esc(docCart)}</h2></div><div class="list">${ds.map(d=>`<a class="oi" style="color:inherit;text-decoration:none" href="${esc(d.url||'#')}" target="_blank" rel="noopener" data-d="${d.id}"><div class="n"><b>${esc(d.titolo)}</b><small>${icona(d.percorso)} · aggiornato il ${new Date(d.caricato_il).toLocaleDateString('it-IT')}</small></div><span class="pill">Apri</span></a>`).join('')}</div>
+  v.innerHTML=`<div class="back"><button id="bk">‹ ${docDaHome?'Home':'Documenti'}</button><h2>${esc(docCart)}</h2></div><div class="list">${ds.map(d=>`<a class="oi" style="color:inherit;text-decoration:none" href="${esc(d.url||'#')}" target="_blank" rel="noopener" data-d="${d.id}"><div class="n"><b>${esc(d.titolo)}</b><small>${icona(d.percorso)} · aggiornato il ${new Date(d.caricato_il).toLocaleDateString('it-IT')}</small></div><span class="pill">Apri</span></a>`).join('')}</div>
    <p class="note">Il file si apre in una nuova scheda: da lì puoi salvarlo o condividerlo.</p>`;
-  $('#bk').onclick=()=>{docCart=null;renderDoc(v)};
+  $('#bk').onclick=()=>{docCart=null;if(docDaHome){docDaHome=false;go('home')}else renderDoc(v)};
   v.querySelectorAll('[data-d]').forEach(a=>a.addEventListener('click',()=>log('apertura_documento',a.querySelector('b').textContent)));
 }
 function slug(s){return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9.]+/g,'-').replace(/^-|-$/g,'').slice(0,60)||'file'}
@@ -637,9 +648,26 @@ async function uffDocumenti(v){
   lista();
 }
 
+
+/* ================= HOME ================= */
+async function renderHome(v){
+  const righe=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).length+st.extra.length;
+  v.innerHTML=`<p style="margin:4px 0 14px;font-size:18px">Ciao <b>${esc((ME.nome_stampa||ME.nome||'').toUpperCase())}</b>, cosa vuoi fare?</p>
+   <div class="home">
+    <button class="tile big" data-go="fam"><b>Effettua un ordine</b><span>${righe?`Hai un carico in corso: ${righe} ${righe===1?'riga':'righe'}`:'Foglio di carico / presa ordini'}</span></button>
+    <button class="tile" data-go="ord"><b>I miei ordini</b><span>Storico e stato degli ordini</span></button>
+    <div id="hdoc" style="display:contents"></div>
+    ${['ufficio','admin'].includes(ME.ruolo)?'<button class="tile uff" data-go="uff"><b>Ufficio</b><span>Ordini ricevuti, account, documenti</span></button>':''}
+   </div>`;
+  v.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+  try{const docs=await leggiDocumenti();const G=gruppi(docs);const h=$('#hdoc');if(!h)return;
+    h.innerHTML=G.map(([c,ds])=>`<button class="tile doc" data-c="${esc(c)}"><b>${esc(c)}</b><span>${ds.length} ${ds.length===1?'documento':'documenti'}</span></button>`).join('');
+    h.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{docCart=b.dataset.c;docDaHome=true;go('doc')})}catch(e){}
+}
+
 /* ================= AVVIO ================= */
 async function render(){const v=$('#view');
-  if(view==='fam')renderFam(v);else if(view==='sum')renderSum(v);else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);bar()}
+  if(view==='fam')renderFam(v);else if(view==='sum')renderSum(v);else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);testata();bar()}
 sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')show('s-login')});
 avvia();
 </script>
