@@ -165,7 +165,7 @@ html,body{margin:0}
   <h1>Area commerciale</h1>
   <p>Magrini Gelati · accesso riservato ad agenti e padroncini</p>
   <form id="f-login">
-    <div class="field"><label for="l-user">Nome utente</label><input id="l-user" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="es. DiFeboManuel" required></div>
+    <div class="field"><label for="l-user">Nome utente</label><input id="l-user" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="es. RossiMario" required></div>
     <div class="field"><label for="l-pass">Password</label><input id="l-pass" type="password" autocomplete="current-password" required></div>
     <button class="btn main" id="l-go">Entra</button>
     <div class="msg err" id="l-msg"></div>
@@ -536,9 +536,9 @@ function mostraPassword(box,titolo,username,pw){
 async function uffUtenti(v){
   const admin=ME.ruolo==='admin';
   v.innerHTML=`<div class="card"><h3>Nuovo account</h3>
-   <form id="nu"><div class="grid2"><div class="field"><label for="nu-u">Nome utente (CognomeNome)</label><input id="nu-u" placeholder="DiFeboManuel" autocapitalize="none" spellcheck="false" required></div>
-   <div class="field"><label for="nu-s">Nome in stampa sul PDF</label><input id="nu-s" placeholder="MANUEL" required></div>
-   <div class="field"><label for="nu-n">Nome e cognome</label><input id="nu-n" placeholder="Manuel Di Febo"></div>
+   <form id="nu"><div class="grid2"><div class="field"><label for="nu-u">Nome utente (CognomeNome)</label><input id="nu-u" placeholder="RossiMario" autocapitalize="none" spellcheck="false" required></div>
+   <div class="field"><label for="nu-s">Nome in stampa sul PDF</label><input id="nu-s" placeholder="MARIO" required></div>
+   <div class="field"><label for="nu-n">Nome e cognome</label><input id="nu-n" placeholder="Mario Rossi"></div>
    <div class="field"><label for="nu-r">Ruolo</label><select id="nu-r"><option value="agente">Agente</option><option value="padroncino">Padroncino</option><option value="concessionario">Concessionario</option>${admin?'<option value="ufficio">Ufficio</option>':''}</select></div></div>
    <button class="btn main" id="nu-go">Crea account</button><div class="msg err" id="nu-m"></div></form></div>
    <div id="pwbox"></div><div class="lbl">Account</div><div id="ulist"><div class="empty">Carico…</div></div>`;
