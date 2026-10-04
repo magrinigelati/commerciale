@@ -270,7 +270,7 @@ async function avvia(){
   $('#tabs').style.setProperty('--ntab',tabs.length);
   $('#tabs').innerHTML=tabs.map(([v,l],i)=>`<button role="tab" aria-selected="${i===0}" data-v="${v}">${l}</button>`).join('');
   $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
-  show('s-app');log('accesso');render();
+  show('s-app');log('accesso');history.replaceState(snap(),'');render();
 }
 
 /* ================= CATALOGO ================= */
@@ -315,7 +315,14 @@ $('#go').onclick=()=>{if(view==='sum')confermaInvio();else go('sum')};
 const TITOLI={home:'Area commerciale',fam:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio'};
 function testata(){const h=view==='home';$('#home').hidden=h;$('#marchio').hidden=!h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!(view==='fam'||view==='sum');$('#data').hidden=!(view==='fam'||view==='sum')}
 $('#home').onclick=()=>{docCart=null;go('home')};
-function go(v){view=v;if(v!=='fam'){fam=null;sub=null}document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));render();window.scrollTo(0,0)}
+// navigazione: ogni passaggio entra nella cronologia del telefono, cosi' lo swipe indietro torna alla schermata precedente
+function snap(){return {mc:1,view,fam,sub,docCart,docDaHome,uffTab}}
+function nav(){try{history.pushState(snap(),'')}catch(e){}}
+function indietro(){if(history.state&&history.state.mc&&history.length>1)history.back();else go('home')}
+window.addEventListener('popstate',e=>{const s=e.state;if(!s||!s.mc||!ME||$('#s-app').hidden)return;
+  view=s.view;fam=s.fam;sub=s.sub;docCart=s.docCart;docDaHome=s.docDaHome;uffTab=s.uffTab;
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===view));render();window.scrollTo(0,0)});
+function go(v){view=v;if(v!=='fam'){fam=null;sub=null}document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));nav();render();window.scrollTo(0,0)}
 
 /* ================= RIGHE PRODOTTO ================= */
 function rowHtml(p,showSec,o){
@@ -389,8 +396,8 @@ function renderFam(v){
       body=secs.map(([s,ps])=>`${single?'':`<div class="lbl sub">${esc(s)}</div>`}<div class="list">${ps.map(p=>rowHtml(p,false)).join('')}</div>`).join('');}
     const inSub=fam!=='rec'&&SUBFAM.includes(S[fam])&&sub!==null;
     v.innerHTML=`<div class="back"><button id="bk">‹ ${inSub?esc(S[fam]):'Famiglie'}</button><h2>${fam==='rec'?'I più usati':esc(inSub?subsOf(fam)[sub].t:S[fam])}</h2></div>${body}`;
-    $('#bk').onclick=()=>{if(inSub)sub=null;else fam=null;render();window.scrollTo(0,0)};
-    v.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{sub=+b.dataset.sub;render();window.scrollTo(0,0)});
+    $('#bk').onclick=indietro;
+    v.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{sub=+b.dataset.sub;nav();render();window.scrollTo(0,0)});
     bindMant(v);bindRows(v);return;
   }
   v.innerHTML=`<input class="search" id="cerca" type="search" placeholder="Cerca prodotto: es. fragola, kinder, cono…" value="${esc(query)}" autocomplete="off"><div id="res"></div>`;
@@ -405,7 +412,7 @@ function drawRes(){
   r.innerHTML=(rec.length?`<div class="fams" style="margin-top:12px"><button class="fam" data-f="rec"><b>I più usati</b><span>${rec.length} prodotti che ordini spesso</span></button></div>`:'')+
    `<div class="lbl">Famiglie</div><div class="fams">${S.map((s,i)=>{const c=famCount(i),n=P.filter(p=>p[1]===i).length;
      return `<button class="fam${c?' has':''}" data-f="${i}"><b>${esc(s)}</b><span>${c?c+' nel carico · ':''}${n} prodotti</span></button>`}).join('')}</div>`;
-  r.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{fam=b.dataset.f==='rec'?'rec':+b.dataset.f;sub=null;render();window.scrollTo(0,0)});
+  r.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{fam=b.dataset.f==='rec'?'rec':+b.dataset.f;sub=null;nav();render();window.scrollTo(0,0)});
 }
 
 /* ================= RICERCA ================= */
@@ -462,7 +469,7 @@ async function inviaOrdine(){
   righe.forEach(r=>freq[r.p]=(freq[r.p]||0)+1);store.set('mc_freq_'+ME.id,freq);
   log('invio_ordine','N. '+data.id);
   st={q:{},u:{},extra:[],data:oggi(),nota:''};save();
-  view='ord';document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='ord'));
+  view='ord';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='ord'));
   await render();
   const v=$('#view');const ok=document.createElement('div');ok.className='card';ok.style.borderColor='var(--ok)';
   ok.innerHTML=`<h3 style="color:var(--ok)">Ordine N. ${data.id} inviato</h3><p style="margin:0;color:var(--muted)">L'ufficio lo ha ricevuto. Per correzioni chiama l'ufficio.</p>`;v.prepend(ok);
@@ -522,7 +529,7 @@ async function scaricaPdf(o,utente){
 let uffTab='ordini',uffData=oggi();
 async function renderUff(v){
   v.innerHTML=`<div class="seg"><button data-t="ordini" aria-pressed="${uffTab==='ordini'}">Ordini</button><button data-t="utenti" aria-pressed="${uffTab==='utenti'}">Account</button><button data-t="documenti" aria-pressed="${uffTab==='documenti'}">Documenti</button></div><div id="uv"></div>`;
-  v.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{uffTab=b.dataset.t;renderUff(v)});
+  v.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{uffTab=b.dataset.t;nav();renderUff(v)});
   if(uffTab==='ordini')uffOrdini($('#uv'));else if(uffTab==='documenti')uffDocumenti($('#uv'));else uffUtenti($('#uv'));
 }
 async function uffOrdini(v){
@@ -601,11 +608,11 @@ async function renderDoc(v){
   const G=gruppi(docs);
   if(docCart===null||!G.some(([c])=>c===docCart)){
     v.innerHTML=`<div class="lbl">Documenti</div><div class="fams">${G.map(([c,ds])=>`<button class="fam" data-c="${esc(c)}"><b>${esc(c)}</b><span>${ds.length} ${ds.length===1?'file':'file'}</span></button>`).join('')}</div>`;
-    v.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{docCart=b.dataset.c;renderDoc(v);window.scrollTo(0,0)});return}
+    v.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{docCart=b.dataset.c;nav();renderDoc(v);window.scrollTo(0,0)});return}
   const ds=G.find(([c])=>c===docCart)[1];
   v.innerHTML=`<div class="back"><button id="bk">‹ ${docDaHome?'Home':'Documenti'}</button><h2>${esc(docCart)}</h2></div><div class="list">${ds.map(d=>`<a class="oi" style="color:inherit;text-decoration:none" href="${esc(d.url||'#')}" target="_blank" rel="noopener" data-d="${d.id}"><div class="n"><b>${esc(d.titolo)}</b><small>${icona(d.percorso)} · aggiornato il ${new Date(d.caricato_il).toLocaleDateString('it-IT')}</small></div><span class="pill">Apri</span></a>`).join('')}</div>
    <p class="note">Il file si apre in una nuova scheda: da lì puoi salvarlo o condividerlo.</p>`;
-  $('#bk').onclick=()=>{docCart=null;if(docDaHome){docDaHome=false;go('home')}else renderDoc(v)};
+  $('#bk').onclick=indietro;
   v.querySelectorAll('[data-d]').forEach(a=>a.addEventListener('click',()=>log('apertura_documento',a.querySelector('b').textContent)));
 }
 function slug(s){return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9.]+/g,'-').replace(/^-|-$/g,'').slice(0,60)||'file'}
