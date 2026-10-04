@@ -652,6 +652,7 @@ const inp=(id,val,ph='')=>`<input id="${id}" value="${esc(val)}" placeholder="${
 async function catRicarica(){await caricaCatalogo()} // aggiorna anche il foglio di carico dell'ufficio
 async function uffCatalogo(v){
   v.innerHTML='<div class="empty">Carico il catalogo…</div>';
+  await caricaFoto();
   const [{data:F0,error:e1},{data:PR0,error:e2}]=await Promise.all([sb.from('famiglie').select('*').order('ordine'),sb.from('prodotti').select('*').order('ordine')]);
   if(e1||e2){v.innerHTML='<div class="empty">Errore: '+esc((e1||e2).message)+'</div>';return}
   const F=F0.map(f=>({...f,attiva:f.attiva!==false})),PR=PR0.map(p=>({...p,attivo:p.attivo!==false}));
@@ -714,11 +715,25 @@ async function uffCatalogo(v){
       <div class="grid2"><div class="field"><label>Sottotitolo</label>${inp('pms'+p.id,p.sezione)}</div>
       <div class="field"><label>Sposta in famiglia</label><select id="pmf${p.id}" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">${F.map(x=>`<option value="${x.id}" ${x.id===p.famiglia_id?'selected':''}>${esc(x.nome)}</option>`).join('')}</select></div></div>
       <label style="display:flex;gap:6px;align-items:center;margin-bottom:10px"><input type="checkbox" id="pmv${p.id}" ${p.novita?'checked':''}> Segna come novità</label>
+      <div class="field"><label>Foto</label><div class="mrow" style="align-items:center">${fotoCat(p)?`<img src="${esc(fotoCat(p).thumb||fotoCat(p).img)}" alt="" style="width:64px;height:64px;object-fit:contain;border:1px solid var(--line);border-radius:8px;background:#fff">`:''}
+        <span class="note">${p.foto?'Foto caricata dall\'ufficio':fotoCat(p)?'Foto presa dal sito':'Nessuna foto'}</span></div>
+        <div class="mrow" style="margin-top:6px"><input type="file" id="pmfo${p.id}" accept="image/*"><button class="btn" id="pmfu${p.id}">Carica foto</button>${p.foto?`<button class="btn" id="pmfx${p.id}">Togli foto</button>`:''}</div></div>
       <button class="btn main" id="pmok${p.id}">Salva</button> <span class="note">"Disponibile" tolto = il formato compare solo come "su ordinazione".</span></div>`;
     $('#pmok'+p.id).onclick=async()=>{const nome=$('#pmn'+p.id).value.trim();if(!nome)return err('Il nome non può essere vuoto.');
       const nv=vs.map((x,k)=>({...x,codice:$('#pmc'+p.id+'_'+k).value.trim(),disponibile:$('#pmd'+p.id+'_'+k).checked}));
       const {error}=await sb.from('prodotti').update({nome,varianti:nv,sezione:$('#pms'+p.id).value.trim(),famiglia_id:+$('#pmf'+p.id).value,novita:$('#pmv'+p.id).checked}).eq('id',p.id);
-      if(error)return err(error.message);ricarica()}});
+      if(error)return err(error.message);ricarica()};
+    $('#pmfu'+p.id).onclick=async()=>{const file=$('#pmfo'+p.id).files[0];if(!file)return err('Scegli prima la foto.');
+      const b=$('#pmfu'+p.id);b.disabled=true;b.textContent='Carico…';
+      try{const blob=await riduciFoto(file),percorso='prodotti/'+p.id+'-'+Date.now()+'.jpg';
+        const up=await sb.storage.from('foto').upload(percorso,blob,{contentType:'image/jpeg',upsert:false});if(up.error)throw up.error;
+        const url=sb.storage.from('foto').getPublicUrl(percorso).data.publicUrl;
+        const {error}=await sb.from('prodotti').update({foto:url}).eq('id',p.id);if(error){await sb.storage.from('foto').remove([percorso]);throw error}
+        const vecchio=percorsoFoto(p.foto);if(vecchio)await sb.storage.from('foto').remove([vecchio]);ricarica()}
+      catch(e){b.disabled=false;b.textContent='Carica foto';err('Caricamento non riuscito: '+(e.message||e))}};
+    if(p.foto)$('#pmfx'+p.id).onclick=async()=>{if(!confirm('Togliere la foto caricata? Tornerà quella del sito, se c\'è.'))return;
+      const {error}=await sb.from('prodotti').update({foto:null}).eq('id',p.id);if(error)return err(error.message);
+      const vecchio=percorsoFoto(p.foto);if(vecchio)await sb.storage.from('foto').remove([vecchio]);ricarica()}});
   $('#np-go').onclick=async()=>{const nome=$('#np-n').value.trim();if(!nome)return err('Scrivi il nome del prodotto.');
     const sez=$('#np-s').value==='__n'?$('#np-sn').value.trim():$('#np-s').value;
     const maxO=PR.length?Math.max(...PR.map(p=>p.ordine)):0;
@@ -735,6 +750,13 @@ async function caricaFoto(){if(FOTO)return FOTO;try{FOTO=await fetch('foto.json'
 // foto di un prodotto: prima quella caricata dall'ufficio, poi quella del sito abbinata per nome
 function fotoDi(p){const px=byIdX[p[0]];if(px&&px.foto)return {img:px.foto,nome:p[2],propria:true};
   const e=FOTO.prodotti[nk(p[2])+'@'+nk(p[7])]||FOTO.prodotti[nk(p[2])];return e?{...e,img:SITO+e.img,thumb:SITO+e.img.replace(/\.webp$/,'-t.webp')}:null}
+// foto nel catalogo dell'ufficio (riga del database)
+function fotoCat(p){if(p.foto)return {img:p.foto};if(!FOTO)return null;const e=FOTO.prodotti[nk(p.nome)+'@'+nk(p.sezione)]||FOTO.prodotti[nk(p.nome)];return e?{img:SITO+e.img,thumb:SITO+e.img.replace(/\.webp$/,'-t.webp')}:null}
+const percorsoFoto=u=>{const m=String(u||'').match(/\/object\/public\/foto\/(.+)$/);return m?decodeURIComponent(m[1]):null};
+// riduce la foto a max 1600 px, JPEG su fondo bianco
+async function riduciFoto(file){const bm=await createImageBitmap(file);const k=Math.min(1,1600/Math.max(bm.width,bm.height));
+  const c=document.createElement('canvas');c.width=Math.round(bm.width*k);c.height=Math.round(bm.height*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(bm,0,0,c.width,c.height);
+  return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('foto non leggibile')),'image/jpeg',.85))}
 function fotoSez(s){const e=FOTO.sezioni[nk(s)];return e?{...e,img:SITO+e.img,thumb:SITO+e.img.replace(/\.webp$/,'-t.webp')}:null}
 let byIdX={};
 async function renderFoto(v){
