@@ -306,7 +306,7 @@ async function avvia(){
   await caricaCatalogo();
   st=store.get(DKEY(),null)||{q:{},u:{},extra:[],data:oggi()};if(!st.u)st.u={};
   if(!st.data||st.data<oggi()){if(st.data&&st.data<oggi()&&!Object.keys(st.q).length&&!st.extra.length)st.data=oggi();if(!st.data)st.data=oggi()}
-  freq=store.get('mc_freq_'+ME.id,{});
+  freq=store.get('mc_freq_'+ME.id,{});caricaFreq();
   $('#me-n').textContent=(u.nome_stampa||u.nome||u.username).toUpperCase();
   $('#data').value=st.data;$('#data').onchange=e=>{st.data=e.target.value;save()};
   const tabs=[['fam','Carico'],['sum','Riepilogo']];
@@ -314,6 +314,14 @@ async function avvia(){
   $('#tabs').innerHTML=tabs.map(([v,l],i)=>`<button role="tab" aria-selected="${i===0}" data-v="${v}">${l}</button>`).join('');
   $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   show('s-app');log('accesso');history.replaceState(snap(),'');render();
+}
+
+// "I più usati": conta in quanti ordini inviati compare ogni prodotto (ordini degli ultimi 6 mesi, da qualsiasi dispositivo)
+async function caricaFreq(){
+  const {data,error}=await sb.from('ordini').select('righe').eq('utente_id',ME.id).neq('stato','bozza').neq('stato','annullato');
+  if(error||!data||!data.length)return;
+  const f={};data.forEach(o=>new Set((o.righe||[]).map(r=>r.p)).forEach(p=>f[p]=(f[p]||0)+1));
+  freq=f;store.set('mc_freq_'+ME.id,freq);if(view==='fam'&&fam===null)render();
 }
 
 /* ================= CATALOGO ================= */
@@ -537,10 +545,10 @@ function righeTesto(o){return (o.righe||[]).map(r=>{const p=byId[r.p];return p?{
 function dettaglioHtml(o){return `<div class="list">${righeTesto(o).map(r=>`<div class="sr"><span class="q">${r.q}<i>${r.u==='pz'?'pz':'ct'}</i></span><div class="n">${esc(r.n)}<small>${esc(r.c)}</small></div></div>`).join('')}</div>${o.note?`<p class="note">Note: ${esc(o.note)}</p>`:''}`}
 async function renderOrd(v){
   v.innerHTML='<div class="empty">Carico gli ordini…</div>';
-  const {data,error}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').order('id',{ascending:false}).limit(10);
+  const {data,error}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').gte('data',(()=>{const d=new Date();d.setDate(d.getDate()-31);return d.toISOString().slice(0,10)})()).order('id',{ascending:false});
   if(error){v.innerHTML='<div class="empty">Non riesco a leggere gli ordini. Riprova tra poco.</div>';return}
-  if(!data.length){v.innerHTML='<div class="empty">Non hai ancora inviato ordini.</div>';return}
-  v.innerHTML=`<div class="lbl">I tuoi ultimi 10 ordini</div><div class="list">${data.map(o=>`<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${o.id} · carico del ${dataIt(o.data)}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · inviato ${new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="od${o.id}" hidden style="padding:0 12px 12px"></div>`).join('')}</div>`;
+  if(!data.length){v.innerHTML='<div class="empty">Nessun ordine negli ultimi 31 giorni.</div>';return}
+  v.innerHTML=`<div class="lbl">I tuoi ordini degli ultimi 31 giorni</div><div class="list">${data.map(o=>`<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${o.id} · carico del ${dataIt(o.data)}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · inviato ${new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="od${o.id}" hidden style="padding:0 12px 12px"></div>`).join('')}</div>`;
   v.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=data.find(x=>x.id==b.dataset.o);const d=$('#od'+o.id);d.hidden=!d.hidden;if(!d.hidden){d.innerHTML=dettaglioHtml(o)+`<div class="btns"><button class="btn main" data-sh>Condividi PDF</button><button class="btn" data-pdf="${o.id}">Scarica PDF</button></div>`;d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,ME);
       preparaPdf(o,ME).catch(()=>{});d.querySelector('[data-sh]').onclick=e=>condividiPdf(o,ME,e.currentTarget)}});
 }
@@ -923,7 +931,7 @@ async function renderHome(v){
   v.innerHTML=`<p style="margin:4px 0 14px;font-size:18px">Ciao <b>${esc((ME.nome_stampa||ME.nome||'').toUpperCase())}</b>, cosa vuoi fare?</p>
    <div class="home">
     <button class="tile big" data-go="fam"><b>Effettua un ordine</b><span>${righe?`Hai un carico in corso: ${righe} ${righe===1?'riga':'righe'}`:'Foglio di carico / presa ordini'}</span></button>
-    <button class="tile" data-go="ord"><b>I miei ordini</b><span>Storico e stato degli ordini</span></button>
+    <button class="tile" data-go="ord"><b>I miei ordini</b><span>Ultimi 31 giorni, con PDF da condividere</span></button>
     <button class="tile" data-go="foto"><b>Foto prodotti</b><span>Per famiglia, da scaricare o condividere</span></button>
     <div id="hdoc" style="display:contents"></div>
     ${['ufficio','admin'].includes(ME.ruolo)?'<button class="tile uff" data-go="uff"><b>Ufficio</b><span>Ordini ricevuti, account, documenti</span></button>':''}
