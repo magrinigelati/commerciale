@@ -350,11 +350,11 @@ const TITOLI={home:'Area commerciale',fam:'Foglio di carico',sum:'Foglio di cari
 function testata(){schermoAcceso(view==='fam'||view==='sum');const h=view==='home';$('#home').hidden=h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!(view==='fam'||view==='sum');$('#data').hidden=!(view==='fam'||view==='sum')}
 $('#home').onclick=()=>{docCart=null;go('home')};
 // navigazione: ogni passaggio entra nella cronologia del telefono, cosi' lo swipe indietro torna alla schermata precedente
-function snap(){return {mc:1,view,fam,sub,docCart,docDaHome,uffTab}}
+function snap(){return {mc:1,view,fam,sub,docCart,docDaHome,uffTab,catFam}}
 function nav(){try{history.pushState(snap(),'')}catch(e){}}
 function indietro(){if(history.state&&history.state.mc&&history.length>1)history.back();else go('home')}
 window.addEventListener('popstate',e=>{const s=e.state;if(!s||!s.mc||!ME||$('#s-app').hidden)return;
-  view=s.view;fam=s.fam;sub=s.sub;docCart=s.docCart;docDaHome=s.docDaHome;uffTab=s.uffTab;
+  view=s.view;fam=s.fam;sub=s.sub;docCart=s.docCart;docDaHome=s.docDaHome;uffTab=s.uffTab;catFam=s.catFam??null;
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===view));render();window.scrollTo(0,0)});
 function go(v){view=v;if(v!=='fam'){fam=null;sub=null}document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));nav();render();window.scrollTo(0,0)}
 
@@ -575,9 +575,9 @@ async function scaricaPdf(o,utente){
 /* ================= UFFICIO ================= */
 let uffTab='ordini',uffData=oggi();
 async function renderUff(v){
-  v.innerHTML=`<div class="seg"><button data-t="ordini" aria-pressed="${uffTab==='ordini'}">Ordini</button><button data-t="utenti" aria-pressed="${uffTab==='utenti'}">Account</button><button data-t="documenti" aria-pressed="${uffTab==='documenti'}">Documenti</button></div><div id="uv"></div>`;
+  v.innerHTML=`<div class="seg"><button data-t="ordini" aria-pressed="${uffTab==='ordini'}">Ordini</button><button data-t="utenti" aria-pressed="${uffTab==='utenti'}">Account</button><button data-t="documenti" aria-pressed="${uffTab==='documenti'}">Documenti</button><button data-t="catalogo" aria-pressed="${uffTab==='catalogo'}">Catalogo</button></div><div id="uv"></div>`;
   v.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{uffTab=b.dataset.t;nav();renderUff(v)});
-  if(uffTab==='ordini')uffOrdini($('#uv'));else if(uffTab==='documenti')uffDocumenti($('#uv'));else uffUtenti($('#uv'));
+  if(uffTab==='ordini')uffOrdini($('#uv'));else if(uffTab==='documenti')uffDocumenti($('#uv'));else if(uffTab==='catalogo')uffCatalogo($('#uv'));else uffUtenti($('#uv'));
 }
 async function uffOrdini(v){
   v.innerHTML=`<div class="field"><label for="ud">Ordini con carico del giorno</label><input id="ud" type="date" value="${uffData}"></div><div id="ul"><div class="empty">Carico…</div></div>`;
@@ -634,6 +634,84 @@ async function uffUtenti(v){
   lista();
 }
 
+
+
+/* ================= CATALOGO (ufficio) ================= */
+let catFam=null;
+const inp=(id,val,ph='')=>`<input id="${id}" value="${esc(val)}" placeholder="${esc(ph)}" style="flex:1;min-width:0;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">`;
+async function catRicarica(){await caricaCatalogo()} // aggiorna anche il foglio di carico dell'ufficio
+async function uffCatalogo(v){
+  v.innerHTML='<div class="empty">Carico il catalogo…</div>';
+  const [{data:F0,error:e1},{data:PR0,error:e2}]=await Promise.all([sb.from('famiglie').select('*').order('ordine'),sb.from('prodotti').select('*').order('ordine')]);
+  if(e1||e2){v.innerHTML='<div class="empty">Errore: '+esc((e1||e2).message)+'</div>';return}
+  const F=F0.map(f=>({...f,attiva:f.attiva!==false})),PR=PR0.map(p=>({...p,attivo:p.attivo!==false}));
+  const err=m=>{alert(m)};
+  if(catFam===null||!F.some(f=>f.id===catFam)){catFam=null;
+    v.innerHTML=`<div class="card"><h3>Famiglie</h3><p class="note" style="margin:0 0 8px">L'ordine qui è quello del foglio di carico. Una famiglia nascosta non la vedono gli agenti.</p>
+     <div class="list">${F.map((f,i)=>{const n=PR.filter(p=>p.famiglia_id===f.id&&p.attivo).length;return `<div class="oi cart" style="flex-wrap:wrap"><div class="n"><b>${esc(f.nome)}${f.attiva?'':' <span class="pill off">Nascosta</span>'}</b><small>${n} prodotti visibili${f.con_sottofamiglie?' · con riquadri sottofamiglie':''}</small></div>
+      <div class="btns" style="width:100%;margin-top:6px"><button class="btn main" data-apri="${f.id}">Prodotti</button><button class="btn" data-fs="${i}" ${i===0?'disabled':''}>▲</button><button class="btn" data-fg="${i}" ${i===F.length-1?'disabled':''}>▼</button><button class="btn" data-fr="${f.id}">Rinomina</button><button class="btn" data-fv="${f.id}">${f.attiva?'Nascondi':'Mostra'}</button><button class="btn" data-fsub="${f.id}">${f.con_sottofamiglie?'Togli riquadri':'Riquadri sottofam.'}</button></div><div id="fr${f.id}" style="width:100%"></div></div>`}).join('')}</div>
+     <div class="mrow" style="margin-top:12px">${inp('nf','','Nuova famiglia')}<button class="btn" id="nfb">Aggiungi</button></div></div>`;
+    const swap=async(a,b)=>{const r1=await sb.from('famiglie').update({ordine:b.ordine}).eq('id',a.id),r2=await sb.from('famiglie').update({ordine:a.ordine}).eq('id',b.id);if(r1.error||r2.error)return err((r1.error||r2.error).message);await catRicarica();uffCatalogo(v)};
+    // rinumera se due famiglie hanno lo stesso ordine
+    if(new Set(F.map(f=>f.ordine)).size<F.length){for(let i=0;i<F.length;i++){await sb.from('famiglie').update({ordine:i}).eq('id',F[i].id);F[i].ordine=i}}
+    v.querySelectorAll('[data-fs]').forEach(b=>b.onclick=()=>{const i=+b.dataset.fs;b.disabled=true;swap(F[i],F[i-1])});
+    v.querySelectorAll('[data-fg]').forEach(b=>b.onclick=()=>{const i=+b.dataset.fg;b.disabled=true;swap(F[i],F[i+1])});
+    v.querySelectorAll('[data-apri]').forEach(b=>b.onclick=()=>{catFam=+b.dataset.apri;nav();uffCatalogo(v);window.scrollTo(0,0)});
+    v.querySelectorAll('[data-fv]').forEach(b=>b.onclick=async()=>{const f=F.find(x=>x.id==b.dataset.fv);const {error}=await sb.from('famiglie').update({attiva:!f.attiva}).eq('id',f.id);if(error)return err(error.message);await catRicarica();uffCatalogo(v)});
+    v.querySelectorAll('[data-fsub]').forEach(b=>b.onclick=async()=>{const f=F.find(x=>x.id==b.dataset.fsub);const {error}=await sb.from('famiglie').update({con_sottofamiglie:!f.con_sottofamiglie}).eq('id',f.id);if(error)return err(error.message);await catRicarica();uffCatalogo(v)});
+    v.querySelectorAll('[data-fr]').forEach(b=>b.onclick=()=>{const f=F.find(x=>x.id==b.dataset.fr),box=$('#fr'+f.id);
+      box.innerHTML=`<div class="mrow" style="margin-top:8px">${inp('frn'+f.id,f.nome)}<button class="btn main" id="frs${f.id}">Salva</button></div>`;
+      $('#frs'+f.id).onclick=async()=>{const n=$('#frn'+f.id).value.trim();if(!n||n===f.nome)return;
+        const {error}=await sb.from('famiglie').update({nome:n}).eq('id',f.id);if(error)return err(error.message);
+        await sb.from('prodotti').update({sezione:n}).eq('famiglia_id',f.id).eq('sezione',f.nome); // il sottotitolo uguale al nome segue la famiglia
+        await catRicarica();uffCatalogo(v)}});
+    $('#nfb').onclick=async()=>{const n=$('#nf').value.trim();if(!n)return;const {error}=await sb.from('famiglie').insert({nome:n,ordine:F.length?Math.max(...F.map(f=>f.ordine))+1:0});if(error)return err(error.message);await catRicarica();uffCatalogo(v)};
+    return;
+  }
+  // ---- prodotti di una famiglia ----
+  const f=F.find(x=>x.id===catFam);
+  const ps=PR.filter(p=>p.famiglia_id===f.id);
+  const secs=[];ps.forEach(p=>{if(!secs.includes(p.sezione))secs.push(p.sezione)});
+  const riga=p=>{const vs=p.varianti||[];const multi=vs.length>1;
+    return `<div class="oi cart" style="flex-wrap:wrap;${p.attivo?'':'opacity:.55'}"><div class="n"><b>${esc(p.nome)}${p.novita?' <span class="nov">novità</span>':''}${p.attivo?'':' <span class="pill off">Nascosto</span>'}</b>
+      <small>${vs.map(x=>(multi?esc(x.breve||x.etichetta)+': ':'')+(x.codice?esc(x.codice):'senza codice')+(x.disponibile===false?' (su ordinazione)':'')).join(' · ')}${p.pagina==null?' · fuori foglio':''}</small></div>
+      <div class="btns" style="width:100%;margin-top:6px"><button class="btn" data-ps="${p.id}">▲</button><button class="btn" data-pg="${p.id}">▼</button><button class="btn" data-pm="${p.id}">Modifica</button><button class="btn" data-pv="${p.id}">${p.attivo?'Nascondi':'Mostra'}</button></div><div id="pm${p.id}" style="width:100%"></div></div>`};
+  v.innerHTML=`<div class="back"><button id="cbk">‹ Famiglie</button><h2>${esc(f.nome)}</h2></div>
+    ${secs.map(s=>`<div class="lbl sub">${esc(s||'(senza sottotitolo)')}</div><div class="list">${ps.filter(p=>p.sezione===s).map(riga).join('')}</div>`).join('')}
+    <div class="card" style="margin-top:14px"><h3>Nuovo prodotto in ${esc(f.nome)}</h3>
+     <div class="grid2"><div class="field"><label for="np-n">Nome</label><input id="np-n" placeholder="es. cono pistacchio"></div>
+     <div class="field"><label for="np-c">Codice Mexal</label><input id="np-c" placeholder="es. 1234"></div>
+     <div class="field"><label for="np-s">Sottotitolo</label><select id="np-s">${secs.map(s=>`<option>${esc(s)}</option>`).join('')}<option value="__n">Nuovo sottotitolo…</option></select></div>
+     <div class="field" id="np-sn-w" hidden><label for="np-sn">Nuovo sottotitolo</label><input id="np-sn"></div></div>
+     <button class="btn main" id="np-go">Aggiungi prodotto</button>
+     <p class="note">I prodotti aggiunti qui non hanno una casella sul foglio di carico: nel PDF finiscono nella pagina dei prodotti aggiuntivi, con il loro codice.</p></div>`;
+  $('#cbk').onclick=indietro;
+  $('#np-s').onchange=()=>{$('#np-sn-w').hidden=$('#np-s').value!=='__n'};
+  const ricarica=async()=>{await catRicarica();uffCatalogo(v)};
+  // spostamento: scambia l'ordine con il prodotto vicino della stessa famiglia
+  const vicino=(p,d)=>{const L=ps.filter(x=>x.sezione===p.sezione);const i=L.indexOf(p);return L[i+d]};
+  const scambia=async(a,b)=>{if(!b)return;const r1=await sb.from('prodotti').update({ordine:b.ordine}).eq('id',a.id),r2=await sb.from('prodotti').update({ordine:a.ordine}).eq('id',b.id);if(r1.error||r2.error)return err((r1.error||r2.error).message);ricarica()};
+  v.querySelectorAll('[data-ps]').forEach(b=>b.onclick=()=>{const p=ps.find(x=>x.id==b.dataset.ps);b.disabled=true;scambia(p,vicino(p,-1))});
+  v.querySelectorAll('[data-pg]').forEach(b=>b.onclick=()=>{const p=ps.find(x=>x.id==b.dataset.pg);b.disabled=true;scambia(p,vicino(p,1))});
+  v.querySelectorAll('[data-pv]').forEach(b=>b.onclick=async()=>{const p=ps.find(x=>x.id==b.dataset.pv);const {error}=await sb.from('prodotti').update({attivo:!p.attivo}).eq('id',p.id);if(error)return err(error.message);ricarica()});
+  v.querySelectorAll('[data-pm]').forEach(b=>b.onclick=()=>{const p=ps.find(x=>x.id==b.dataset.pm),box=$('#pm'+p.id),vs=p.varianti||[];
+    box.innerHTML=`<div class="card" style="margin:8px 0 0">
+      <div class="field"><label>Nome</label>${inp('pmn'+p.id,p.nome)}</div>
+      ${vs.map((x,k)=>`<div class="field"><label>${vs.length>1?esc(x.etichetta)+' · ':''}Codice</label><div class="mrow">${inp('pmc'+p.id+'_'+k,x.codice||'')}<label style="display:flex;gap:6px;align-items:center;font-weight:500;white-space:nowrap"><input type="checkbox" id="pmd${p.id}_${k}" ${x.disponibile===false?'':'checked'}> Disponibile</label></div></div>`).join('')}
+      <div class="grid2"><div class="field"><label>Sottotitolo</label>${inp('pms'+p.id,p.sezione)}</div>
+      <div class="field"><label>Sposta in famiglia</label><select id="pmf${p.id}" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">${F.map(x=>`<option value="${x.id}" ${x.id===p.famiglia_id?'selected':''}>${esc(x.nome)}</option>`).join('')}</select></div></div>
+      <label style="display:flex;gap:6px;align-items:center;margin-bottom:10px"><input type="checkbox" id="pmv${p.id}" ${p.novita?'checked':''}> Segna come novità</label>
+      <button class="btn main" id="pmok${p.id}">Salva</button> <span class="note">"Disponibile" tolto = il formato compare solo come "su ordinazione".</span></div>`;
+    $('#pmok'+p.id).onclick=async()=>{const nome=$('#pmn'+p.id).value.trim();if(!nome)return err('Il nome non può essere vuoto.');
+      const nv=vs.map((x,k)=>({...x,codice:$('#pmc'+p.id+'_'+k).value.trim(),disponibile:$('#pmd'+p.id+'_'+k).checked}));
+      const {error}=await sb.from('prodotti').update({nome,varianti:nv,sezione:$('#pms'+p.id).value.trim(),famiglia_id:+$('#pmf'+p.id).value,novita:$('#pmv'+p.id).checked}).eq('id',p.id);
+      if(error)return err(error.message);ricarica()}});
+  $('#np-go').onclick=async()=>{const nome=$('#np-n').value.trim();if(!nome)return err('Scrivi il nome del prodotto.');
+    const sez=$('#np-s').value==='__n'?$('#np-sn').value.trim():$('#np-s').value;
+    const maxO=PR.length?Math.max(...PR.map(p=>p.ordine)):0;
+    const {error}=await sb.from('prodotti').insert({famiglia_id:f.id,nome,sezione:sez,varianti:[{etichetta:'',breve:'',codice:$('#np-c').value.trim(),x:null,larghezza:28,disponibile:true,nota:''}],pagina:null,y:null,ordine:maxO+1});
+    if(error)return err(error.message);ricarica()};
+}
 
 /* ================= DOCUMENTI ================= */
 const CARTELLE=['Modulo ordini','Elenco gusti','Listini','Depliant e cataloghi','Foto prodotti','Certificazioni','Dichiarazioni','Altro'];
