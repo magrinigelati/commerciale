@@ -134,6 +134,8 @@ html,body{margin:0}
 .tabs button{font-size:15px;letter-spacing:.03em;padding:10px 2px;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .tabs.t5 button{font-size:13px;letter-spacing:0}
 a.btn{text-decoration:none}
+.oi.cart .n{flex:1 1 160px}
+.oi.cart .btn{padding:10px 14px}
 .home{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:left;display:flex;flex-direction:column;gap:6px;min-height:96px}
 .tile b{font-family:var(--f-display);font-weight:700;font-size:21px;line-height:1.1;text-transform:uppercase;letter-spacing:.02em}
@@ -590,7 +592,7 @@ async function leggiDocumenti(){
   if(data.length){const {data:s}=await sb.storage.from('documenti').createSignedUrls(data.map(d=>d.percorso),3600);(s||[]).forEach(x=>{if(x.signedUrl)urls[x.path]=x.signedUrl})}
   return data.map(d=>({...d,url:urls[d.percorso]}));
 }
-function gruppi(docs){const g={};docs.forEach(d=>(g[d.categoria]=g[d.categoria]||[]).push(d));return Object.keys(g).sort((a,b)=>ordCart(a)-ordCart(b)||a.localeCompare(b)).map(c=>[c,g[c]])}
+function gruppi(docs){const g={};docs.forEach(d=>(g[d.categoria]=g[d.categoria]||[]).push(d));const o=c=>Math.min(...g[c].map(d=>d.ordine??0));return Object.keys(g).sort((a,b)=>o(a)-o(b)||a.localeCompare(b)).map(c=>[c,g[c]])}
 let docCart=null,docDaHome=false;
 async function renderDoc(v){
   v.innerHTML='<div class="empty">Carico i documenti…</div>';
@@ -608,16 +610,33 @@ async function renderDoc(v){
 }
 function slug(s){return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9.]+/g,'-').replace(/^-|-$/g,'').slice(0,60)||'file'}
 async function uffDocumenti(v){
+  v.innerHTML='<div class="empty">Carico…</div>';
+  let docs=[];try{docs=await leggiDocumenti()}catch(e){v.innerHTML='<div class="empty">Errore: '+esc(e.message)+'</div>';return}
+  const G=gruppi(docs), esistenti=G.map(([c])=>c);
+  const opzioni=esistenti.concat(CARTELLE.filter(c=>!esistenti.includes(c)));
+  const ordDi=c=>{const g=G.find(x=>x[0]===c);return g?Math.min(...g[1].map(d=>d.ordine??0)):(G.length?Math.max(...docs.map(d=>d.ordine??0))+1:0)};
   v.innerHTML=`<div class="card"><h3>Carica un documento</h3>
    <form id="fd"><div class="grid2">
-   <div class="field"><label for="dc">Cartella</label><select id="dc">${CARTELLE.map(c=>`<option>${esc(c)}</option>`).join('')}<option value="__nuova">Nuova cartella…</option></select></div>
+   <div class="field"><label for="dc">Cartella</label><select id="dc">${opzioni.map(c=>`<option>${esc(c)}</option>`).join('')}<option value="__nuova">Nuova cartella…</option></select></div>
    <div class="field" id="dcn-w" hidden><label for="dcn">Nome nuova cartella</label><input id="dcn" placeholder="es. Schede tecniche"></div>
    <div class="field"><label for="dt">Titolo</label><input id="dt" placeholder="es. Certificato IFS Food 2026" required></div></div>
    <div class="field"><label>Chi lo vede</label><div class="mrow">${RUOLI_DOC.map(([r,l])=>`<label style="display:flex;gap:6px;align-items:center;font-weight:500"><input type="checkbox" name="dr" value="${r}" ${r!=='concessionario'?'checked':''}> ${l}</label>`).join('')}</div></div>
    <div class="field"><label for="df">File (PDF o foto, massimo 50 MB)</label><input id="df" type="file" accept=".pdf,image/*" required></div>
    <button class="btn main" id="dgo">Carica</button><div class="msg" id="dm"></div>
    <p class="note">Se nella stessa cartella esiste già un documento con lo stesso titolo, viene sostituito dalla nuova versione.</p></form></div>
-   <div class="lbl">Documenti caricati</div><div id="dl"><div class="empty">Carico…</div></div>`;
+   ${G.length?`<div class="card"><h3>Cartelle</h3><p class="note" style="margin:0 0 8px">L'ordine qui è quello che vedono gli agenti nella pagina iniziale.</p><div class="list">${G.map(([c,ds],i)=>`<div class="oi cart" style="flex-wrap:wrap"><div class="n"><b>${esc(c)}</b><small>${ds.length} ${ds.length===1?'documento':'documenti'}</small></div>
+     <div class="mrow"><button class="btn" data-su="${i}" ${i===0?'disabled':''} aria-label="Sposta su">▲</button><button class="btn" data-giu="${i}" ${i===G.length-1?'disabled':''} aria-label="Sposta giù">▼</button><button class="btn" data-ren="${i}">Rinomina</button></div><div id="rn${i}" style="width:100%"></div></div>`).join('')}</div><div class="msg" id="cm"></div></div>`:''}
+   <div class="lbl">Documenti caricati</div><div id="dl"></div>`;
+  // spostamento cartelle: rinumero tutte le cartelle 0..n nell'ordine nuovo
+  const salvaOrdine=async nomi=>{for(let i=0;i<nomi.length;i++){const {error}=await sb.from('documenti').update({ordine:i}).eq('categoria',nomi[i]);if(error){alert(error.message);return}}uffDocumenti(v)};
+  v.querySelectorAll('[data-su]').forEach(b=>b.onclick=()=>{const i=+b.dataset.su,n=[...esistenti];[n[i-1],n[i]]=[n[i],n[i-1]];b.disabled=true;salvaOrdine(n)});
+  v.querySelectorAll('[data-giu]').forEach(b=>b.onclick=()=>{const i=+b.dataset.giu,n=[...esistenti];[n[i+1],n[i]]=[n[i],n[i+1]];b.disabled=true;salvaOrdine(n)});
+  v.querySelectorAll('[data-ren]').forEach(b=>b.onclick=()=>{const i=+b.dataset.ren,c=esistenti[i],box=$('#rn'+i);
+    box.innerHTML=`<div class="mrow" style="margin-top:8px"><input id="rni${i}" value="${esc(c)}" style="flex:1;min-width:0;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"><button class="btn main" id="rns${i}">Salva</button></div>`;
+    $('#rns'+i).onclick=async()=>{const nuovo=$('#rni'+i).value.trim();if(!nuovo||nuovo===c)return;
+      if(esistenti.includes(nuovo)&&!confirmUnisci(i)){$('#cm').className='msg err';$('#cm').textContent='Esiste già una cartella "'+nuovo+'": premi di nuovo Salva per unirle.';return}
+      const {error}=await sb.from('documenti').update({categoria:nuovo,ordine:Math.round(ordDi(esistenti.includes(nuovo)?nuovo:c))}).eq('categoria',c);if(error){alert(error.message);return}uffDocumenti(v)}});
+  const unisci={};function confirmUnisci(i){if(unisci[i])return true;unisci[i]=1;return false}
   $('#dc').onchange=()=>{$('#dcn-w').hidden=$('#dc').value!=='__nuova'};
   $('#fd').onsubmit=async e=>{e.preventDefault();const m=$('#dm');const err=s=>{m.className='msg err';m.textContent=s};
     const cat=$('#dc').value==='__nuova'?$('#dcn').value.trim():$('#dc').value;const titolo=$('#dt').value.trim();const file=$('#df').files[0];
@@ -629,23 +648,20 @@ async function uffDocumenti(v){
     const percorso=`${slug(cat)}/${Date.now()}-${slug(titolo)}${ext}`;
     const up=await sb.storage.from('documenti').upload(percorso,file,{contentType:file.type||undefined,upsert:false});
     if(up.error){$('#dgo').disabled=false;return err('Caricamento non riuscito: '+up.error.message)}
-    const {data:old}=await sb.from('documenti').select('id,percorso').eq('categoria',cat).ilike('titolo',titolo);
+    const old=docs.filter(d=>d.categoria===cat&&d.titolo.toLowerCase()===titolo.toLowerCase());
     let res;
-    if(old&&old.length){res=await sb.from('documenti').update({percorso,ruoli,caricato_il:new Date().toISOString()}).eq('id',old[0].id);if(!res.error)await sb.storage.from('documenti').remove([old[0].percorso])}
-    else res=await sb.from('documenti').insert({titolo,categoria:cat,percorso,ruoli,ordine:ordCart(cat)});
+    if(old.length){res=await sb.from('documenti').update({percorso,ruoli,caricato_il:new Date().toISOString()}).eq('id',old[0].id);if(!res.error)await sb.storage.from('documenti').remove([old[0].percorso])}
+    else res=await sb.from('documenti').insert({titolo,categoria:cat,percorso,ruoli,ordine:Math.round(ordDi(cat))});
     $('#dgo').disabled=false;
     if(res.error){await sb.storage.from('documenti').remove([percorso]);return err('Salvataggio non riuscito: '+res.error.message)}
-    m.className='msg ok';m.textContent=(old&&old.length?'Sostituito: ':'Caricato: ')+titolo;$('#dt').value='';$('#df').value='';lista()};
-  async function lista(){
-    let docs;try{docs=await leggiDocumenti()}catch(e){$('#dl').innerHTML='<div class="empty">Errore: '+esc(e.message)+'</div>';return}
-    if(!docs.length){$('#dl').innerHTML='<div class="empty">Nessun documento caricato.</div>';return}
-    $('#dl').innerHTML=gruppi(docs).map(([c,ds])=>`<div class="lbl sub">${esc(c)}</div><div class="list">${ds.map(d=>`<div class="oi" style="flex-wrap:wrap"><div class="n"><b>${esc(d.titolo)}</b><small>${icona(d.percorso)} · visibile a: ${d.ruoli.map(r=>(RUOLI_DOC.find(x=>x[0]===r)||[r,r])[1]).join(', ')} · ${new Date(d.caricato_il).toLocaleDateString('it-IT')}</small></div>
-      <div class="btns" style="width:100%;margin-top:6px"><a class="btn" href="${esc(d.url||'#')}" target="_blank" rel="noopener">Apri</a><button class="btn" data-del="${d.id}">Elimina</button></div></div>`).join('')}</div>`).join('');
-    $('#dl').querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(b.dataset.c!=='1'){b.dataset.c='1';b.textContent='Conferma elimina';return}
-      const d=docs.find(x=>x.id==b.dataset.del);const {error}=await sb.from('documenti').delete().eq('id',d.id);if(error){alert(error.message);return}
-      await sb.storage.from('documenti').remove([d.percorso]);lista()});
-  }
-  lista();
+    uffDocumenti(v)};
+  const dl=$('#dl');
+  if(!docs.length){dl.innerHTML='<div class="empty">Nessun documento caricato.</div>';return}
+  dl.innerHTML=G.map(([c,ds])=>`<div class="lbl sub">${esc(c)}</div><div class="list">${ds.map(d=>`<div class="oi" style="flex-wrap:wrap"><div class="n"><b>${esc(d.titolo)}</b><small>${icona(d.percorso)} · visibile a: ${d.ruoli.map(r=>(RUOLI_DOC.find(x=>x[0]===r)||[r,r])[1]).join(', ')} · ${new Date(d.caricato_il).toLocaleDateString('it-IT')}</small></div>
+    <div class="btns" style="width:100%;margin-top:6px"><a class="btn" href="${esc(d.url||'#')}" target="_blank" rel="noopener">Apri</a><button class="btn" data-del="${d.id}">Elimina</button></div></div>`).join('')}</div>`).join('');
+  dl.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(b.dataset.c!=='1'){b.dataset.c='1';b.textContent='Conferma elimina';return}
+    const d=docs.find(x=>x.id==b.dataset.del);const {error}=await sb.from('documenti').delete().eq('id',d.id);if(error){alert(error.message);return}
+    await sb.storage.from('documenti').remove([d.percorso]);uffDocumenti(v)});
 }
 
 
