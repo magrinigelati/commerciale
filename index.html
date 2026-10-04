@@ -51,7 +51,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--head);color:var(--head-ink);padding:10px 16px 0}
-.brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand h1{font-family:var(--f-display);font-weight:700;font-size:22px;letter-spacing:.04em;text-transform:uppercase;margin:0}
 .brand small{font-size:13px;opacity:.75}
 .who{display:flex;gap:8px;margin-top:8px}
@@ -163,7 +163,7 @@ a.btn{text-decoration:none}
 .tile.big{grid-column:1/-1;background:var(--accent);border-color:var(--accent);color:var(--accent-ink);min-height:120px;justify-content:flex-end}
 .tile.big b{font-size:28px}.tile.big span{color:var(--accent-ink);opacity:.85}
 .tile.uff{grid-column:1/-1;border-style:dashed}
-.brand #home{padding:6px 12px}
+.brand #esci{padding:6px 12px}
 
 .screen{max-width:420px;margin:0 auto;padding:48px 20px}
 .screen h1{font-family:var(--f-display);font-size:30px;text-transform:uppercase;letter-spacing:.04em;margin:0 0 4px}
@@ -201,6 +201,10 @@ a.btn{text-decoration:none}
 .top.mini{padding-top:2px}
 body{overflow-anchor:none}
 @media (prefers-reduced-motion:reduce){.top .brand,.top .who{transition:none}}
+#home,#esci,#tema{white-space:nowrap;flex:0 0 auto}
+#home{padding:6px 9px}
+.who input[type=date]{width:138px;padding:7px 6px;font-size:15px}
+.who-n{min-width:0;flex:0 1 auto}
 </style>
 </head>
 <body>
@@ -233,9 +237,9 @@ body{overflow-anchor:none}
 <!-- APP -->
 <div id="s-app" hidden>
 <header class="top">
-  <div class="brand"><h1 id="titolo">Area commerciale</h1><button id="home" class="who-x" hidden>‹ Home</button><small id="marchio">Magrini Gelati</small></div>
+  <div class="brand"><h1 id="titolo">Area commerciale</h1><button id="esci" class="who-x">Esci</button></div>
   <div class="who">
-    <div class="me"><span class="who-n" id="me-n"></span><button id="esci" class="who-x">Esci</button><button id="tema" class="who-x" aria-label="Cambia tema"></button></div>
+    <div class="me"><span class="who-n" id="me-n"></span><button id="home" class="who-x" hidden>‹ Home</button><button id="tema" class="who-x" aria-label="Cambia tema"></button></div>
     <input id="data" type="date" aria-label="Data del carico">
   </div>
   <nav class="tabs" role="tablist" id="tabs"></nav>
@@ -343,7 +347,7 @@ function bar(){
 }
 $('#go').onclick=()=>{if(view==='sum')confermaInvio();else go('sum')};
 const TITOLI={home:'Area commerciale',fam:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio'};
-function testata(){schermoAcceso(view==='fam'||view==='sum');const h=view==='home';$('#home').hidden=h;$('#marchio').hidden=!h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!(view==='fam'||view==='sum');$('#data').hidden=!(view==='fam'||view==='sum')}
+function testata(){schermoAcceso(view==='fam'||view==='sum');const h=view==='home';$('#home').hidden=h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!(view==='fam'||view==='sum');$('#data').hidden=!(view==='fam'||view==='sum')}
 $('#home').onclick=()=>{docCart=null;go('home')};
 // navigazione: ogni passaggio entra nella cronologia del telefono, cosi' lo swipe indietro torna alla schermata precedente
 function snap(){return {mc:1,view,fam,sub,docCart,docDaHome,uffTab}}
