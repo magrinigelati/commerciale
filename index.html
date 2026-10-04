@@ -468,6 +468,8 @@ async function inviaOrdine(){
   if(error){m.className='msg err';m.textContent='Invio non riuscito. Controlla la connessione e riprova. ('+error.message+')';$('#si').disabled=false;return}
   righe.forEach(r=>freq[r.p]=(freq[r.p]||0)+1);store.set('mc_freq_'+ME.id,freq);
   log('invio_ordine','N. '+data.id);
+  const ordInviato={id:data.id,data:st.data,righe,extra:st.extra,note:st.nota||null};
+  inviaMail(ordInviato);
   st={q:{},u:{},extra:[],data:oggi(),nota:''};save();
   view='ord';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='ord'));
   await render();
@@ -475,16 +477,24 @@ async function inviaOrdine(){
   ok.innerHTML=`<h3 style="color:var(--ok)">Ordine N. ${data.id} inviato</h3><p style="margin:0;color:var(--muted)">L'ufficio lo ha ricevuto. Per correzioni chiama l'ufficio.</p>`;v.prepend(ok);
 }
 
+// mail all'ufficio con il PDF allegato (se non parte, l'ordine resta comunque nel portale)
+async function inviaMail(o,utente=ME){
+  try{const bytes=await pdfOrdine(o,utente);let bin='';const u8=new Uint8Array(bytes);for(let i=0;i<u8.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
+    const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(SB_URL+'/functions/v1/invia-ordine',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+session.access_token},body:JSON.stringify({id:o.id,pdf:btoa(bin)})});
+    if(!r.ok)throw new Error(await r.text());return true}
+  catch(e){console.warn('mail ordine non inviata',e);log('email_ordine_errore',String(e.message||e).slice(0,300));return String(e.message||e)}
+}
 /* ================= ORDINI (agente) ================= */
 const STATI={inviato:'Inviato',in_lavorazione:'In preparazione',caricato:'Caricato',annullato:'Annullato',bozza:'Bozza'};
 function righeTesto(o){return (o.righe||[]).map(r=>{const p=byId[r.p];return p?{q:r.q,u:r.u,n:p[2]+(p[6].length>1?' · '+p[6][r.v][0]:''),c:p[6][r.v]?p[6][r.v][2]:''}:{q:r.q,u:r.u,n:'(prodotto non più a catalogo)',c:''}}).concat((o.extra||[]).map(e=>({q:e.q,u:e.u,n:e.d,c:'aggiuntivo'})))}
 function dettaglioHtml(o){return `<div class="list">${righeTesto(o).map(r=>`<div class="sr"><span class="q">${r.q}<i>${r.u==='pz'?'pz':'ct'}</i></span><div class="n">${esc(r.n)}<small>${esc(r.c)}</small></div></div>`).join('')}</div>${o.note?`<p class="note">Note: ${esc(o.note)}</p>`:''}`}
 async function renderOrd(v){
   v.innerHTML='<div class="empty">Carico gli ordini…</div>';
-  const {data,error}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').order('id',{ascending:false}).limit(5);
+  const {data,error}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').order('id',{ascending:false}).limit(10);
   if(error){v.innerHTML='<div class="empty">Non riesco a leggere gli ordini. Riprova tra poco.</div>';return}
   if(!data.length){v.innerHTML='<div class="empty">Non hai ancora inviato ordini.</div>';return}
-  v.innerHTML=`<div class="lbl">I tuoi ultimi 5 ordini</div><div class="list">${data.map(o=>`<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${o.id} · carico del ${dataIt(o.data)}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · inviato ${new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="od${o.id}" hidden style="padding:0 12px 12px"></div>`).join('')}</div>`;
+  v.innerHTML=`<div class="lbl">I tuoi ultimi 10 ordini</div><div class="list">${data.map(o=>`<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${o.id} · carico del ${dataIt(o.data)}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · inviato ${new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="od${o.id}" hidden style="padding:0 12px 12px"></div>`).join('')}</div>`;
   v.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=data.find(x=>x.id==b.dataset.o);const d=$('#od'+o.id);d.hidden=!d.hidden;if(!d.hidden){d.innerHTML=dettaglioHtml(o)+`<div class="btns"><button class="btn" data-pdf="${o.id}">Scarica PDF</button></div>`;d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,ME)}});
 }
 
@@ -541,8 +551,9 @@ async function uffOrdini(v){
   if(!ord.length){$('#ul').innerHTML='<div class="empty">Nessun ordine per questo giorno.</div>';return}
   $('#ul').innerHTML=`<div class="list">${ord.map(o=>{const u=U[o.utente_id]||{};return `<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${o.id} · ${esc((u.nome_stampa||u.nome||'?'))}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · ${new Date(o.inviato_il||o.creato_il).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}${o.note?' · con note':''}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="uo${o.id}" hidden style="padding:0 12px 12px"></div>`}).join('')}</div>`;
   $('#ul').querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=ord.find(x=>x.id==b.dataset.o),u=U[o.utente_id]||{};const d=$('#uo'+o.id);d.hidden=!d.hidden;if(d.hidden)return;
-    d.innerHTML=dettaglioHtml(o)+`<div class="btns"><button class="btn main" data-pdf>Scarica PDF</button>${['in_lavorazione','caricato','annullato'].map(s=>`<button class="btn" data-s="${s}">${STATI[s]}</button>`).join('')}</div>`;
+    d.innerHTML=dettaglioHtml(o)+`<div class="btns"><button class="btn main" data-pdf>Scarica PDF</button><button class="btn" data-mail>Rinvia mail</button>${['in_lavorazione','caricato','annullato'].map(s=>`<button class="btn" data-s="${s}">${STATI[s]}</button>`).join('')}</div>`;
     d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,u);
+    d.querySelector('[data-mail]').onclick=async e=>{const b=e.target;b.disabled=true;b.textContent='Invio…';const r=await inviaMail(o,u);b.textContent=r===true?'Mail inviata':'Errore';if(r!==true)alert('Mail non inviata: '+r);b.disabled=false};
     d.querySelectorAll('[data-s]').forEach(x=>x.onclick=async()=>{const {error}=await sb.from('ordini').update({stato:x.dataset.s}).eq('id',o.id);if(error)alert(error.message);else uffOrdini(v)})});
 }
 async function fn(body){
