@@ -205,6 +205,15 @@ body{overflow-anchor:none}
 #home{padding:6px 9px}
 .who input[type=date]{width:138px;padding:7px 6px;font-size:15px}
 .who-n{min-width:0;flex:0 1 auto}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:10px}
+.fcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px;text-align:left;display:flex;flex-direction:column;gap:4px}
+.fcard img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:8px;background:#fff}
+.fcard b{font-weight:600;font-size:14px;line-height:1.2}.fcard small{color:var(--muted);font-size:12px}
+.fsenza{margin:0 0 14px}.fsenza summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
+.fview{position:fixed;inset:0;z-index:50;background:rgba(10,19,26,.96);display:flex;flex-direction:column;padding:env(safe-area-inset-top,0px) 12px env(safe-area-inset-bottom,0px)}
+.fv-top{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 4px;color:#f2f7fa}
+.fv-img{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}.fv-img img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;background:#fff}
+.fv-bar{display:flex;gap:10px;justify-content:center;padding:14px 0 10px}.fview .msg{color:#f2f7fa;padding-bottom:12px}
 </style>
 </head>
 <body>
@@ -319,6 +328,7 @@ async function caricaCatalogo(){
      (x.varianti||[]).map(v=>[v.etichetta||'',v.x??null,v.codice||'',v.larghezza||28,v.disponibile===false?0:1,v.nota||'',v.breve||v.etichetta||'']),x.sezione||'',x.evidenza?1:0]);
   if(!P.length)P=[];
   byId={};P.forEach(p=>byId[p[0]]=p);
+  byIdX={};p.forEach(x=>byIdX[x.id]=x);
   MANT=P.filter(p=>p[7]==='Vaschette Mantecato');
   PT=P.map(p=>tok(p[2]+' '));ST=P.map(p=>tok(S[p[1]]+' '+p[7]));
 }
@@ -346,17 +356,17 @@ function bar(){
   $('#go').disabled=view==='sum'&&!righe;
 }
 $('#go').onclick=()=>{if(view==='sum')confermaInvio();else go('sum')};
-const TITOLI={home:'Area commerciale',fam:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio'};
+const TITOLI={home:'Area commerciale',fam:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio',foto:'Foto prodotti'};
 function testata(){schermoAcceso(view==='fam'||view==='sum');const h=view==='home';$('#home').hidden=h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!(view==='fam'||view==='sum');$('#data').hidden=!(view==='fam'||view==='sum')}
 $('#home').onclick=()=>{docCart=null;go('home')};
 // navigazione: ogni passaggio entra nella cronologia del telefono, cosi' lo swipe indietro torna alla schermata precedente
-function snap(){return {mc:1,view,fam,sub,docCart,docDaHome,uffTab,catFam}}
+function snap(){return {mc:1,view,fam,sub,docCart,docDaHome,uffTab,catFam,fotoFam}}
 function nav(){try{history.pushState(snap(),'')}catch(e){}}
 function indietro(){if(history.state&&history.state.mc&&history.length>1)history.back();else go('home')}
 window.addEventListener('popstate',e=>{const s=e.state;if(!s||!s.mc||!ME||$('#s-app').hidden)return;
-  view=s.view;fam=s.fam;sub=s.sub;docCart=s.docCart;docDaHome=s.docDaHome;uffTab=s.uffTab;catFam=s.catFam??null;
+  view=s.view;fam=s.fam;sub=s.sub;docCart=s.docCart;docDaHome=s.docDaHome;uffTab=s.uffTab;catFam=s.catFam??null;fotoFam=s.fotoFam??null;
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===view));render();window.scrollTo(0,0)});
-function go(v){view=v;if(v!=='fam'){fam=null;sub=null}document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));nav();render();window.scrollTo(0,0)}
+function go(v){view=v;if(v!=='fam'){fam=null;sub=null}if(v!=='foto')fotoFam=null;document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));nav();render();window.scrollTo(0,0)}
 
 /* ================= RIGHE PRODOTTO ================= */
 function rowHtml(p,showSec,o){
@@ -716,6 +726,50 @@ async function uffCatalogo(v){
     if(error)return err(error.message);ricarica()};
 }
 
+
+/* ================= FOTO PRODOTTI ================= */
+let fotoFam=null,FOTO=null;
+const SITO='https://www.magrinigelati.it/';
+const nk=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+async function caricaFoto(){if(FOTO)return FOTO;try{FOTO=await fetch('foto.json').then(r=>r.json())}catch(e){FOTO={prodotti:{},sezioni:{}}}return FOTO}
+// foto di un prodotto: prima quella caricata dall'ufficio, poi quella del sito abbinata per nome
+function fotoDi(p){const px=byIdX[p[0]];if(px&&px.foto)return {img:px.foto,nome:p[2],propria:true};
+  const e=FOTO.prodotti[nk(p[2])+'@'+nk(p[7])]||FOTO.prodotti[nk(p[2])];return e?{...e,img:SITO+e.img,thumb:SITO+e.img.replace(/\.webp$/,'-t.webp')}:null}
+function fotoSez(s){const e=FOTO.sezioni[nk(s)];return e?{...e,img:SITO+e.img,thumb:SITO+e.img.replace(/\.webp$/,'-t.webp')}:null}
+let byIdX={};
+async function renderFoto(v){
+  await caricaFoto();
+  if(fotoFam===null){
+    v.innerHTML=`<p class="note" style="margin:0 0 10px">Tocca una famiglia, poi la foto: la puoi salvare o condividere su WhatsApp. Se una foto manca, chiedi in ufficio di caricarla.</p>
+     <div class="fams">${S.map((s,i)=>{const ps=P.filter(p=>p[1]===i);const n=ps.filter(p=>fotoDi(p)).length;const sez=[...new Set(ps.map(p=>p[7]))].filter(x=>fotoSez(x)).length;
+       return `<button class="fam" data-ff="${i}"><b>${esc(s)}</b><span>${n+sez?`${n+sez} foto`:'nessuna foto'}</span></button>`}).join('')}</div>`;
+    v.querySelectorAll('[data-ff]').forEach(b=>b.onclick=()=>{fotoFam=+b.dataset.ff;nav();renderFoto(v);window.scrollTo(0,0)});return}
+  const ps=P.filter(p=>p[1]===fotoFam);const secs=[];ps.forEach(p=>{if(!secs.includes(p[7]))secs.push(p[7])});
+  let h=`<div class="back"><button id="bk">‹ Famiglie</button><h2>${esc(S[fotoFam])}</h2></div>`;
+  secs.forEach((s,si)=>{const L=ps.filter(p=>p[7]===s);const con=L.filter(p=>fotoDi(p)),senza=L.filter(p=>!fotoDi(p));const fs=fotoSez(s);
+    if(!(secs.length===1&&s.toLowerCase()===S[fotoFam].toLowerCase()))h+=`<div class="lbl sub">${esc(s)}</div>`;
+    h+=`<div class="fgrid">${fs?`<button class="fcard" data-fx="${si}"><img src="${esc(fs.thumb)}" alt="" loading="lazy"><b>${esc(fs.nome)}</b><small>foto della linea</small></button>`:''}
+      ${con.map(p=>{const f=fotoDi(p);return `<button class="fcard" data-fp="${p[0]}"><img src="${esc(f.thumb||f.img)}" alt="" loading="lazy"><b>${esc(p[2])}</b>${f.peso||f.pz?`<small>${esc([f.peso,f.pz].filter(Boolean).join(' · '))}</small>`:''}</button>`}).join('')}</div>`;
+    if(senza.length)h+=`<details class="fsenza"><summary>${senza.length} ${senza.length===1?'prodotto senza foto':'prodotti senza foto'}</summary><div class="list">${senza.map(p=>`<div class="oi"><div class="n"><b>${esc(p[2])}</b><small>Foto al momento non disponibile: richiedine il caricamento in ufficio</small></div></div>`).join('')}</div></details>`});
+  v.innerHTML=h;$('#bk').onclick=indietro;
+  v.querySelectorAll('[data-fp]').forEach(b=>b.onclick=()=>{const p=byId[+b.dataset.fp];apriFoto(fotoDi(p),p[2])});
+  v.querySelectorAll('[data-fx]').forEach(b=>b.onclick=()=>{const f=fotoSez(secs[+b.dataset.fx]);apriFoto(f,f.nome)});
+}
+function apriFoto(f,titolo){
+  const d=document.createElement('div');d.className='fview';
+  d.innerHTML=`<div class="fv-top"><b>${esc(titolo)}</b><button class="who-x" id="fv-x">Chiudi</button></div><div class="fv-img"><img src="${esc(f.img)}" alt="${esc(titolo)}"></div>
+   <div class="fv-bar"><button class="btn main" id="fv-dl">Scarica</button><button class="btn" id="fv-sh">Condividi</button></div><div class="msg" id="fv-m" style="text-align:center"></div>`;
+  document.body.appendChild(d);document.body.style.overflow='hidden';
+  const chiudi=()=>{d.remove();document.body.style.overflow=''};$('#fv-x').onclick=chiudi;d.onclick=e=>{if(e.target===d)chiudi()};
+  const nomeFile=slug(titolo)+'.jpg';
+  async function jpg(){const r=await fetch(f.img);if(!r.ok)throw new Error('foto non raggiungibile');const bm=await createImageBitmap(await r.blob());const c=document.createElement('canvas');c.width=bm.width;c.height=bm.height;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(bm,0,0);return new Promise(res=>c.toBlob(res,'image/jpeg',.9))}
+  $('#fv-dl').onclick=async()=>{const m=$('#fv-m');try{m.textContent='Preparo la foto…';const b=await jpg();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=nomeFile;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000);m.className='msg ok';m.textContent='Foto salvata: '+nomeFile}catch(e){m.className='msg err';m.textContent='Non riesco a scaricare la foto ('+(e.message||e)+')'}};
+  $('#fv-sh').onclick=async()=>{const m=$('#fv-m');try{m.textContent='Preparo la foto…';const b=await jpg();const file=new File([b],nomeFile,{type:'image/jpeg'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:titolo});m.textContent=''}
+    else{await navigator.clipboard.writeText(f.img);m.className='msg ok';m.textContent='Questo dispositivo non condivide le foto direttamente: ho copiato il link, incollalo in chat.'}}
+    catch(e){if(e&&e.name==='AbortError'){m.textContent='';return}m.className='msg err';m.textContent='Condivisione non riuscita ('+(e.message||e)+')'}};
+}
+
 /* ================= DOCUMENTI ================= */
 const CARTELLE=['Modulo ordini','Elenco gusti','Listini','Depliant e cataloghi','Foto prodotti','Certificazioni','Dichiarazioni','Altro'];
 const RUOLI_DOC=[['agente','Agenti'],['padroncino','Padroncini'],['concessionario','Concessionari']];
@@ -829,6 +883,7 @@ async function renderHome(v){
    <div class="home">
     <button class="tile big" data-go="fam"><b>Effettua un ordine</b><span>${righe?`Hai un carico in corso: ${righe} ${righe===1?'riga':'righe'}`:'Foglio di carico / presa ordini'}</span></button>
     <button class="tile" data-go="ord"><b>I miei ordini</b><span>Storico e stato degli ordini</span></button>
+    <button class="tile" data-go="foto"><b>Foto prodotti</b><span>Per famiglia, da scaricare o condividere</span></button>
     <div id="hdoc" style="display:contents"></div>
     ${['ufficio','admin'].includes(ME.ruolo)?'<button class="tile uff" data-go="uff"><b>Ufficio</b><span>Ordini ricevuti, account, documenti</span></button>':''}
    </div>`;
@@ -864,7 +919,7 @@ window.addEventListener('scroll',()=>{const y=window.scrollY,d=y-prevY;prevY=y;i
 
 /* ================= AVVIO ================= */
 async function render(){const v=$('#view');
-  if(view==='fam')renderFam(v);else if(view==='sum')renderSum(v);else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);testata();bar()}
+  if(view==='fam')renderFam(v);else if(view==='sum')renderSum(v);else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);testata();bar()}
 sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')show('s-login')});
 avvia();
 </script>
