@@ -195,6 +195,12 @@ a.btn{text-decoration:none}
 .row{padding:4px 8px 4px 12px;gap:6px}.pn{padding:2px 0}.pn b{font-size:15px;line-height:1.2}.pn small{font-size:11px}
 .info{flex-direction:row;align-items:center;gap:8px}.info .pn{flex:1;min-width:0}.info .um button{height:26px;font-size:11px;padding:0 6px}
 .step button{width:34px;height:34px;font-size:19px;border-radius:8px}.step input{width:40px;height:34px;font-size:16px}
+/* testata che si riduce scorrendo verso il basso */
+.top .brand,.top .who{transition:max-height .2s ease,opacity .2s ease,margin .2s ease;max-height:120px;overflow:hidden}
+.top.mini .brand,.top.mini .who{max-height:0;opacity:0;margin:0}
+.top.mini{padding-top:2px}
+body{overflow-anchor:none}
+@media (prefers-reduced-motion:reduce){.top .brand,.top .who{transition:none}}
 </style>
 </head>
 <body>
@@ -761,6 +767,15 @@ async function schermoAcceso(on){voglioAcceso=on;
   try{if(on&&!wake&&'wakeLock' in navigator&&document.visibilityState==='visible'){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}
       else if(!on&&wake){await wake.release();wake=null}}catch(e){wake=null}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&voglioAcceso)schermoAcceso(true)});
+
+
+/* ================= TESTATA RIDOTTA ================= */
+// scorrendo in giù resta solo la riga Carico/Riepilogo; tornando su (o in cima) ricompare tutto
+let prevY=0,su=0,giu=0,fermo=0;
+function setMini(on){const top=$('.top');if(!top||top.classList.contains('mini')===on)return;top.classList.toggle('mini',on);fermo=Date.now()+400;su=giu=0}
+window.addEventListener('scroll',()=>{const y=window.scrollY,d=y-prevY;prevY=y;if(Date.now()<fermo)return;
+  if(y<30){setMini(false);return}
+  if(d>0){giu+=d;su=0;if(giu>15)setMini(true)}else if(d<0){su-=d;giu=0;if(su>50)setMini(false)}},{passive:true});
 
 /* ================= AVVIO ================= */
 async function render(){const v=$('#view');
