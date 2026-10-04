@@ -529,6 +529,7 @@ async function pdfOrdine(o,utente){
     if(p[4]==null||v[1]==null){fuori.push({d:p[2]+(p[6].length>1?' - Vaschetta '+v[0]:'')+(v[4]?'':' (su ordinazione)'),q:r.q,u:r.u});continue}
     const isPz=r.u==='pz',t=r.q+(isPz?' pz':'');let sz=8;const room=(v[3]||28)-3;while(sz>5.5&&f.widthOfTextAtSize(t,sz)>room)sz-=.5;
     pages[p[4]].drawText(t,{x:v[1]-f.widthOfTextAtSize(t,sz)/2,y:p[5],size:sz,font:f,color:isPz?red:blue})}
+  if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)}); // bordo destro mancante nel modulo originale
   pages[0].drawText(dataIt(o.data),{x:525.5,y:H-38,size:7.5,font:f,color:blue});
   const n=String(o.id||'');if(n)pages[0].drawText(n,{x:548.5-f.widthOfTextAtSize(n,9)/2,y:H-63,size:9,font:f,color:blue});
   { const nm=(utente.nome_stampa||utente.nome||utente.username||'').trim().toUpperCase(),top=H-80,bot=H-256,boxH=top-bot,x0=524,W=49;
@@ -539,8 +540,10 @@ async function pdfOrdine(o,utente){
       cols.forEach((c,ci)=>{const h=c.length*lh;let y=top-(boxH-h)/2-sz*0.8;c.split('').forEach(ch=>{if(ch!==' '){const w=f.widthOfTextAtSize(ch,sz);pages[0].drawText(ch,{x:x0+ci*cw+(cw-w)/2,y,size:sz,font:f,color:blue})}y-=lh})})}}
   const agg=fuori.concat(o.extra||[]);
   if(agg.length||o.note){const pg=doc.addPage([595.32,841.92]);let yy=790;
-    pg.drawText('PRODOTTI AGGIUNTIVI E NOTE - ordine N. '+(o.id||''),{x:40,y:yy,size:13,font:f});yy-=20;
-    pg.drawText(`${(utente.nome_stampa||utente.nome||'').toUpperCase()}  ·  carico del ${dataIt(o.data)}`,{x:40,y:yy,size:10,font:fr});yy-=28;
+    const nmA=(utente.nome_stampa||utente.nome||utente.username||'').toUpperCase();let szA=40;while(szA>18&&f.widthOfTextAtSize(nmA,szA)>515)szA-=2;
+    pg.drawText(nmA,{x:40,y:yy-szA*0.8,size:szA,font:f,color:blue});yy-=szA+14;
+    pg.drawText('PRODOTTI AGGIUNTIVI E NOTE - ordine N. '+(o.id||'')+'  ·  carico del '+dataIt(o.data),{x:40,y:yy,size:12,font:f});yy-=10;
+    pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:1.2,color:blue});yy-=28;
     if(agg.length){pg.drawText('Q.tà',{x:40,y:yy,size:10,font:f});pg.drawText('Descrizione',{x:100,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
       agg.forEach(e=>{pg.drawText(e.q+(e.u==='pz'?' pz':' ct'),{x:40,y:yy,size:11,font:f,color:e.u==='pz'?red:blue});pg.drawText(String(e.d).slice(0,80),{x:100,y:yy,size:11,font:fr});yy-=18})}
     if(o.note){yy-=12;pg.drawText('Note: '+String(o.note).slice(0,90),{x:40,y:yy,size:11,font:fr})}}
