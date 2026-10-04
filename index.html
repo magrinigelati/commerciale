@@ -759,11 +759,15 @@ async function riduciFoto(file){const bm=await createImageBitmap(file);const k=M
   return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('foto non leggibile')),'image/jpeg',.85))}
 function fotoSez(s){const e=FOTO.sezioni[nk(s)];return e?{...e,img:SITO+e.img,thumb:SITO+e.img.replace(/\.webp$/,'-t.webp')}:null}
 let byIdX={};
+// nelle foto Mars e Ferrero stanno subito prima di Fresystem (nel foglio di carico restano in cima)
+function ordineFoto(){const idx=S.map((_,i)=>i),trova=re=>S.findIndex(x=>re.test(nk(x)));
+  const sposta=[trova(/mars/),trova(/ferrero/)].filter(i=>i>=0);const resto=idx.filter(i=>!sposta.includes(i));
+  const k=resto.indexOf(trova(/fresystem/));if(k<0)return idx;resto.splice(k,0,...sposta);return resto}
 async function renderFoto(v){
   await caricaFoto();
   if(fotoFam===null){
     v.innerHTML=`<p class="note" style="margin:0 0 10px">Tocca una famiglia, poi la foto: la puoi salvare o condividere su WhatsApp. Se una foto manca, chiedi in ufficio di caricarla.</p>
-     <div class="fams">${S.map((s,i)=>{const ps=P.filter(p=>p[1]===i);const n=ps.filter(p=>fotoDi(p)).length;const sez=[...new Set(ps.map(p=>p[7]))].filter(x=>fotoSez(x)).length;
+     <div class="fams">${ordineFoto().map(i=>{const s=S[i];const ps=P.filter(p=>p[1]===i);const n=ps.filter(p=>fotoDi(p)).length;const sez=[...new Set(ps.map(p=>p[7]))].filter(x=>fotoSez(x)).length;
        return `<button class="fam" data-ff="${i}"><b>${esc(s)}</b><span>${n+sez?`${n+sez} foto`:'nessuna foto'}</span></button>`}).join('')}</div>`;
     v.querySelectorAll('[data-ff]').forEach(b=>b.onclick=()=>{fotoFam=+b.dataset.ff;nav();renderFoto(v);window.scrollTo(0,0)});return}
   const ps=P.filter(p=>p[1]===fotoFam);const secs=[];ps.forEach(p=>{if(!secs.includes(p[7]))secs.push(p[7])});
