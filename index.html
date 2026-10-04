@@ -677,7 +677,7 @@ async function uffCatalogo(v){
       <small>${vs.map(x=>(multi?esc(x.breve||x.etichetta)+': ':'')+(x.codice?esc(x.codice):'senza codice')+(x.disponibile===false?' (su ordinazione)':'')).join(' · ')}${p.pagina==null?' · fuori foglio':''}</small></div>
       <div class="btns" style="width:100%;margin-top:6px"><button class="btn" data-ps="${p.id}">▲</button><button class="btn" data-pg="${p.id}">▼</button><button class="btn" data-pm="${p.id}">Modifica</button><button class="btn" data-pv="${p.id}">${p.attivo?'Nascondi':'Mostra'}</button></div><div id="pm${p.id}" style="width:100%"></div></div>`};
   v.innerHTML=`<div class="back"><button id="cbk">‹ Famiglie</button><h2>${esc(f.nome)}</h2></div>
-    ${secs.map(s=>`<div class="lbl sub">${esc(s||'(senza sottotitolo)')}</div><div class="list">${ps.filter(p=>p.sezione===s).map(riga).join('')}</div>`).join('')}
+    ${secs.map((s,si)=>`<div class="lbl sub" style="display:flex;align-items:center;gap:8px;justify-content:space-between"><span>${esc(s||'(senza sottotitolo)')}</span><button class="btn" data-sr="${si}" style="padding:6px 10px;font-size:13px;text-transform:none;letter-spacing:0">Rinomina sottotitolo</button></div><div id="sr${si}"></div><div class="list">${ps.filter(p=>p.sezione===s).map(riga).join('')}</div>`).join('')}
     <div class="card" style="margin-top:14px"><h3>Nuovo prodotto in ${esc(f.nome)}</h3>
      <div class="grid2"><div class="field"><label for="np-n">Nome</label><input id="np-n" placeholder="es. cono pistacchio"></div>
      <div class="field"><label for="np-c">Codice Mexal</label><input id="np-c" placeholder="es. 1234"></div>
@@ -686,6 +686,9 @@ async function uffCatalogo(v){
      <button class="btn main" id="np-go">Aggiungi prodotto</button>
      <p class="note">I prodotti aggiunti qui non hanno una casella sul foglio di carico: nel PDF finiscono nella pagina dei prodotti aggiuntivi, con il loro codice.</p></div>`;
   $('#cbk').onclick=indietro;
+  v.querySelectorAll('[data-sr]').forEach(b=>b.onclick=()=>{const si=+b.dataset.sr,s=secs[si],box=$('#sr'+si);
+    box.innerHTML=`<div class="mrow" style="margin:0 0 8px">${inp('srn'+si,s)}<button class="btn main" id="srs${si}">Salva</button></div>`;
+    $('#srs'+si).onclick=async()=>{const n=$('#srn'+si).value.trim();if(n===s)return;const {error}=await sb.from('prodotti').update({sezione:n}).eq('famiglia_id',f.id).eq('sezione',s);if(error)return alert(error.message);await catRicarica();uffCatalogo(v)}});
   $('#np-s').onchange=()=>{$('#np-sn-w').hidden=$('#np-s').value!=='__n'};
   const ricarica=async()=>{await catRicarica();uffCatalogo(v)};
   // spostamento: scambia l'ordine con il prodotto vicino della stessa famiglia
