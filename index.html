@@ -215,6 +215,9 @@ body{overflow-anchor:none}
 .fv-top{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 4px;color:#f2f7fa}
 .fv-img{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}.fv-img img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;background:#fff}
 .fv-bar{display:flex;gap:10px;justify-content:center;padding:14px 0 10px}.fview .msg{color:#f2f7fa;padding-bottom:12px}
+.pwbox{position:relative;display:block}.pwbox input{width:100%;padding-right:48px}
+.pw-eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:40px;border:0;background:none;color:var(--muted,#667);display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer}
+.pw-eye svg{width:22px;height:22px}
 </style>
 </head>
 <body>
@@ -285,7 +288,7 @@ $('#f-login').onsubmit=async e=>{
   const {error}=await sb.auth.signInWithPassword({email:u+'@'+DOMINIO,password:$('#l-pass').value});
   $('#l-go').disabled=false;
   if(error){m.textContent=/invalid/i.test(error.message)?'Nome utente o password non corretti.':/banned/i.test(error.message)?'Account disattivato: chiama l\'ufficio.':'Accesso non riuscito: '+error.message;return}
-  avvia();
+  document.querySelectorAll('.pwbox input').forEach(i=>i.type='password');avvia();
 };
 $('#f-pass').onsubmit=async e=>{
   e.preventDefault();const m=$('#p-msg');m.textContent='';
@@ -305,6 +308,14 @@ async function esci(chiedi=true){
   location.replace(location.pathname);
 }
 $('#esci').onclick=()=>esci();$('#p-esci').onclick=()=>esci(false);
+// occhiolino accanto a ogni campo password: tocca per vedere o nascondere quello che hai scritto
+const OCCHIO='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const OCCHIO_NO='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.9 8.3 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg>';
+function occhiolini(root=document){root.querySelectorAll('input[type=password]:not([data-pw])').forEach(i=>{i.dataset.pw='1';
+  const w=document.createElement('span');w.className='pwbox';i.parentNode.insertBefore(w,i);w.appendChild(i);
+  const b=document.createElement('button');b.type='button';b.className='pw-eye';b.innerHTML=OCCHIO;b.setAttribute('aria-label','Mostra password');w.appendChild(b);
+  b.onclick=()=>{const v=i.type==='password';i.type=v?'text':'password';b.innerHTML=v?OCCHIO_NO:OCCHIO;b.setAttribute('aria-label',v?'Nascondi password':'Mostra password');i.focus()}})}
+occhiolini();
 function log(azione,dettaglio){sb.from('accessi').insert({utente_id:ME.id,azione,dettaglio:dettaglio||null,dispositivo:navigator.userAgent.slice(0,200)}).then(()=>{})}
 
 async function avvia(){
