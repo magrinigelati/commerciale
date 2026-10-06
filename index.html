@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1b2f40">
-<script>try{const s=JSON.parse(localStorage.getItem('mc_tema'));if(s)document.documentElement.dataset.theme=s}catch(e){}</script>
+<script>document.documentElement.dataset.theme='light';try{const s=JSON.parse(localStorage.getItem('mc_tema'));if(s)document.documentElement.dataset.theme=s}catch(e){}</script>
 <title>Area commerciale Magrini</title>
 <meta name="description" content="Area riservata ad agenti, padroncini e concessionari Magrini Gelati: ordini e materiale aggiornato.">
 <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=2">
@@ -984,11 +984,10 @@ async function renderHome(v){
 
 
 /* ================= TEMA E SCHERMO ================= */
-// tema: chiaro o scuro a scelta (si ricorda), altrimenti segue il telefono
+// tema: sempre chiaro all'apertura, anche se il telefono e' in modalita' scura; lo scuro solo se l'utente lo sceglie con ☾ (si ricorda)
 function temaAttuale(){const s=document.documentElement.dataset.theme;return s||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}
 function applicaTema(t){if(t)document.documentElement.dataset.theme=t;const b=$('#tema');if(b){const d=temaAttuale()==='dark';b.textContent=d?'☀':'☾';b.title=d?'Passa al tema chiaro':'Passa al tema scuro';b.setAttribute('aria-label',b.title)}}
-applicaTema(store.get('mc_tema',null)); // segue il telefono, finché l'utente non sceglie
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>applicaTema(store.get('mc_tema',null)));
+applicaTema(store.get('mc_tema','light'));
 $('#tema').onclick=()=>{const n=temaAttuale()==='dark'?'light':'dark';store.set('mc_tema',n);applicaTema(n)};
 // schermo sempre acceso mentre si compila il carico
 let wake=null,voglioAcceso=false;
