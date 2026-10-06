@@ -242,6 +242,7 @@ body{overflow-anchor:none}
     <button class="btn main">Salva e continua</button>
     <div class="msg err" id="p-msg"></div>
   </form>
+  <p style="margin-top:14px"><button type="button" class="who-x" id="p-esci">Non sei tu? Esci</button></p>
 </section>
 
 <!-- APP -->
@@ -294,7 +295,16 @@ $('#f-pass').onsubmit=async e=>{
   if(error){m.textContent='Non riuscito: '+error.message;return}
   await sb.rpc('password_cambiata');ME.cambio_password=false;log('cambio_password');avvia();
 };
-$('#esci').onclick=async()=>{await sb.auth.signOut();location.reload()};
+// uscita: chiede conferma, registra l'uscita e chiude la sessione anche senza rete (il carico in corso resta salvato sul telefono)
+async function esci(chiedi=true){
+  if(chiedi){const inCorso=st&&ME&&(Object.keys(st.q||{}).length||(st.extra||[]).length);
+    if(!confirm(inCorso?'Vuoi uscire? Il carico in corso resta salvato su questo telefono e lo ritrovi al prossimo accesso.':'Vuoi uscire dal portale?'))return}
+  try{if(ME)await Promise.race([sb.from('accessi').insert({utente_id:ME.id,azione:'uscita',dispositivo:navigator.userAgent.slice(0,200)}),new Promise(r=>setTimeout(r,1500))])}catch(e){}
+  try{await sb.auth.signOut({scope:'local'})}catch(e){}
+  try{Object.keys(localStorage).filter(k=>/^sb-.*-auth-token/.test(k)).forEach(k=>localStorage.removeItem(k))}catch(e){}
+  location.replace(location.pathname);
+}
+$('#esci').onclick=()=>esci();$('#p-esci').onclick=()=>esci(false);
 function log(azione,dettaglio){sb.from('accessi').insert({utente_id:ME.id,azione,dettaglio:dettaglio||null,dispositivo:navigator.userAgent.slice(0,200)}).then(()=>{})}
 
 async function avvia(){
