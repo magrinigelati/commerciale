@@ -336,6 +336,7 @@ async function avvia(){
   $('#tabs').innerHTML=tabs.map(([v,l],i)=>`<button role="tab" aria-selected="${i===0}" data-v="${v}">${l}</button>`).join('');
   $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
   show('s-app');log('accesso');history.replaceState(snap(),'');render();
+  recuperaMail();
 }
 
 // "I più usati": conta in quanti ordini inviati compare ogni prodotto (ordini degli ultimi 6 mesi, da qualsiasi dispositivo)
@@ -538,21 +539,33 @@ function confermaInvio(){
 async function inviaOrdine(){
   const m=$('#smsg');$('#si').disabled=true;m.className='msg';m.textContent='Invio in corso…';
   const righe=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);return {p:id,v:vi,q:st.q[k],u:uOf(id)}});
-  const {data,error}=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null}).select('*').single();
+  // chiave unica del carico: se la rete cade dopo il salvataggio e si ripreme Invia, l'ordine non viene duplicato
+  if(!st.chiave){st.chiave=(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random());save()}
+  let {data,error}=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null,chiave:st.chiave}).select('*').single();
+  if(error&&/chiave/.test(error.message||'')){const r=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null}).select('*').single();data=r.data;error=r.error} // database non ancora aggiornato
+  if(error&&error.code==='23505'){const r=await sb.from('ordini').select('*').eq('chiave',st.chiave).single();data=r.data;error=r.error}
   if(error){m.className='msg err';m.textContent='Invio non riuscito. Controlla la connessione e riprova. ('+error.message+')';$('#si').disabled=false;return}
   righe.forEach(r=>freq[r.p]=(freq[r.p]||0)+1);store.set('mc_freq_'+ME.id,freq);
   log('invio_ordine','N. '+NUM(data));
   const ordInviato={id:data.id,numero:data.numero,data:st.data,righe,extra:st.extra,note:st.nota||null};
-  inviaMail(ordInviato);
+  m.textContent='Ordine salvato, invio la mail all\'ufficio…';
+  const esitoMail=await inviaMail(ordInviato);
   st={q:{},u:{},extra:[],data:oggi(),nota:''};save();
   view='ord';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='ord'));
   await render();
   const v=$('#view');const ok=document.createElement('div');ok.className='card';ok.style.borderColor='var(--ok)';
-  ok.innerHTML=`<h3 style="color:var(--ok)">Ordine N. ${NUM(data)} inviato</h3><p style="margin:0 0 10px;color:var(--muted)">L'ufficio lo ha ricevuto. Per correzioni chiama l'ufficio.</p><div class="btns"><button class="btn" id="ok-op">Apri PDF</button><button class="btn main" id="ok-sh">Condividi PDF</button><button class="btn" id="ok-dl">Scarica PDF</button></div>`;v.prepend(ok);
+  ok.innerHTML=`<h3 style="color:var(--ok)">Ordine N. ${NUM(data)} inviato</h3><p style="margin:0 0 10px;color:var(--muted)">${esitoMail===true?'L\'ufficio lo ha ricevuto. Per correzioni chiama l\'ufficio.':'L\'ordine è salvato nel portale, ma la mail all\'ufficio non è partita (problema di rete o del servizio). Riproverò da solo alla prossima apertura dell\'app: se hai fretta, <b>avvisa l\'ufficio al telefono</b> o riprova ora.'}</p><div class="btns">${esitoMail===true?'':'<button class="btn main" id="ok-rm">Riprova mail</button>'}<button class="btn" id="ok-op">Apri PDF</button><button class="btn main" id="ok-sh">Condividi PDF</button><button class="btn" id="ok-dl">Scarica PDF</button></div>`;v.prepend(ok);
   preparaPdf(ordInviato,ME).catch(()=>{});
+  if($('#ok-rm'))$('#ok-rm').onclick=async e=>{const b=e.currentTarget;b.disabled=true;b.textContent='Invio…';const r=await inviaMail(ordInviato);if(r===true){b.textContent='Mail inviata';ok.querySelector('p').innerHTML='L\'ufficio lo ha ricevuto. Per correzioni chiama l\'ufficio.'}else{b.disabled=false;b.textContent='Riprova mail';alert('Ancora niente: '+r)}};
   $('#ok-sh').onclick=e=>condividiPdf(ordInviato,ME,e.currentTarget);$('#ok-dl').onclick=()=>scaricaPdf(ordInviato,ME);$('#ok-op').onclick=()=>apriPdf(ordInviato,ME);
 }
 
+// all'apertura rimanda da solo le mail degli ordini degli ultimi 3 giorni che non risultano consegnate
+async function recuperaMail(){
+  try{const da=new Date();da.setDate(da.getDate()-3);
+    const {data}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').is('mail_il',null).gte('creato_il',da.toISOString()).order('id');
+    for(const o of (data||[])){const r=await inviaMail(o);if(r===true)console.info('mail recuperata per ordine',NUM(o))}}catch(e){}
+}
 // mail all'ufficio con il PDF allegato (se non parte, l'ordine resta comunque nel portale)
 async function inviaMail(o,utente=ME){
   try{const bytes=await pdfOrdine(o,utente);let bin='';const u8=new Uint8Array(bytes);for(let i=0;i<u8.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
@@ -636,20 +649,22 @@ async function scaricaPdf(o,utente){
 }
 
 /* ================= UFFICIO ================= */
-let uffTab='ordini',uffData=oggi();
+let uffTab='ordini',uffData=oggi(),uffTutti=false;
 async function renderUff(v){
   v.innerHTML=`<div class="seg"><button data-t="ordini" aria-pressed="${uffTab==='ordini'}">Ordini</button><button data-t="utenti" aria-pressed="${uffTab==='utenti'}">Account</button><button data-t="documenti" aria-pressed="${uffTab==='documenti'}">Documenti</button><button data-t="catalogo" aria-pressed="${uffTab==='catalogo'}">Catalogo</button></div><div id="uv"></div>`;
   v.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{uffTab=b.dataset.t;nav();renderUff(v)});
   if(uffTab==='ordini')uffOrdini($('#uv'));else if(uffTab==='documenti')uffDocumenti($('#uv'));else if(uffTab==='catalogo')uffCatalogo($('#uv'));else uffUtenti($('#uv'));
 }
 async function uffOrdini(v){
-  v.innerHTML=`<div class="field"><label for="ud">Ordini con carico del giorno</label><input id="ud" type="date" value="${uffData}"></div><div id="ul"><div class="empty">Carico…</div></div>`;
-  $('#ud').onchange=e=>{uffData=e.target.value;uffOrdini(v)};
-  const [{data:ord,error},{data:ut}]=await Promise.all([sb.from('ordini').select('*').eq('data',uffData).neq('stato','bozza').order('id'),sb.from('utenti').select('id,nome,username,nome_stampa')]);
+  v.innerHTML=`<div class="field"><label for="ud">Ordini con carico del giorno</label><div class="mrow"><input id="ud" type="date" value="${uffData}" ${uffTutti?'disabled':''}><label style="display:flex;gap:6px;align-items:center;white-space:nowrap;font-weight:500"><input type="checkbox" id="ut" ${uffTutti?'checked':''}> Ultimi 7 giorni</label></div></div><div id="ul"><div class="empty">Carico…</div></div>`;
+  $('#ud').onchange=e=>{uffData=e.target.value;uffOrdini(v)};$('#ut').onchange=e=>{uffTutti=e.target.checked;uffOrdini(v)};
+  let q=sb.from('ordini').select('*').neq('stato','bozza');
+  if(uffTutti){const da=new Date();da.setDate(da.getDate()-7);q=q.gte('creato_il',da.toISOString()).order('id',{ascending:false})}else q=q.eq('data',uffData).order('id');
+  const [{data:ord,error},{data:ut}]=await Promise.all([q,sb.from('utenti').select('id,nome,username,nome_stampa')]);
   if(error){$('#ul').innerHTML='<div class="empty">Errore: '+esc(error.message)+'</div>';return}
   const U={};(ut||[]).forEach(u=>U[u.id]=u);
-  if(!ord.length){$('#ul').innerHTML='<div class="empty">Nessun ordine per questo giorno.</div>';return}
-  $('#ul').innerHTML=`<div class="list">${ord.map(o=>{const u=U[o.utente_id]||{};return `<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${NUM(o)} · ${esc((u.nome_stampa||u.nome||'?'))}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · ${new Date(o.inviato_il||o.creato_il).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}${o.note?' · con note':''}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="uo${o.id}" hidden style="padding:0 12px 12px"></div>`}).join('')}</div>`;
+  if(!ord.length){$('#ul').innerHTML='<div class="empty">'+(uffTutti?'Nessun ordine negli ultimi 7 giorni.':'Nessun ordine per questo giorno.')+'</div>';return}
+  $('#ul').innerHTML=`<div class="list">${ord.map(o=>{const u=U[o.utente_id]||{};return `<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${NUM(o)} · ${esc((u.nome_stampa||u.nome||'?'))}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · ${uffTutti?'carico del '+dataIt(o.data)+' · inviato '+new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):new Date(o.inviato_il||o.creato_il).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}${o.note?' · con note':''}${'mail_il' in o&&!o.mail_il?' · <b style="color:var(--accent)">mail non arrivata</b>':''}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="uo${o.id}" hidden style="padding:0 12px 12px"></div>`}).join('')}</div>`;
   $('#ul').querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=ord.find(x=>x.id==b.dataset.o),u=U[o.utente_id]||{};const d=$('#uo'+o.id);d.hidden=!d.hidden;if(d.hidden)return;
     d.innerHTML=dettaglioHtml(o)+`<div class="btns"><button class="btn main" data-pdf>Scarica PDF</button><button class="btn" data-op>Apri PDF</button><button class="btn" data-mail>Rinvia mail</button>${['in_lavorazione','caricato','annullato'].map(s=>`<button class="btn" data-s="${s}">${STATI[s]}</button>`).join('')}</div>`;
     d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,u);d.querySelector('[data-op]').onclick=()=>apriPdf(o,u);
@@ -858,7 +873,7 @@ async function leggiDocumenti(){
   const {data,error}=await sb.from('documenti').select('*').order('ordine').order('titolo');
   if(error)throw error;
   const urls={};
-  if(data.length){const {data:s}=await sb.storage.from('documenti').createSignedUrls(data.map(d=>d.percorso),3600);(s||[]).forEach(x=>{if(x.signedUrl)urls[x.path]=x.signedUrl})}
+  if(data.length){const {data:s}=await sb.storage.from('documenti').createSignedUrls(data.map(d=>d.percorso),86400);(s||[]).forEach(x=>{if(x.signedUrl)urls[x.path]=x.signedUrl})}
   return data.map(d=>({...d,url:urls[d.percorso]}));
 }
 // ordine documento = posizioneCartella*1000 + posizioneNellaCartella
