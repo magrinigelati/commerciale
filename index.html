@@ -538,17 +538,17 @@ function confermaInvio(){
 async function inviaOrdine(){
   const m=$('#smsg');$('#si').disabled=true;m.className='msg';m.textContent='Invio in corso…';
   const righe=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);return {p:id,v:vi,q:st.q[k],u:uOf(id)}});
-  const {data,error}=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null}).select('id').single();
+  const {data,error}=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null}).select('*').single();
   if(error){m.className='msg err';m.textContent='Invio non riuscito. Controlla la connessione e riprova. ('+error.message+')';$('#si').disabled=false;return}
   righe.forEach(r=>freq[r.p]=(freq[r.p]||0)+1);store.set('mc_freq_'+ME.id,freq);
-  log('invio_ordine','N. '+data.id);
-  const ordInviato={id:data.id,data:st.data,righe,extra:st.extra,note:st.nota||null};
+  log('invio_ordine','N. '+NUM(data));
+  const ordInviato={id:data.id,numero:data.numero,data:st.data,righe,extra:st.extra,note:st.nota||null};
   inviaMail(ordInviato);
   st={q:{},u:{},extra:[],data:oggi(),nota:''};save();
   view='ord';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='ord'));
   await render();
   const v=$('#view');const ok=document.createElement('div');ok.className='card';ok.style.borderColor='var(--ok)';
-  ok.innerHTML=`<h3 style="color:var(--ok)">Ordine N. ${data.id} inviato</h3><p style="margin:0 0 10px;color:var(--muted)">L'ufficio lo ha ricevuto. Per correzioni chiama l'ufficio.</p><div class="btns"><button class="btn" id="ok-op">Apri PDF</button><button class="btn main" id="ok-sh">Condividi PDF</button><button class="btn" id="ok-dl">Scarica PDF</button></div>`;v.prepend(ok);
+  ok.innerHTML=`<h3 style="color:var(--ok)">Ordine N. ${NUM(data)} inviato</h3><p style="margin:0 0 10px;color:var(--muted)">L'ufficio lo ha ricevuto. Per correzioni chiama l'ufficio.</p><div class="btns"><button class="btn" id="ok-op">Apri PDF</button><button class="btn main" id="ok-sh">Condividi PDF</button><button class="btn" id="ok-dl">Scarica PDF</button></div>`;v.prepend(ok);
   preparaPdf(ordInviato,ME).catch(()=>{});
   $('#ok-sh').onclick=e=>condividiPdf(ordInviato,ME,e.currentTarget);$('#ok-dl').onclick=()=>scaricaPdf(ordInviato,ME);$('#ok-op').onclick=()=>apriPdf(ordInviato,ME);
 }
@@ -562,6 +562,7 @@ async function inviaMail(o,utente=ME){
   catch(e){console.warn('mail ordine non inviata',e);log('email_ordine_errore',String(e.message||e).slice(0,300));return String(e.message||e)}
 }
 /* ================= ORDINI (agente) ================= */
+const NUM=o=>o.numero??o.id; // numero progressivo dell'agente (se manca, l'id)
 const STATI={inviato:'Inviato',in_lavorazione:'In preparazione',caricato:'Caricato',annullato:'Annullato',bozza:'Bozza'};
 function righeTesto(o){return (o.righe||[]).map(r=>{const p=byId[r.p];return p?{q:r.q,u:r.u,n:p[2]+(p[6].length>1?' · '+p[6][r.v][0]:''),c:p[6][r.v]?p[6][r.v][2]:''}:{q:r.q,u:r.u,n:'(prodotto non più a catalogo)',c:''}}).concat((o.extra||[]).map(e=>({q:e.q,u:e.u,n:e.d,c:'aggiuntivo'})))}
 function dettaglioHtml(o){return `<div class="list">${righeTesto(o).map(r=>`<div class="sr"><span class="q">${r.q}<i>${r.u==='pz'?'pz':'ct'}</i></span><div class="n">${esc(r.n)}<small>${esc(r.c)}</small></div></div>`).join('')}</div>${o.note?`<p class="note">Note: ${esc(o.note)}</p>`:''}`}
@@ -570,7 +571,7 @@ async function renderOrd(v){
   const {data,error}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').gte('data',(()=>{const d=new Date();d.setDate(d.getDate()-31);return d.toISOString().slice(0,10)})()).order('id',{ascending:false});
   if(error){v.innerHTML='<div class="empty">Non riesco a leggere gli ordini. Riprova tra poco.</div>';return}
   if(!data.length){v.innerHTML='<div class="empty">Nessun ordine negli ultimi 31 giorni.</div>';return}
-  v.innerHTML=`<div class="lbl">I tuoi ordini degli ultimi 31 giorni</div><div class="list">${data.map(o=>`<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${o.id} · carico del ${dataIt(o.data)}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · inviato ${new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="od${o.id}" hidden style="padding:0 12px 12px"></div>`).join('')}</div>`;
+  v.innerHTML=`<div class="lbl">I tuoi ordini degli ultimi 31 giorni</div><div class="list">${data.map(o=>`<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${NUM(o)} · carico del ${dataIt(o.data)}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · inviato ${new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="od${o.id}" hidden style="padding:0 12px 12px"></div>`).join('')}</div>`;
   v.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=data.find(x=>x.id==b.dataset.o);const d=$('#od'+o.id);d.hidden=!d.hidden;if(!d.hidden){d.innerHTML=dettaglioHtml(o)+`<div class="btns"><button class="btn" data-op>Apri PDF</button><button class="btn main" data-sh>Condividi PDF</button><button class="btn" data-pdf="${o.id}">Scarica PDF</button></div>`;d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,ME);d.querySelector('[data-op]').onclick=()=>apriPdf(o,ME);
       preparaPdf(o,ME).catch(()=>{});d.querySelector('[data-sh]').onclick=e=>condividiPdf(o,ME,e.currentTarget)}});
 }
@@ -590,7 +591,7 @@ async function pdfOrdine(o,utente){
     pages[p[4]].drawText(t,{x:v[1]-f.widthOfTextAtSize(t,sz)/2,y:p[5],size:sz,font:f,color:isPz?red:blue})}
   if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)}); // bordo destro mancante nel modulo originale
   pages[0].drawText(dataIt(o.data),{x:525.5,y:H-38,size:7.5,font:f,color:blue});
-  const n=String(o.id||'');if(n)pages[0].drawText(n,{x:548.5-f.widthOfTextAtSize(n,9)/2,y:H-63,size:9,font:f,color:blue});
+  const n=String(NUM(o)||'');if(n)pages[0].drawText(n,{x:548.5-f.widthOfTextAtSize(n,9)/2,y:H-63,size:9,font:f,color:blue});
   { const nm=(utente.nome_stampa||utente.nome||utente.username||'').trim().toUpperCase(),top=H-80,bot=H-256,boxH=top-bot,x0=524,W=49;
     const fit=cols=>{const k=cols.length,cw=W/k,L=Math.max(...cols.map(c=>c.length));const mw=Math.max(...cols.join('').split('').map(ch=>f.widthOfTextAtSize(ch,1)));return Math.min(30,boxH/(L*1.08),(cw-2)/mw)};
     if(nm){let cols=[nm.replace(/\s+/g,' ')],sz=fit(cols);const words=nm.split(/\s+/).filter(Boolean);
@@ -601,7 +602,7 @@ async function pdfOrdine(o,utente){
   if(agg.length||o.note){const pg=doc.addPage([595.32,841.92]);let yy=790;
     const nmA=(utente.nome_stampa||utente.nome||utente.username||'').toUpperCase();let szA=40;while(szA>18&&f.widthOfTextAtSize(nmA,szA)>515)szA-=2;
     pg.drawText(nmA,{x:40,y:yy-szA*0.8,size:szA,font:f,color:blue});yy-=szA+14;
-    pg.drawText('PRODOTTI AGGIUNTIVI E NOTE - ordine N. '+(o.id||'')+'  ·  carico del '+dataIt(o.data),{x:40,y:yy,size:12,font:f});yy-=10;
+    pg.drawText('PRODOTTI AGGIUNTIVI E NOTE - ordine N. '+(NUM(o)||'')+'  ·  carico del '+dataIt(o.data),{x:40,y:yy,size:12,font:f});yy-=10;
     pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:1.2,color:blue});yy-=28;
     if(agg.length){pg.drawText('Q.tà',{x:40,y:yy,size:10,font:f});pg.drawText('Descrizione',{x:100,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
       agg.forEach(e=>{pg.drawText(e.q+(e.u==='pz'?' pz':' ct'),{x:40,y:yy,size:11,font:f,color:e.u==='pz'?red:blue});pg.drawText(String(e.d).slice(0,80),{x:100,y:yy,size:11,font:fr});yy-=18})}
@@ -610,12 +611,12 @@ async function pdfOrdine(o,utente){
 }
 // condivisione del PDF (WhatsApp, mail, Drive...) con il menu del telefono; il file si prepara prima, cosi' il tocco su Condividi parte subito
 const pdfPronti={};
-function nomePdf(o,utente){return `Carico_${o.id}_${(utente.nome_stampa||utente.username||'').replace(/[^A-Za-z0-9]+/g,'_')}_${o.data}.pdf`}
+function nomePdf(o,utente){return `Carico_${NUM(o)}_${(utente.nome_stampa||utente.username||'').replace(/[^A-Za-z0-9]+/g,'_')}_${o.data}.pdf`}
 function preparaPdf(o,utente){return pdfPronti[o.id]||(pdfPronti[o.id]=pdfOrdine(o,utente).then(b=>new File([b],nomePdf(o,utente),{type:'application/pdf'})).catch(e=>{delete pdfPronti[o.id];throw e}))}
 async function condividiPdf(o,utente,btn){
   const t=btn&&btn.textContent;if(btn){btn.disabled=true;btn.textContent='Preparo…'}
   try{const file=await preparaPdf(o,utente);
-    if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:'Ordine N. '+o.id});
+    if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:'Ordine N. '+NUM(o)});
     else{scaricaPdf(o,utente);alert('Da questo dispositivo non posso condividere direttamente: ho scaricato il PDF, allegalo tu nella chat.')}}
   catch(e){if(!(e&&e.name==='AbortError'))alert('Condivisione non riuscita: '+(e.message||e))}
   finally{if(btn){btn.disabled=false;btn.textContent=t}}
@@ -648,7 +649,7 @@ async function uffOrdini(v){
   if(error){$('#ul').innerHTML='<div class="empty">Errore: '+esc(error.message)+'</div>';return}
   const U={};(ut||[]).forEach(u=>U[u.id]=u);
   if(!ord.length){$('#ul').innerHTML='<div class="empty">Nessun ordine per questo giorno.</div>';return}
-  $('#ul').innerHTML=`<div class="list">${ord.map(o=>{const u=U[o.utente_id]||{};return `<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${o.id} · ${esc((u.nome_stampa||u.nome||'?'))}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · ${new Date(o.inviato_il||o.creato_il).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}${o.note?' · con note':''}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="uo${o.id}" hidden style="padding:0 12px 12px"></div>`}).join('')}</div>`;
+  $('#ul').innerHTML=`<div class="list">${ord.map(o=>{const u=U[o.utente_id]||{};return `<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${NUM(o)} · ${esc((u.nome_stampa||u.nome||'?'))}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · ${new Date(o.inviato_il||o.creato_il).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}${o.note?' · con note':''}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="uo${o.id}" hidden style="padding:0 12px 12px"></div>`}).join('')}</div>`;
   $('#ul').querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=ord.find(x=>x.id==b.dataset.o),u=U[o.utente_id]||{};const d=$('#uo'+o.id);d.hidden=!d.hidden;if(d.hidden)return;
     d.innerHTML=dettaglioHtml(o)+`<div class="btns"><button class="btn main" data-pdf>Scarica PDF</button><button class="btn" data-op>Apri PDF</button><button class="btn" data-mail>Rinvia mail</button>${['in_lavorazione','caricato','annullato'].map(s=>`<button class="btn" data-s="${s}">${STATI[s]}</button>`).join('')}</div>`;
     d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,u);d.querySelector('[data-op]').onclick=()=>apriPdf(o,u);
