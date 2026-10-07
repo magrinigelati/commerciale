@@ -876,14 +876,24 @@ async function renderDoc(v){
     v.innerHTML=`<div class="lbl">Documenti</div><div class="fams">${G.map(([c,ds])=>`<button class="fam" data-c="${esc(c)}"><b>${esc(c)}</b><span>${ds.length} ${ds.length===1?'file':'file'}</span></button>`).join('')}</div>`;
     v.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{docCart=b.dataset.c;nav();renderDoc(v);window.scrollTo(0,0)});return}
   const ds=G.find(([c])=>c===docCart)[1];
-  v.innerHTML=`<div class="back"><button id="bk">‹ ${docDaHome?'Home':'Documenti'}</button><h2>${esc(docCart)}</h2></div><div class="list">${ds.map(d=>`<div class="oi" style="flex-wrap:wrap;gap:8px"><div class="n" style="flex:1 1 180px"><b>${esc(d.titolo)}</b><small>${icona(d.percorso)} · aggiornato il ${new Date(d.caricato_il).toLocaleDateString('it-IT')}</small></div>
-     <div class="btns" style="margin:0"><a class="btn sm" href="${esc(d.url||'#')}" target="_blank" rel="noopener" data-da="${d.id}">Apri</a><button class="btn sm" data-dd="${d.id}">Scarica</button><button class="btn sm main" data-ds="${d.id}">Condividi</button></div></div>`).join('')}</div>
+  v.innerHTML=`<div class="back"><button id="bk">‹ ${docDaHome?'Home':'Documenti'}</button><h2>${esc(docCart)}</h2></div><div class="list">${ds.map(d=>`<div class="oi" style="flex-wrap:wrap;gap:8px"><div class="n" style="flex:1 1 180px"><b>${esc(d.titolo)}</b><small>${icona(d.percorso)} · aggiornato il ${new Date(d.caricato_il).toLocaleDateString('it-IT')}${UFF()?' · visibile a: '+esc(RUOLI_DOC.filter(([r])=>(d.ruoli||[]).includes(r)).map(([,l])=>l).join(', ')||'solo ufficio'):''}</small></div>
+     <div class="btns" style="margin:0">${UFF()?`<button class="btn sm" data-dl="${d.id}">Copia link</button>`:''}<a class="btn sm" href="${esc(d.url||'#')}" target="_blank" rel="noopener" data-da="${d.id}">Apri</a><button class="btn sm" data-dd="${d.id}">Scarica</button><button class="btn sm main" data-ds="${d.id}">Condividi</button></div></div>`).join('')}</div>
    <div class="msg" id="dmsg"></div>`;
   $('#bk').onclick=indietro;
   const trova=id=>ds.find(x=>x.id==id);
   v.querySelectorAll('[data-da]').forEach(a=>a.addEventListener('click',()=>log('apertura_documento',trova(a.dataset.da).titolo)));
   v.querySelectorAll('[data-dd]').forEach(b=>b.onclick=()=>scaricaDoc(trova(b.dataset.dd),b));
   v.querySelectorAll('[data-ds]').forEach(b=>b.onclick=()=>condividiDoc(trova(b.dataset.ds),b));
+  v.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>linkDoc(trova(b.dataset.dl),b));
+}
+const UFF=()=>ME&&['ufficio','admin'].includes(ME.ruolo);
+// solo ufficio: link al file valido 7 giorni, da incollare su WhatsApp Web o in una mail
+async function linkDoc(d,btn){
+  const {data,error}=await sb.storage.from('documenti').createSignedUrl(d.percorso,7*24*3600,{download:nomeDoc(d)});
+  if(error)return alert('Non riesco a creare il link: '+error.message);
+  const testo=d.titolo+': '+data.signedUrl;
+  try{await navigator.clipboard.writeText(testo);btn.textContent='Link copiato';setTimeout(()=>btn.textContent='Copia link',2500)}
+  catch(e){prompt('Copia il link (valido 7 giorni):',testo)}
 }
 // file del documento con un nome leggibile (titolo + estensione originale), tenuto in memoria per condividerlo al volo
 const fileDoc={};
