@@ -597,8 +597,10 @@ async function pdfOrdine(o,utente){
     const isPz=r.u==='pz',t=r.q+(isPz?' pz':'');let sz=8;const room=(v[3]||28)-3;while(sz>5.5&&f.widthOfTextAtSize(t,sz)>room)sz-=.5;
     pages[p[4]].drawText(t,{x:v[1]-f.widthOfTextAtSize(t,sz)/2,y:p[5],size:sz,font:f,color:isPz?red:blue})}
   if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)}); // bordo destro mancante nel modulo originale
-  pages[0].drawText(dataIt(o.data),{x:525.5,y:H-38,size:7.5,font:f,color:blue});
-  const n=String(NUM(o)||'');if(n)pages[0].drawText(n,{x:548.5-f.widthOfTextAtSize(n,9)/2,y:H-63,size:9,font:f,color:blue});
+  // data con il nostro numero accanto (es. 07/10/26 - 05); il campo N. resta libero per il numero di Mexal
+  { const [yy,mm,dd]=String(o.data).slice(0,10).split('-'),n=NUM(o),t=`${dd}/${mm}/${yy.slice(2)}`+(n?' - '+String(n).padStart(2,'0'):'');
+    let sz=7.5;while(sz>5&&f.widthOfTextAtSize(t,sz)>47)sz-=.25;
+    pages[0].drawText(t,{x:548.5-f.widthOfTextAtSize(t,sz)/2,y:H-38,size:sz,font:f,color:blue}); }
   { const nm=(utente.nome_stampa||utente.nome||utente.username||'').trim().toUpperCase(),top=H-80,bot=H-256,boxH=top-bot,x0=524,W=49;
     const fit=cols=>{const k=cols.length,cw=W/k,L=Math.max(...cols.map(c=>c.length));const mw=Math.max(...cols.join('').split('').map(ch=>f.widthOfTextAtSize(ch,1)));return Math.min(30,boxH/(L*1.08),(cw-2)/mw)};
     if(nm){let cols=[nm.replace(/\s+/g,' ')],sz=fit(cols);const words=nm.split(/\s+/).filter(Boolean);
