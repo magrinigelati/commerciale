@@ -435,25 +435,26 @@ function subCount(m){if(m.box)return 0;return m.ps().reduce((a,p)=>a+((m.o==null
 function subView(){
   const MS=subsOf(fam);
   if(sub===null)return `<div class="fams">${MS.map((m,i)=>{const c=subCount(m);const n=m.box?0:m.ps().length;
-    return `<button class="fam${c?' has':''}${m.box?' boxf':''}" data-sub="${i}"><b>${esc(m.t)}</b><span>${m.box?'su ordinazione, min. 12 ct':(c?c+' nel carico · ':'')+n+(S[fam]==='Mantecato'?(n===1?' gusto':' gusti'):(n===1?' prodotto':' prodotti'))}</span></button>`}).join('')}</div>`;
+    return `<button class="fam${c?' has':''}${m.box?' boxf':''}" data-sub="${i}"><b>${esc(m.t)}</b><span>${m.box?'su ordinazione · Serie Oro 4,25 L':(c?c+' nel carico · ':'')+n+(S[fam]==='Mantecato'?(n===1?' gusto':' gusti'):(n===1?' prodotto':' prodotti'))}</span></button>`}).join('')}</div>`;
   const m=MS[sub];if(m.box)return mantBox();
   return `<div class="list">${m.ps().map(p=>rowHtml(p,false,m.o)).join('')}</div>`;
 }
 function mantBox(){
-  return `<div class="mbox"><span>Gusti non disponibili nei formati 4,75 L e 4 L, oppure un formato che qui non c'è. Si ordinano su richiesta, minimo 12 cartoni: l'ufficio verifica la disponibilità.</span>
-  <div class="mrow"><select id="mf" aria-label="Formato"><option value="1">Lt. 4,750 g 3.300</option><option value="2">Lt. 4 g 2.900</option><option value="x">Altro formato: scrivilo</option></select>
+  return `<div class="mbox"><span>Gusti non disponibili nei formati 4,75 L e 4 L (minimo 12 cartoni), la vaschetta <b>Serie Oro Lt. 4,250 g 3.300</b> con i gusti a scelta, oppure un formato che qui non c'è. Si ordinano su richiesta, l'ufficio verifica la disponibilità; nel PDF vanno nella pagina dei prodotti aggiuntivi.</span>
+  <div class="mrow"><select id="mf" aria-label="Formato"><option value="1">Lt. 4,750 g 3.300</option><option value="2">Lt. 4 g 2.900</option><option value="o">Lt. 4,250 g 3.300 Serie Oro</option><option value="x">Altro formato: scrivilo</option></select>
   <select id="mg" aria-label="Gusto"></select></div>
   <input id="mff" placeholder="Scrivi il formato" hidden><input id="mt" placeholder="Scrivi il gusto" hidden>
   <div class="mrow"><input id="mq" inputmode="numeric" placeholder="Cartoni" value="12"><button class="btn" id="madd">Aggiungi</button></div><div id="mmsg" class="msg"></div></div>`;
 }
 function bindMant(root){
   const f=root.querySelector('#mf');if(!f)return;const g=root.querySelector('#mg'),tx=root.querySelector('#mt'),ff=root.querySelector('#mff');
-  const fill=()=>{const x=f.value==='x';ff.hidden=!x;
-    g.innerHTML=(x?MANT:MANT.filter(p=>p[6][+f.value]&&!p[6][+f.value][4])).map(p=>`<option value="${p[0]}">${esc(p[2])}</option>`).join('')+'<option value="x">Altro gusto: scrivilo</option>';tx.hidden=g.value!=='x'};
+  const fill=()=>{const x=f.value==='x',oro=f.value==='o';ff.hidden=!x;const mq=root.querySelector('#mq');if(oro&&mq.value==='12')mq.value='';else if(!oro&&!mq.value)mq.value='12';
+    g.innerHTML=(oro?'<option value="a">Gusti assortiti</option>':'')+(x||oro?MANT:MANT.filter(p=>p[6][+f.value]&&!p[6][+f.value][4])).map(p=>`<option value="${p[0]}">${esc(p[2])}</option>`).join('')+'<option value="x">Altro gusto: scrivilo</option>';tx.hidden=g.value!=='x'};
   f.onchange=fill;g.onchange=()=>{tx.hidden=g.value!=='x'};fill();
   root.querySelector('#madd').onclick=()=>{const q=parseInt(root.querySelector('#mq').value)||0,m=root.querySelector('#mmsg');const err=s=>{m.className='msg err';m.textContent=s};
     if(!q)return err('Scrivi quanti cartoni.');
-    const gusto=g.value==='x'?tx.value.trim():byId[+g.value][2];if(!gusto)return err('Scrivi il gusto.');
+    const gusto=g.value==='x'?tx.value.trim():g.value==='a'?'assortiti':byId[+g.value][2];if(!gusto)return err('Scrivi il gusto.');
+    if(f.value==='o'){st.extra.push({d:'Vaschetta Lt. 4,250 g 3.300 Serie Oro '+(gusto==='assortiti'?'gusti assortiti':'gusto '+gusto),q,u:'ct'});save();m.className='msg ok';m.textContent='Aggiunto ai prodotti aggiuntivi: Serie Oro 4,25 L, '+(gusto==='assortiti'?'gusti assortiti':gusto)+', '+q+' ct';tx.value='';return}
     if(f.value==='x'||g.value==='x'){const fmt=f.value==='x'?ff.value.trim():(f.value==='1'?'Lt. 4,750 g 3.300':'Lt. 4 g 2.900');if(!fmt)return err('Scrivi il formato.');
       st.extra.push({d:'Vaschetta '+fmt+' gusto '+gusto+' (su ordinazione)',q,u:'ct'});save();m.className='msg ok';m.textContent='Aggiunto ai prodotti aggiuntivi: '+gusto+', '+fmt;tx.value='';ff.value='';return}
     const vi=+f.value,id=+g.value;setQ(id,vi,qOf(id,vi)+q);m.className='msg ok';m.textContent='Aggiunto: '+byId[id][2]+' '+(vi===1?'4,75 L':'4 L')+', '+q+' ct su ordinazione'};
