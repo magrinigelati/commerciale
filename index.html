@@ -602,12 +602,14 @@ async function pdfOrdine(o,utente){
   if(!MODULO)MODULO=await fetch('modulo-presa-ordini.pdf').then(r=>{if(!r.ok)throw new Error('modulo non trovato');return r.arrayBuffer()});
   const doc=await PDFDocument.load(MODULO.slice(0));
   const f=await doc.embedFont(StandardFonts.HelveticaBold),fr=await doc.embedFont(StandardFonts.Helvetica);
-  const pages=doc.getPages(),H=pages[0].getHeight(),blue=rgb(.05,.22,.7),red=rgb(.75,.05,.15);
+  const pages=doc.getPages(),H=pages[0].getHeight(),blue=rgb(.05,.22,.7),red=rgb(.75,.05,.15),EVID=rgb(1,.9,.25);
   const fuori=[];
   for(const r of (o.righe||[])){const p=byId[r.p];if(!p){fuori.push({d:'Prodotto '+r.p,q:r.q,u:r.u});continue}const v=p[6][r.v]||p[6][0];
     if(p[4]==null||v[1]==null){fuori.push({d:p[2]+(p[6].length>1?' - Vaschetta '+v[0]:'')+(v[4]?'':' (su ordinazione)'),q:r.q,u:r.u});continue}
     const isPz=!!r.u&&r.u!=='ct',t=r.q+(isPz?' '+ULAB(r.u):'');let sz=8;const room=(v[3]||28)-3;while(sz>5.5&&f.widthOfTextAtSize(t,sz)>room)sz-=.5;
-    pages[p[4]].drawText(t,{x:v[1]-f.widthOfTextAtSize(t,sz)/2,y:p[5],size:sz,font:f,color:isPz?red:blue})}
+    const tw=f.widthOfTextAtSize(t,sz);
+    if(r.u==='st'||r.u==='pl')pages[p[4]].drawRectangle({x:v[1]-tw/2-1.5,y:p[5]-1.6,width:tw+3,height:sz+1.6,color:EVID}); // strati e pallet evidenziati in giallo
+    pages[p[4]].drawText(t,{x:v[1]-tw/2,y:p[5],size:sz,font:f,color:isPz?red:blue})}
   if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)}); // bordo destro mancante nel modulo originale
   // data con il nostro numero accanto (es. 07/10/26 - 05); il campo N. resta libero per il numero di Mexal
   { const [yy,mm,dd]=String(o.data).slice(0,10).split('-'),n=NUM(o),t=`${dd}/${mm}/${yy.slice(2)}`+(n?' - '+String(n).padStart(2,'0'):'');
@@ -629,7 +631,7 @@ async function pdfOrdine(o,utente){
     if(agg.length){pg.drawText('Q.tà',{x:40,y:yy,size:10,font:f});pg.drawText('Descrizione',{x:100,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
       agg.forEach(e=>{pg.drawText(e.q+' '+ULAB(e.u),{x:40,y:yy,size:11,font:f,color:e.u&&e.u!=='ct'?red:blue});pg.drawText(String(e.d).slice(0,80),{x:100,y:yy,size:11,font:fr});yy-=18})}
     if(conv.length){yy-=10;pg.drawText('STRATI E PALLET CONVERTITI IN CARTONI',{x:40,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
-      conv.forEach(e=>{pg.drawText(e.q+' '+ULAB(e.u),{x:40,y:yy,size:11,font:f,color:red});pg.drawText(String(e.d).slice(0,85),{x:100,y:yy,size:11,font:fr});yy-=18})}
+      conv.forEach(e=>{pg.drawRectangle({x:36,y:yy-4,width:519,height:16,color:EVID});pg.drawText(e.q+' '+ULAB(e.u),{x:40,y:yy,size:11,font:f,color:red});pg.drawText(String(e.d).slice(0,85),{x:100,y:yy,size:11,font:fr});yy-=18})}
     if(o.note){yy-=12;pg.drawText('Note: '+String(o.note).slice(0,90),{x:40,y:yy,size:11,font:fr})}}
   return await doc.save();
 }
