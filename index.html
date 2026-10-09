@@ -427,7 +427,7 @@ const MSUB=[
   {t:'Vaschette Lt. 6,5 g 3.900 decorate',ps:()=>MANT.filter(p=>p[6][0]&&(p[6][0][4]||qOf(p[0],0))),o:0},
   {t:'Vaschette Lt. 4,750 g 3.300 basse',ps:()=>MANT.filter(p=>p[6][1]&&(p[6][1][4]||qOf(p[0],1))),o:1},
   {t:'Vaschetta Lt. 4,750 g 2.600 limone',ps:()=>P.filter(p=>p[8]),o:null},
-  {t:'Vaschette Lt. 4 g 2.900',ps:()=>MANT.filter(p=>p[6][2]&&(p[6][2][4]||qOf(p[0],2))),o:2},
+  {t:'Vaschette Lt. 4,250 g 2.900',ps:()=>MANT.filter(p=>p[6][2]&&(p[6][2][4]||qOf(p[0],2))),o:2},
   {t:'Altri gusti o formati',box:true},
   {t:'Carapina Lt. 6',ps:()=>P.filter(p=>p[7].startsWith('Carapina')),o:null}];
 function subsOf(f){if(S[f]==='Mantecato')return MSUB;const secs=[];P.filter(p=>p[1]===f).forEach(p=>{if(!secs.includes(p[7]))secs.push(p[7])});return secs.map(s=>({t:s,ps:()=>P.filter(p=>p[1]===f&&p[7]===s),o:null}))}
@@ -440,8 +440,8 @@ function subView(){
   return `<div class="list">${m.ps().map(p=>rowHtml(p,false,m.o)).join('')}</div>`;
 }
 function mantBox(){
-  return `<div class="mbox"><span>Gusti non disponibili nei formati 4,75 L e 4 L (minimo 12 cartoni), la vaschetta <b>Serie Oro Lt. 4,250 g 3.300</b> con i gusti a scelta, oppure un formato che qui non c'è. Si ordinano su richiesta, l'ufficio verifica la disponibilità; nel PDF vanno nella pagina dei prodotti aggiuntivi.</span>
-  <div class="mrow"><select id="mf" aria-label="Formato"><option value="1">Lt. 4,750 g 3.300</option><option value="2">Lt. 4 g 2.900</option><option value="o">Lt. 4,250 g 3.300 Serie Oro</option><option value="x">Altro formato: scrivilo</option></select>
+  return `<div class="mbox"><span>Gusti non disponibili nei formati 4,75 L e 4,25 L (minimo 12 cartoni), la vaschetta <b>Serie Oro Lt. 4,250 g 3.300</b> con i gusti a scelta, oppure un formato che qui non c'è. Si ordinano su richiesta, l'ufficio verifica la disponibilità; nel PDF vanno nella pagina dei prodotti aggiuntivi.</span>
+  <div class="mrow"><select id="mf" aria-label="Formato"><option value="1">Lt. 4,750 g 3.300</option><option value="2">Lt. 4,250 g 2.900</option><option value="o">Lt. 4,250 g 3.300 Serie Oro</option><option value="x">Altro formato: scrivilo</option></select>
   <select id="mg" aria-label="Gusto"></select></div>
   <input id="mff" placeholder="Scrivi il formato" hidden><input id="mt" placeholder="Scrivi il gusto" hidden>
   <div class="mrow"><input id="mq" inputmode="numeric" placeholder="Cartoni" value="12"><button class="btn" id="madd">Aggiungi</button></div><div id="mmsg" class="msg"></div></div>`;
@@ -455,9 +455,9 @@ function bindMant(root){
     if(!q)return err('Scrivi quanti cartoni.');
     const gusto=g.value==='x'?tx.value.trim():g.value==='a'?'assortiti':byId[+g.value][2];if(!gusto)return err('Scrivi il gusto.');
     if(f.value==='o'){st.extra.push({d:'Vaschetta Lt. 4,250 g 3.300 Serie Oro '+(gusto==='assortiti'?'gusti assortiti':'gusto '+gusto),q,u:'ct'});save();m.className='msg ok';m.textContent='Aggiunto ai prodotti aggiuntivi: Serie Oro 4,25 L, '+(gusto==='assortiti'?'gusti assortiti':gusto)+', '+q+' ct';tx.value='';return}
-    if(f.value==='x'||g.value==='x'){const fmt=f.value==='x'?ff.value.trim():(f.value==='1'?'Lt. 4,750 g 3.300':'Lt. 4 g 2.900');if(!fmt)return err('Scrivi il formato.');
+    if(f.value==='x'||g.value==='x'){const fmt=f.value==='x'?ff.value.trim():(f.value==='1'?'Lt. 4,750 g 3.300':'Lt. 4,250 g 2.900');if(!fmt)return err('Scrivi il formato.');
       st.extra.push({d:'Vaschetta '+fmt+' gusto '+gusto+' (su ordinazione)',q,u:'ct'});save();m.className='msg ok';m.textContent='Aggiunto ai prodotti aggiuntivi: '+gusto+', '+fmt;tx.value='';ff.value='';return}
-    const vi=+f.value,id=+g.value;setQ(id,vi,qOf(id,vi)+q);m.className='msg ok';m.textContent='Aggiunto: '+byId[id][2]+' '+(vi===1?'4,75 L':'4 L')+', '+q+' ct su ordinazione'};
+    const vi=+f.value,id=+g.value;setQ(id,vi,qOf(id,vi)+q);m.className='msg ok';m.textContent='Aggiunto: '+byId[id][2]+' '+(vi===1?'4,75 L':'4,25 L')+', '+q+' ct su ordinazione'};
 }
 
 /* ================= VISTA CARICO ================= */
