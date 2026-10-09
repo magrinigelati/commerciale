@@ -96,6 +96,7 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .um{display:flex;flex:0 0 auto;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .um button{border:0;background:var(--surface);color:var(--muted);font-family:var(--f-display);font-weight:700;font-size:14px;letter-spacing:.04em;padding:0 7px;height:40px}
 .um button[aria-pressed=true]{background:var(--head);color:var(--head-ink)}
+.umsel{flex:0 0 auto;height:40px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-family:var(--f-display);font-weight:700;font-size:14px;padding:0 6px}
 .um.sm button{height:30px;font-size:12px;padding:0 6px}
 .sr .q i{font-style:normal;font-size:12px;margin-left:2px;color:var(--muted);text-transform:uppercase}
 .info{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
@@ -366,9 +367,13 @@ async function caricaCatalogo(){
 /* ================= BOZZA ================= */
 const save=()=>{store.set(DKEY(),st);bar()};
 const qOf=(id,vi)=>st.q[id+':'+vi]||0;
-const uOf=id=>st.u[id]==='pz'?'pz':'ct';
-const uTxt=(n,u)=>n+' '+(u==='pz'?(n===1?'pezzo':'pezzi'):(n===1?'cartone':'cartoni'));
-function setU(id,u){if(u==='pz')st.u[id]='pz';else delete st.u[id];save()}
+// unita' di misura: cartone e pezzo per tutti; strato e pallet solo per i concessionari
+const UM={ct:['CT','cartone','cartoni'],pz:['PZ','pezzo','pezzi'],st:['STR','strato','strati'],pl:['PLT','pallet','pallet']};
+const UMS=()=>ME&&ME.ruolo==='concessionario'?['ct','pz','st','pl']:['ct','pz'];
+const ULAB=u=>(UM[u]||UM.ct)[0].toLowerCase();
+const uOf=id=>UMS().includes(st.u[id])?st.u[id]:'ct';
+const uTxt=(n,u)=>n+' '+(n===1?(UM[u]||UM.ct)[1]:(UM[u]||UM.ct)[2]);
+function setU(id,u){if(u&&u!=='ct')st.u[id]=u;else delete st.u[id];save()}
 function setQ(id,vi,v){v=Math.max(0,Math.min(999,parseInt(v)||0));const k=id+':'+vi;if(v)st.q[k]=v;else delete st.q[k];save()}
 const famCount=si=>Object.keys(st.q).filter(k=>byId[k.split(':')[0]]&&byId[k.split(':')[0]][1]===si).length;
 const code=p=>[...new Set(p[6].map(v=>v[2]).filter(Boolean))].join(' · ');
@@ -376,11 +381,11 @@ const vLab=v=>v[6]||v[0];
 
 function bar(){
   const onCarico=view==='fam'||view==='sum';$('#bar').hidden=!onCarico;
-  const keys=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]);let ct=0,pz=0;
-  keys.forEach(k=>{if(uOf(k.split(':')[0])==='pz')pz+=st.q[k];else ct+=st.q[k]});
-  st.extra.forEach(e=>{if(e.u==='pz')pz+=e.q;else ct+=e.q});
+  const keys=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]);const T={ct:0,pz:0,st:0,pl:0};
+  keys.forEach(k=>{T[uOf(k.split(':')[0])]+=st.q[k]});
+  st.extra.forEach(e=>{T[UM[e.u]?e.u:'ct']+=e.q});
   const righe=keys.length+st.extra.length;
-  $('#tot').textContent=uTxt(ct,'ct')+(pz?' · '+uTxt(pz,'pz'):'');
+  $('#tot').textContent=[uTxt(T.ct,'ct')].concat(['pz','st','pl'].filter(u=>T[u]).map(u=>uTxt(T[u],u))).join(' · ');
   $('#tot2').textContent=righe?righe+(righe===1?' riga':' righe')+' nel carico':'nessuna riga nel carico';
   $('#go').textContent=view==='sum'?'Invia ordine':'Riepilogo';
   $('#go').disabled=view==='sum'&&!righe;
@@ -412,11 +417,12 @@ function rowHtml(p,showSec,o){
   return `<div class="row${on?' on':''}${p[8]?' evid':''}" data-row="${p[0]}" data-o="${one?o:''}" data-sec="${showSec?1:''}">
     <div class="info"><button class="pn" data-a="p" data-id="${p[0]}" data-vi="${vis.length?vis[0][1]:0}"><b>${esc(p[2])}${p[3]?'<span class="nov">novità</span>':''}${one&&!p[6][o][4]?' <span class="so">su ordinazione</span>':''}</b>
     <small>${showSec?esc(S[p[1]])+' · ':''}${cd||(p[4]==null||(one&&p[6][o][1]==null)?'fuori foglio: va nella pagina aggiuntiva':'')}</small>${notes.length?`<small class="nt">${esc(notes.join(' · '))}</small>`:''}${p[8]?'<small class="ev">Peso ridotto: g 2.600</small>':''}</button>
-    <div class="um" role="group" aria-label="Unità di misura"><button data-u="ct" data-id="${p[0]}" aria-pressed="${uOf(p[0])==='ct'}">CT</button><button data-u="pz" data-id="${p[0]}" aria-pressed="${uOf(p[0])==='pz'}">PZ</button></div></div>
+    ${UMS().length>2?`<select class="umsel" data-us="${p[0]}" aria-label="Unità di misura">${UMS().map(u=>`<option value="${u}" ${uOf(p[0])===u?'selected':''}>${UM[u][0]}</option>`).join('')}</select>`:`<div class="um" role="group" aria-label="Unità di misura">${UMS().map(u=>`<button data-u="${u}" data-id="${p[0]}" aria-pressed="${uOf(p[0])===u}">${UM[u][0]}</button>`).join('')}</div>`}</div>
     <div class="${multi?'vars':''}">${steps}</div></div>`;
 }
 function bindRows(root){
   root.querySelectorAll('[data-u]').forEach(b=>b.onclick=()=>{setU(+b.dataset.id,b.dataset.u);refreshRow(+b.dataset.id)});
+  root.querySelectorAll('[data-us]').forEach(x=>x.onchange=()=>{setU(+x.dataset.us,x.value);refreshRow(+x.dataset.us)});
   root.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{const id=+b.dataset.id,vi=+b.dataset.vi;setQ(id,vi,qOf(id,vi)+(b.dataset.a==='p'?1:-1));refreshRow(id)});
   root.querySelectorAll('.step input').forEach(i=>{i.onfocus=()=>i.select();i.oninput=()=>{setQ(+i.dataset.id,+i.dataset.vi,i.value);const r=i.closest('.row');r.classList.toggle('on',+i.value>0||byId[i.dataset.id][6].some((v,vi)=>qOf(+i.dataset.id,vi)))}});
 }
@@ -513,10 +519,10 @@ function renderSum(v){
   let h=`<div class="sum">`;
   if(!keys.length&&!st.extra.length)h+=`<div class="empty">Il carico è vuoto. Aggiungi prodotti da <b>Carico</b>.</div>`;
   Object.keys(groups).sort((a,b)=>a-b).forEach(si=>{h+=`<h3>${esc(S[si])}</h3><div class="list">${groups[si].map(k=>{const [id,vi]=k.split(':').map(Number);const p=byId[id];const u=uOf(id);
-    return `<div class="sr"><span class="q">${st.q[k]}<i>${u}</i></span><div class="n">${esc(p[2])}${p[6].length>1?' · '+esc(p[6][vi][0]):''}${p[6][vi][4]?'':' <b class="so">su ordinazione</b>'}<small>${p[6][vi][2]||(p[4]==null||p[6][vi][1]==null?'fuori foglio: pagina aggiuntiva':'')}</small></div><div class="um sm"><button data-su="ct" data-id="${id}" aria-pressed="${u==='ct'}">CT</button><button data-su="pz" data-id="${id}" aria-pressed="${u==='pz'}">PZ</button></div><button data-k="${k}" aria-label="Rimuovi">Togli</button></div>`}).join('')}</div>`});
+    return `<div class="sr"><span class="q">${st.q[k]}<i>${ULAB(u)}</i></span><div class="n">${esc(p[2])}${p[6].length>1?' · '+esc(p[6][vi][0]):''}${p[6][vi][4]?'':' <b class="so">su ordinazione</b>'}<small>${p[6][vi][2]||(p[4]==null||p[6][vi][1]==null?'fuori foglio: pagina aggiuntiva':'')}</small></div><div class="um sm"><button data-su="ct" data-id="${id}" aria-pressed="${u==='ct'}">CT</button><button data-su="pz" data-id="${id}" aria-pressed="${u==='pz'}">PZ</button></div><button data-k="${k}" aria-label="Rimuovi">Togli</button></div>`}).join('')}</div>`});
   h+=`<h3>Prodotti non presenti nel foglio</h3>`;
-  if(st.extra.length)h+=`<div class="list">${st.extra.map((e,i)=>`<div class="sr"><span class="q">${e.q}<i>${e.u==='pz'?'pz':'ct'}</i></span><div class="n">${esc(e.d)}<small>andrà su una pagina aggiuntiva del PDF</small></div><button data-x="${i}">Togli</button></div>`).join('')}</div>`;
-  h+=`<div class="extra"><input id="xd" placeholder="Descrizione prodotto"><input id="xq" inputmode="numeric" placeholder="Q.tà"><select id="xu" aria-label="Unità"><option value="ct">CT</option><option value="pz">PZ</option></select><button class="btn" id="xadd">Aggiungi</button></div>`;
+  if(st.extra.length)h+=`<div class="list">${st.extra.map((e,i)=>`<div class="sr"><span class="q">${e.q}<i>${ULAB(e.u)}</i></span><div class="n">${esc(e.d)}<small>andrà su una pagina aggiuntiva del PDF</small></div><button data-x="${i}">Togli</button></div>`).join('')}</div>`;
+  h+=`<div class="extra"><input id="xd" placeholder="Descrizione prodotto"><input id="xq" inputmode="numeric" placeholder="Q.tà"><select id="xu" aria-label="Unità">${UMS().map(u=>`<option value="${u}">${UM[u][0]}</option>`).join('')}</select><button class="btn" id="xadd">Aggiungi</button></div>`;
   h+=`<div class="field" style="margin-top:16px"><label for="nota">Note per l'ufficio (facoltative)</label><input id="nota" value="${esc(st.nota||'')}" placeholder="es. carico per domenica"></div>`;
   h+=`<div id="conf"></div><div class="btns" style="margin-top:12px"><button class="btn" id="svuota">Svuota carico</button></div><div id="smsg" class="msg"></div>
   <p class="note">La bozza resta salvata su questo telefono finché non premi “Invia ordine”. Dopo l'invio non si può più modificare: per correzioni chiama l'ufficio.</p></div>`;
@@ -572,7 +578,7 @@ async function inviaMail(o,utente=ME){
 const NUM=o=>o.numero??o.id; // numero progressivo dell'agente (se manca, l'id)
 const STATI={inviato:'Inviato',in_lavorazione:'In preparazione',caricato:'Caricato',annullato:'Annullato',bozza:'Bozza'};
 function righeTesto(o){return (o.righe||[]).map(r=>{const p=byId[r.p];return p?{q:r.q,u:r.u,n:p[2]+(p[6].length>1?' · '+p[6][r.v][0]:''),c:p[6][r.v]?p[6][r.v][2]:''}:{q:r.q,u:r.u,n:'(prodotto non più a catalogo)',c:''}}).concat((o.extra||[]).map(e=>({q:e.q,u:e.u,n:e.d,c:'aggiuntivo'})))}
-function dettaglioHtml(o){return `<div class="list">${righeTesto(o).map(r=>`<div class="sr"><span class="q">${r.q}<i>${r.u==='pz'?'pz':'ct'}</i></span><div class="n">${esc(r.n)}<small>${esc(r.c)}</small></div></div>`).join('')}</div>${o.note?`<p class="note">Note: ${esc(o.note)}</p>`:''}`}
+function dettaglioHtml(o){return `<div class="list">${righeTesto(o).map(r=>`<div class="sr"><span class="q">${r.q}<i>${ULAB(r.u)}</i></span><div class="n">${esc(r.n)}<small>${esc(r.c)}</small></div></div>`).join('')}</div>${o.note?`<p class="note">Note: ${esc(o.note)}</p>`:''}`}
 async function renderOrd(v){
   v.innerHTML='<div class="empty">Carico gli ordini…</div>';
   const {data,error}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').gte('data',(()=>{const d=new Date();d.setDate(d.getDate()-31);return d.toISOString().slice(0,10)})()).order('id',{ascending:false});
@@ -595,7 +601,7 @@ async function pdfOrdine(o,utente){
   const fuori=[];
   for(const r of (o.righe||[])){const p=byId[r.p];if(!p){fuori.push({d:'Prodotto '+r.p,q:r.q,u:r.u});continue}const v=p[6][r.v]||p[6][0];
     if(p[4]==null||v[1]==null){fuori.push({d:p[2]+(p[6].length>1?' - Vaschetta '+v[0]:'')+(v[4]?'':' (su ordinazione)'),q:r.q,u:r.u});continue}
-    const isPz=r.u==='pz',t=r.q+(isPz?' pz':'');let sz=8;const room=(v[3]||28)-3;while(sz>5.5&&f.widthOfTextAtSize(t,sz)>room)sz-=.5;
+    const isPz=!!r.u&&r.u!=='ct',t=r.q+(isPz?' '+ULAB(r.u):'');let sz=8;const room=(v[3]||28)-3;while(sz>5.5&&f.widthOfTextAtSize(t,sz)>room)sz-=.5;
     pages[p[4]].drawText(t,{x:v[1]-f.widthOfTextAtSize(t,sz)/2,y:p[5],size:sz,font:f,color:isPz?red:blue})}
   if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)}); // bordo destro mancante nel modulo originale
   // data con il nostro numero accanto (es. 07/10/26 - 05); il campo N. resta libero per il numero di Mexal
@@ -615,7 +621,7 @@ async function pdfOrdine(o,utente){
     pg.drawText('PRODOTTI AGGIUNTIVI E NOTE - ordine N. '+(NUM(o)||'')+'  ·  carico del '+dataIt(o.data),{x:40,y:yy,size:12,font:f});yy-=10;
     pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:1.2,color:blue});yy-=28;
     if(agg.length){pg.drawText('Q.tà',{x:40,y:yy,size:10,font:f});pg.drawText('Descrizione',{x:100,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
-      agg.forEach(e=>{pg.drawText(e.q+(e.u==='pz'?' pz':' ct'),{x:40,y:yy,size:11,font:f,color:e.u==='pz'?red:blue});pg.drawText(String(e.d).slice(0,80),{x:100,y:yy,size:11,font:fr});yy-=18})}
+      agg.forEach(e=>{pg.drawText(e.q+' '+ULAB(e.u),{x:40,y:yy,size:11,font:f,color:e.u&&e.u!=='ct'?red:blue});pg.drawText(String(e.d).slice(0,80),{x:100,y:yy,size:11,font:fr});yy-=18})}
     if(o.note){yy-=12;pg.drawText('Note: '+String(o.note).slice(0,90),{x:40,y:yy,size:11,font:fr})}}
   return await doc.save();
 }
