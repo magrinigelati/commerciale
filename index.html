@@ -96,6 +96,8 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .um{display:flex;flex:0 0 auto;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .um button{border:0;background:var(--surface);color:var(--muted);font-family:var(--f-display);font-weight:700;font-size:14px;letter-spacing:.04em;padding:0 7px;height:40px}
 .um button[aria-pressed=true]{background:var(--head);color:var(--head-ink)}
+.cv{color:var(--accent);font-weight:600}
+small.cv{display:block}
 .umsel{flex:0 0 auto;height:40px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-family:var(--f-display);font-weight:700;font-size:14px;padding:0 6px}
 .um.sm button{height:30px;font-size:12px;padding:0 6px}
 .sr .q i{font-style:normal;font-size:12px;margin-left:2px;color:var(--muted);text-transform:uppercase}
@@ -356,7 +358,7 @@ async function caricaCatalogo(){
   S=f.map(x=>x.nome);SUBFAM=f.filter(x=>x.con_sottofamiglie).map(x=>x.nome);
   const fi={};f.forEach((x,i)=>fi[x.id]=i);
   P=p.filter(x=>fi[x.famiglia_id]!=null).map(x=>[x.id,fi[x.famiglia_id],x.nome,x.novita?1:0,x.pagina,x.y==null?null:+x.y,
-     (x.varianti||[]).map(v=>[v.etichetta||'',v.x??null,v.codice||'',v.larghezza||28,v.disponibile===false?0:1,v.nota||'',v.breve||v.etichetta||'']),x.sezione||'',x.evidenza?1:0]);
+     (x.varianti||[]).map(v=>[v.etichetta||'',v.x??null,v.codice||'',v.larghezza||28,v.disponibile===false?0:1,v.nota||'',v.breve||v.etichetta||'',{pzct:+v.pzct||0,ctstr:+v.ctstr||0,ctplt:+v.ctplt||0}]),x.sezione||'',x.evidenza?1:0]);
   if(!P.length)P=[];
   byId={};P.forEach(p=>byId[p[0]]=p);
   byIdX={};p.forEach(x=>byIdX[x.id]=x);
@@ -372,6 +374,9 @@ const UM={ct:['CT','cartone','cartoni'],pz:['PZ','pezzo','pezzi'],st:['STR','str
 const UMS=()=>ME&&ME.ruolo==='concessionario'?['ct','pz','st','pl']:['ct','pz'];
 const ULAB=u=>(UM[u]||UM.ct)[0].toLowerCase();
 const uOf=id=>UMS().includes(st.u[id])?st.u[id]:'ct';
+// strati e pallet convertiti in cartoni con i dati del listino (null se mancano)
+function convCt(p,vi,u,q){const d=p&&p[6][vi]&&p[6][vi][7];if(!d)return null;const k=u==='st'?d.ctstr:u==='pl'?d.ctplt:0;return k?q*k:null}
+const convTxt=c=>c?' = '+c+(c===1?' cartone':' cartoni'):'';
 const uTxt=(n,u)=>n+' '+(n===1?(UM[u]||UM.ct)[1]:(UM[u]||UM.ct)[2]);
 function setU(id,u){if(u&&u!=='ct')st.u[id]=u;else delete st.u[id];save()}
 function setQ(id,vi,v){v=Math.max(0,Math.min(999,parseInt(v)||0));const k=id+':'+vi;if(v)st.q[k]=v;else delete st.q[k];save()}
@@ -416,7 +421,7 @@ function rowHtml(p,showSec,o){
     <button class="plus" aria-label="Aggiungi" data-a="p" data-id="${p[0]}" data-vi="${vi}">+</button></div>`).join('');
   return `<div class="row${on?' on':''}${p[8]?' evid':''}" data-row="${p[0]}" data-o="${one?o:''}" data-sec="${showSec?1:''}">
     <div class="info"><button class="pn" data-a="p" data-id="${p[0]}" data-vi="${vis.length?vis[0][1]:0}"><b>${esc(p[2])}${p[3]?'<span class="nov">novità</span>':''}${one&&!p[6][o][4]?' <span class="so">su ordinazione</span>':''}</b>
-    <small>${showSec?esc(S[p[1]])+' · ':''}${cd||(p[4]==null||(one&&p[6][o][1]==null)?'fuori foglio: va nella pagina aggiuntiva':'')}</small>${notes.length?`<small class="nt">${esc(notes.join(' · '))}</small>`:''}${p[8]?'<small class="ev">Peso ridotto: g 2.600</small>':''}</button>
+    <small>${showSec?esc(S[p[1]])+' · ':''}${cd||(p[4]==null||(one&&p[6][o][1]==null)?'fuori foglio: va nella pagina aggiuntiva':'')}</small>${notes.length?`<small class="nt">${esc(notes.join(' · '))}</small>`:''}${p[8]?'<small class="ev">Peso ridotto: g 2.600</small>':''}${(uOf(p[0])==='st'||uOf(p[0])==='pl')?(()=>{const vi=vis.length?vis[0][1]:0,c=convCt(p,vi,uOf(p[0]),1);return `<small class="cv">${c?'1 '+(uOf(p[0])==='st'?'strato':'pallet')+convTxt(c):'dati '+(uOf(p[0])==='st'?'strato':'pallet')+' mancanti: converte l\'ufficio'}</small>`})():''}</button>
     ${UMS().length>2?`<select class="umsel" data-us="${p[0]}" aria-label="Unità di misura">${UMS().map(u=>`<option value="${u}" ${uOf(p[0])===u?'selected':''}>${UM[u][0]}</option>`).join('')}</select>`:`<div class="um" role="group" aria-label="Unità di misura">${UMS().map(u=>`<button data-u="${u}" data-id="${p[0]}" aria-pressed="${uOf(p[0])===u}">${UM[u][0]}</button>`).join('')}</div>`}</div>
     <div class="${multi?'vars':''}">${steps}</div></div>`;
 }
@@ -519,7 +524,7 @@ function renderSum(v){
   let h=`<div class="sum">`;
   if(!keys.length&&!st.extra.length)h+=`<div class="empty">Il carico è vuoto. Aggiungi prodotti da <b>Carico</b>.</div>`;
   Object.keys(groups).sort((a,b)=>a-b).forEach(si=>{h+=`<h3>${esc(S[si])}</h3><div class="list">${groups[si].map(k=>{const [id,vi]=k.split(':').map(Number);const p=byId[id];const u=uOf(id);
-    return `<div class="sr"><span class="q">${st.q[k]}<i>${ULAB(u)}</i></span><div class="n">${esc(p[2])}${p[6].length>1?' · '+esc(p[6][vi][0]):''}${p[6][vi][4]?'':' <b class="so">su ordinazione</b>'}<small>${p[6][vi][2]||(p[4]==null||p[6][vi][1]==null?'fuori foglio: pagina aggiuntiva':'')}</small></div><div class="um sm"><button data-su="ct" data-id="${id}" aria-pressed="${u==='ct'}">CT</button><button data-su="pz" data-id="${id}" aria-pressed="${u==='pz'}">PZ</button></div><button data-k="${k}" aria-label="Rimuovi">Togli</button></div>`}).join('')}</div>`});
+    return `<div class="sr"><span class="q">${st.q[k]}<i>${ULAB(u)}</i></span><div class="n">${esc(p[2])}${(u==='st'||u==='pl')?` <b class="cv">${convCt(p,vi,u,st.q[k])?'= '+convCt(p,vi,u,st.q[k])+' ct':'(conversione a cura dell\'ufficio)'}</b>`:''}${p[6].length>1?' · '+esc(p[6][vi][0]):''}${p[6][vi][4]?'':' <b class="so">su ordinazione</b>'}<small>${p[6][vi][2]||(p[4]==null||p[6][vi][1]==null?'fuori foglio: pagina aggiuntiva':'')}</small></div><div class="um sm"><button data-su="ct" data-id="${id}" aria-pressed="${u==='ct'}">CT</button><button data-su="pz" data-id="${id}" aria-pressed="${u==='pz'}">PZ</button></div><button data-k="${k}" aria-label="Rimuovi">Togli</button></div>`}).join('')}</div>`});
   h+=`<h3>Prodotti non presenti nel foglio</h3>`;
   if(st.extra.length)h+=`<div class="list">${st.extra.map((e,i)=>`<div class="sr"><span class="q">${e.q}<i>${ULAB(e.u)}</i></span><div class="n">${esc(e.d)}<small>andrà su una pagina aggiuntiva del PDF</small></div><button data-x="${i}">Togli</button></div>`).join('')}</div>`;
   h+=`<div class="extra"><input id="xd" placeholder="Descrizione prodotto"><input id="xq" inputmode="numeric" placeholder="Q.tà"><select id="xu" aria-label="Unità">${UMS().map(u=>`<option value="${u}">${UM[u][0]}</option>`).join('')}</select><button class="btn" id="xadd">Aggiungi</button></div>`;
@@ -544,7 +549,7 @@ function confermaInvio(){
 }
 async function inviaOrdine(){
   const m=$('#smsg');$('#si').disabled=true;m.className='msg';m.textContent='Invio in corso…';
-  const righe=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);return {p:id,v:vi,q:st.q[k],u:uOf(id)}});
+  const righe=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);const u=uOf(id),r={p:id,v:vi,q:st.q[k],u};if(u==='st'||u==='pl'){const c=convCt(byId[id],vi,u,st.q[k]);if(c)r.ct=c}return r});
   // chiave unica del carico: se la rete cade dopo il salvataggio e si ripreme Invia, l'ordine non viene duplicato
   if(!st.chiave){st.chiave=(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random());save()}
   let {data,error}=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null,chiave:st.chiave}).select('*').single();
@@ -577,8 +582,8 @@ async function inviaMail(o,utente=ME){
 /* ================= ORDINI (agente) ================= */
 const NUM=o=>o.numero??o.id; // numero progressivo dell'agente (se manca, l'id)
 const STATI={inviato:'Inviato',in_lavorazione:'In preparazione',caricato:'Caricato',annullato:'Annullato',bozza:'Bozza'};
-function righeTesto(o){return (o.righe||[]).map(r=>{const p=byId[r.p];return p?{q:r.q,u:r.u,n:p[2]+(p[6].length>1?' · '+p[6][r.v][0]:''),c:p[6][r.v]?p[6][r.v][2]:''}:{q:r.q,u:r.u,n:'(prodotto non più a catalogo)',c:''}}).concat((o.extra||[]).map(e=>({q:e.q,u:e.u,n:e.d,c:'aggiuntivo'})))}
-function dettaglioHtml(o){return `<div class="list">${righeTesto(o).map(r=>`<div class="sr"><span class="q">${r.q}<i>${ULAB(r.u)}</i></span><div class="n">${esc(r.n)}<small>${esc(r.c)}</small></div></div>`).join('')}</div>${o.note?`<p class="note">Note: ${esc(o.note)}</p>`:''}`}
+function righeTesto(o){return (o.righe||[]).map(r=>{const p=byId[r.p];return p?{q:r.q,u:r.u,ct:r.ct,n:p[2]+(p[6].length>1?' · '+p[6][r.v][0]:''),c:p[6][r.v]?p[6][r.v][2]:''}:{q:r.q,u:r.u,n:'(prodotto non più a catalogo)',c:''}}).concat((o.extra||[]).map(e=>({q:e.q,u:e.u,n:e.d,c:'aggiuntivo'})))}
+function dettaglioHtml(o){return `<div class="list">${righeTesto(o).map(r=>`<div class="sr"><span class="q">${r.q}<i>${ULAB(r.u)}</i></span><div class="n">${esc(r.n)}${r.ct?` <b class="cv">${r.ct} ct</b>`:''}<small>${esc(r.c)}</small></div></div>`).join('')}</div>${o.note?`<p class="note">Note: ${esc(o.note)}</p>`:''}`}
 async function renderOrd(v){
   v.innerHTML='<div class="empty">Carico gli ordini…</div>';
   const {data,error}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').gte('data',(()=>{const d=new Date();d.setDate(d.getDate()-31);return d.toISOString().slice(0,10)})()).order('id',{ascending:false});
@@ -614,14 +619,17 @@ async function pdfOrdine(o,utente){
       if(words.length>1&&sz<14){const c2=words.slice(0,3),s2=fit(c2);if(s2>sz){cols=c2;sz=s2}}
       const lh=sz*1.08,cw=W/cols.length;
       cols.forEach((c,ci)=>{const h=c.length*lh;let y=top-(boxH-h)/2-sz*0.8;c.split('').forEach(ch=>{if(ch!==' '){const w=f.widthOfTextAtSize(ch,sz);pages[0].drawText(ch,{x:x0+ci*cw+(cw-w)/2,y,size:sz,font:f,color:blue})}y-=lh})})}}
+  const conv=(o.righe||[]).filter(r=>r.u==='st'||r.u==='pl').map(r=>{const p=byId[r.p];return {q:r.q,u:r.u,d:(p?p[2]+(p[6].length>1?' - '+(p[6][r.v]||[''])[0]:''):'Prodotto '+r.p)+(r.ct?'  =  '+r.ct+' ct':'  (conversione da fare)')}});
   const agg=fuori.concat(o.extra||[]);
-  if(agg.length||o.note){const pg=doc.addPage([595.32,841.92]);let yy=790;
+  if(agg.length||o.note||conv.length){const pg=doc.addPage([595.32,841.92]);let yy=790;
     const nmA=(utente.nome_stampa||utente.nome||utente.username||'').toUpperCase();let szA=40;while(szA>18&&f.widthOfTextAtSize(nmA,szA)>515)szA-=2;
     pg.drawText(nmA,{x:40,y:yy-szA*0.8,size:szA,font:f,color:blue});yy-=szA+14;
     pg.drawText('PRODOTTI AGGIUNTIVI E NOTE - ordine N. '+(NUM(o)||'')+'  ·  carico del '+dataIt(o.data),{x:40,y:yy,size:12,font:f});yy-=10;
     pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:1.2,color:blue});yy-=28;
     if(agg.length){pg.drawText('Q.tà',{x:40,y:yy,size:10,font:f});pg.drawText('Descrizione',{x:100,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
       agg.forEach(e=>{pg.drawText(e.q+' '+ULAB(e.u),{x:40,y:yy,size:11,font:f,color:e.u&&e.u!=='ct'?red:blue});pg.drawText(String(e.d).slice(0,80),{x:100,y:yy,size:11,font:fr});yy-=18})}
+    if(conv.length){yy-=10;pg.drawText('STRATI E PALLET CONVERTITI IN CARTONI',{x:40,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
+      conv.forEach(e=>{pg.drawText(e.q+' '+ULAB(e.u),{x:40,y:yy,size:11,font:f,color:red});pg.drawText(String(e.d).slice(0,85),{x:100,y:yy,size:11,font:fr});yy-=18})}
     if(o.note){yy-=12;pg.drawText('Note: '+String(o.note).slice(0,90),{x:40,y:yy,size:11,font:fr})}}
   return await doc.save();
 }
@@ -782,7 +790,9 @@ async function uffCatalogo(v){
   v.querySelectorAll('[data-pm]').forEach(b=>b.onclick=()=>{const p=ps.find(x=>x.id==b.dataset.pm),box=$('#pm'+p.id),vs=p.varianti||[];
     box.innerHTML=`<div class="card" style="margin:8px 0 0">
       <div class="field"><label>Nome</label>${inp('pmn'+p.id,p.nome)}</div>
-      ${vs.map((x,k)=>`<div class="field"><label>${vs.length>1?esc(x.etichetta)+' · ':''}Codice</label><div class="mrow">${inp('pmc'+p.id+'_'+k,x.codice||'')}<label style="display:flex;gap:6px;align-items:center;font-weight:500;white-space:nowrap"><input type="checkbox" id="pmd${p.id}_${k}" ${x.disponibile===false?'':'checked'}> Disponibile</label></div></div>`).join('')}
+      ${vs.map((x,k)=>`<div class="field"><label>${vs.length>1?esc(x.etichetta)+' · ':''}Codice</label><div class="mrow">${inp('pmc'+p.id+'_'+k,x.codice||'')}<label style="display:flex;gap:6px;align-items:center;font-weight:500;white-space:nowrap"><input type="checkbox" id="pmd${p.id}_${k}" ${x.disponibile===false?'':'checked'}> Disponibile</label></div>
+        <div class="mrow" style="margin-top:6px;gap:6px"><input id="pmpz${p.id}_${k}" inputmode="numeric" placeholder="Pz x ct" title="Pezzi per cartone" value="${x.pzct||''}"><input id="pmcs${p.id}_${k}" inputmode="numeric" placeholder="Ct x strato" title="Cartoni per strato" value="${x.ctstr||''}"><input id="pmcp${p.id}_${k}" inputmode="numeric" placeholder="Ct x pallet" title="Cartoni per pallet" value="${x.ctplt||''}"></div></div>`).join('')}
+      <p class="note" style="margin:-4px 0 10px">Pz x ct, ct x strato e ct x pallet servono a convertire gli ordini dei concessionari: lasciali vuoti se non li conosci.</p>
       <div class="grid2"><div class="field"><label>Sottotitolo</label>${inp('pms'+p.id,p.sezione)}</div>
       <div class="field"><label>Sposta in famiglia</label><select id="pmf${p.id}" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">${F.map(x=>`<option value="${x.id}" ${x.id===p.famiglia_id?'selected':''}>${esc(x.nome)}</option>`).join('')}</select></div></div>
       <label style="display:flex;gap:6px;align-items:center;margin-bottom:10px"><input type="checkbox" id="pmv${p.id}" ${p.novita?'checked':''}> Segna come novità</label>
@@ -791,7 +801,8 @@ async function uffCatalogo(v){
         <div class="mrow" style="margin-top:6px"><input type="file" id="pmfo${p.id}" accept="image/*"><button class="btn" id="pmfu${p.id}">Carica foto</button>${p.foto?`<button class="btn" id="pmfx${p.id}">Togli foto</button>`:''}</div></div>
       <button class="btn main" id="pmok${p.id}">Salva</button> <span class="note">"Disponibile" tolto = il formato compare solo come "su ordinazione".</span></div>`;
     $('#pmok'+p.id).onclick=async()=>{const nome=$('#pmn'+p.id).value.trim();if(!nome)return err('Il nome non può essere vuoto.');
-      const nv=vs.map((x,k)=>({...x,codice:$('#pmc'+p.id+'_'+k).value.trim(),disponibile:$('#pmd'+p.id+'_'+k).checked}));
+      const num=id=>{const n=parseInt($(id).value);return n>0?n:null};
+      const nv=vs.map((x,k)=>{const y={...x,codice:$('#pmc'+p.id+'_'+k).value.trim(),disponibile:$('#pmd'+p.id+'_'+k).checked,pzct:num('#pmpz'+p.id+'_'+k),ctstr:num('#pmcs'+p.id+'_'+k),ctplt:num('#pmcp'+p.id+'_'+k)};['pzct','ctstr','ctplt'].forEach(c=>{if(y[c]==null)delete y[c]});return y});
       const {error}=await sb.from('prodotti').update({nome,varianti:nv,sezione:$('#pms'+p.id).value.trim(),famiglia_id:+$('#pmf'+p.id).value,novita:$('#pmv'+p.id).checked}).eq('id',p.id);
       if(error)return err(error.message);ricarica()};
     $('#pmfu'+p.id).onclick=async()=>{const file=$('#pmfo'+p.id).files[0];if(!file)return err('Scegli prima la foto.');
