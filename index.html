@@ -606,10 +606,13 @@ async function pdfOrdine(o,utente){
   const fuori=[];
   for(const r of (o.righe||[])){const p=byId[r.p];if(!p){fuori.push({d:'Prodotto '+r.p,q:r.q,u:r.u});continue}const v=p[6][r.v]||p[6][0];
     if(p[4]==null||v[1]==null){fuori.push({d:p[2]+(p[6].length>1?' - Vaschetta '+v[0]:'')+(v[4]?'':' (su ordinazione)'),q:r.q,u:r.u});continue}
-    const isPz=r.u==='pz',ev=r.u==='st'||r.u==='pl',t=r.q+(r.u&&r.u!=='ct'?' '+ULAB(r.u):'');let sz=ev?7:8;const room=(v[3]||28)-3;while(sz>5.5&&f.widthOfTextAtSize(t,sz)>room)sz-=.5;
-    const tw=f.widthOfTextAtSize(t,sz);
-    if(ev)pages[p[4]].drawRectangle({x:v[1]-tw/2-1.2,y:p[5]-1.1,width:tw+2.4,height:sz+0.3,color:EVID}); // strati e pallet evidenziati in giallo, dentro la riga
-    pages[p[4]].drawText(t,{x:v[1]-tw/2,y:p[5],size:sz,font:f,color:isPz?red:blue})}
+    const isPz=r.u==='pz',ev=r.u==='st'||r.u==='pl',t=r.q+(r.u&&r.u!=='ct'?' '+ULAB(r.u):'');let sz=ev?7:8;const room=(v[3]||28)-3;
+    const par=ev&&r.ct?'('+r.ct+')':'',tot=z=>f.widthOfTextAtSize(t,z)+(par?2+fr.widthOfTextAtSize(par,z-1.5):0); // cartoni convertiti tra parentesi, piu' piccoli e non evidenziati
+    while(sz>5&&tot(sz)>room)sz-=.25;
+    const tw=f.widthOfTextAtSize(t,sz),x0=v[1]-tot(sz)/2;
+    if(ev)pages[p[4]].drawRectangle({x:x0-1.2,y:p[5]-1.1,width:tw+2.4,height:sz+0.3,color:EVID}); // strati e pallet evidenziati in giallo, dentro la riga
+    pages[p[4]].drawText(t,{x:x0,y:p[5],size:sz,font:f,color:isPz?red:blue});
+    if(par)pages[p[4]].drawText(par,{x:x0+tw+2,y:p[5]+0.3,size:sz-1.5,font:fr,color:blue})}
   if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)}); // bordo destro mancante nel modulo originale
   // data con il nostro numero accanto (es. 07/10/26 - 05); il campo N. resta libero per il numero di Mexal
   { const [yy,mm,dd]=String(o.data).slice(0,10).split('-'),n=NUM(o),t=`${dd}/${mm}/${yy.slice(2)}`+(n?' - '+String(n).padStart(2,'0'):'');
