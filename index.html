@@ -606,9 +606,9 @@ async function pdfOrdine(o,utente){
   const fuori=[];
   for(const r of (o.righe||[])){const p=byId[r.p];if(!p){fuori.push({d:'Prodotto '+r.p,q:r.q,u:r.u});continue}const v=p[6][r.v]||p[6][0];
     if(p[4]==null||v[1]==null){fuori.push({d:p[2]+(p[6].length>1?' - Vaschetta '+v[0]:'')+(v[4]?'':' (su ordinazione)'),q:r.q,u:r.u});continue}
-    const isPz=r.u==='pz',t=r.q+(r.u&&r.u!=='ct'?' '+ULAB(r.u):'');let sz=8;const room=(v[3]||28)-3;while(sz>5.5&&f.widthOfTextAtSize(t,sz)>room)sz-=.5;
+    const isPz=r.u==='pz',ev=r.u==='st'||r.u==='pl',t=r.q+(r.u&&r.u!=='ct'?' '+ULAB(r.u):'');let sz=ev?7:8;const room=(v[3]||28)-3;while(sz>5.5&&f.widthOfTextAtSize(t,sz)>room)sz-=.5;
     const tw=f.widthOfTextAtSize(t,sz);
-    if(r.u==='st'||r.u==='pl')pages[p[4]].drawRectangle({x:v[1]-tw/2-1.5,y:p[5]-1.6,width:tw+3,height:sz+1.6,color:EVID}); // strati e pallet evidenziati in giallo
+    if(ev)pages[p[4]].drawRectangle({x:v[1]-tw/2-1.2,y:p[5]-1.1,width:tw+2.4,height:sz+0.3,color:EVID}); // strati e pallet evidenziati in giallo, dentro la riga
     pages[p[4]].drawText(t,{x:v[1]-tw/2,y:p[5],size:sz,font:f,color:isPz?red:blue})}
   if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)}); // bordo destro mancante nel modulo originale
   // data con il nostro numero accanto (es. 07/10/26 - 05); il campo N. resta libero per il numero di Mexal
