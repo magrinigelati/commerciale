@@ -830,7 +830,7 @@ async function uffCatalogo(v){
 
 
 /* ================= FOTO PRODOTTI ================= */
-let fotoFam=null,FOTO=null;
+let fotoFam=null,FOTO=null,fotoQ='';
 const SITO='https://www.magrinigelati.it/';
 const nk=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 async function caricaFoto(){if(FOTO)return FOTO;try{FOTO=await fetch('foto.json').then(r=>r.json())}catch(e){FOTO={prodotti:{},sezioni:{}}}return FOTO}
@@ -853,10 +853,23 @@ function ordineFoto(){const idx=S.map((_,i)=>i),trova=re=>S.findIndex(x=>re.test
 async function renderFoto(v){
   await caricaFoto();
   if(fotoFam===null){
-    v.innerHTML=`<p class="note" style="margin:0 0 10px">Tocca una famiglia, poi la foto: la puoi salvare o condividere su WhatsApp. Se una foto manca, chiedi in ufficio di caricarla.</p>
+    v.innerHTML=`<div class="field" style="margin-bottom:10px"><input id="fq" type="search" placeholder="Cerca prodotto o codice" value="${esc(fotoQ)}" autocomplete="off" aria-label="Cerca foto"></div><div id="fr"></div>`;
+    const fr=$('#fr'),fq=$('#fq');
+    const famiglie=()=>{fr.innerHTML=`<p class="note" style="margin:0 0 10px">Tocca una famiglia, poi la foto: la puoi salvare o condividere su WhatsApp. Se una foto manca, chiedi in ufficio di caricarla.</p>
      <div class="fams">${ordineFoto().map(i=>{const s=S[i];const ps=P.filter(p=>p[1]===i);const n=ps.filter(p=>fotoDi(p)).length;const sez=[...new Set(ps.map(p=>p[7]))].filter(x=>fotoSez(x)).length;
        return `<button class="fam" data-ff="${i}"><b>${esc(s)}</b><span>${n+sez?`${n+sez} foto`:'nessuna foto'}</span></button>`}).join('')}</div>`;
-    v.querySelectorAll('[data-ff]').forEach(b=>b.onclick=()=>{fotoFam=+b.dataset.ff;nav();renderFoto(v);window.scrollTo(0,0)});return}
+      fr.querySelectorAll('[data-ff]').forEach(b=>b.onclick=()=>{fotoFam=+b.dataset.ff;nav();renderFoto(v);window.scrollTo(0,0)})};
+    // ricerca su tutte le famiglie: prodotti (nome o codice) e foto delle linee
+    const cerca=()=>{const q=fotoQ.trim();if(q.length<2)return famiglie();
+      const hits=(/^\d{3,}$/.test(q)?P.filter(p=>p[6].some(x=>String(x[2]||'').includes(q))):search(q)).slice(0,60),con=hits.filter(p=>fotoDi(p)),senza=hits.filter(p=>!fotoDi(p));
+      const nq=nk(q),linee=[...new Set(P.map(p=>p[7]))].filter(x=>{const fs=fotoSez(x);return fs&&(nk(x).includes(nq)||nk(fs.nome).includes(nq))});
+      if(!con.length&&!senza.length&&!linee.length){fr.innerHTML=`<div class="empty">Nessun prodotto trovato per “${esc(q)}”.</div>`;return}
+      fr.innerHTML=`<div class="lbl">${con.length+linee.length} foto trovate</div><div class="fgrid">${linee.map((x,i)=>{const fs=fotoSez(x);return `<button class="fcard" data-fl="${i}"><img src="${esc(fs.thumb)}" alt="" loading="lazy"><b>${esc(fs.nome)}</b><small>foto della linea</small></button>`}).join('')}
+        ${con.map(p=>{const f=fotoDi(p);return `<button class="fcard" data-fp="${p[0]}"><img src="${esc(f.thumb||f.img)}" alt="" loading="lazy"><b>${esc(p[2])}</b><small>${esc(S[p[1]])}${f.peso||f.pz?' · '+esc([f.peso,f.pz].filter(Boolean).join(' · ')):''}</small></button>`}).join('')}</div>
+        ${senza.length?`<details class="fsenza"><summary>${senza.length} ${senza.length===1?'prodotto senza foto':'prodotti senza foto'}</summary><div class="list">${senza.map(p=>`<div class="oi"><div class="n"><b>${esc(p[2])}</b><small>${esc(S[p[1]])} · foto al momento non disponibile: richiedine il caricamento in ufficio</small></div></div>`).join('')}</div></details>`:''}`;
+      fr.querySelectorAll('[data-fp]').forEach(b=>b.onclick=()=>{const p=byId[+b.dataset.fp];apriFoto(fotoDi(p),p[2])});
+      fr.querySelectorAll('[data-fl]').forEach(b=>b.onclick=()=>{const fs=fotoSez(linee[+b.dataset.fl]);apriFoto(fs,fs.nome)})};
+    let t;fq.oninput=()=>{fotoQ=fq.value;clearTimeout(t);t=setTimeout(cerca,150)};cerca();return}
   const ps=P.filter(p=>p[1]===fotoFam);const secs=[];ps.forEach(p=>{if(!secs.includes(p[7]))secs.push(p[7])});
   let h=`<div class="back"><button id="bk">‹ Famiglie</button><h2>${esc(S[fotoFam])}</h2></div>`;
   secs.forEach((s,si)=>{const L=ps.filter(p=>p[7]===s);const con=L.filter(p=>fotoDi(p)),senza=L.filter(p=>!fotoDi(p));const fs=fotoSez(s);
