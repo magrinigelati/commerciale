@@ -615,7 +615,7 @@ async function pdfOrdine(o,utente){
     if(par)pages[p[4]].drawText(par,{x:x0+tw+2,y:p[5]+0.3,size:sz-1.5,font:fr,color:blue})}
   if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)}); // bordo destro mancante nel modulo originale
   // data con il nostro numero accanto (es. 07/10/26 - 05); il campo N. resta libero per il numero di Mexal
-  { const [yy,mm,dd]=String(o.data).slice(0,10).split('-'),n=NUM(o),t=`${dd}/${mm}/${yy.slice(2)}`+(n?' - '+String(n).padStart(2,'0'):'');
+  { const [yy,mm,dd]=String(o.data).slice(0,10).split('-'),t=`${dd}/${mm}/${yy}`; // solo la data: il numero d'ordine non va sul PDF (in magazzino si usa quello di Mexal)
     let sz=7.5;while(sz>5&&f.widthOfTextAtSize(t,sz)>47)sz-=.25;
     pages[0].drawText(t,{x:548.5-f.widthOfTextAtSize(t,sz)/2,y:H-38,size:sz,font:f,color:blue}); }
   { const nm=(utente.nome_stampa||utente.nome||utente.username||'').trim().toUpperCase(),top=H-80,bot=H-256,boxH=top-bot,x0=524,W=49;
@@ -629,7 +629,7 @@ async function pdfOrdine(o,utente){
   if(agg.length||o.note||conv.length){const pg=doc.addPage([595.32,841.92]);let yy=790;
     const nmA=(utente.nome_stampa||utente.nome||utente.username||'').toUpperCase();let szA=40;while(szA>18&&f.widthOfTextAtSize(nmA,szA)>515)szA-=2;
     pg.drawText(nmA,{x:40,y:yy-szA*0.8,size:szA,font:f,color:blue});yy-=szA+14;
-    pg.drawText('PRODOTTI AGGIUNTIVI E NOTE - ordine N. '+(NUM(o)||'')+'  ·  carico del '+dataIt(o.data),{x:40,y:yy,size:12,font:f});yy-=10;
+    pg.drawText('PRODOTTI AGGIUNTIVI E NOTE  ·  carico del '+dataIt(o.data),{x:40,y:yy,size:12,font:f});yy-=10;
     pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:1.2,color:blue});yy-=28;
     if(agg.length){pg.drawText('Q.tà',{x:40,y:yy,size:10,font:f});pg.drawText('Descrizione',{x:100,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
       agg.forEach(e=>{pg.drawText(e.q+' '+ULAB(e.u),{x:40,y:yy,size:11,font:f,color:e.u==='pz'?red:blue});pg.drawText(String(e.d).slice(0,80),{x:100,y:yy,size:11,font:fr});yy-=18})}
