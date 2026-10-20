@@ -392,7 +392,7 @@ function bar(){
   const righe=keys.length+st.extra.length;
   $('#tot').textContent=[uTxt(T.ct,'ct')].concat(['pz','st','pl'].filter(u=>T[u]).map(u=>uTxt(T[u],u))).join(' · ');
   $('#tot2').textContent=righe?righe+(righe===1?' riga':' righe')+' nel carico':'nessuna riga nel carico';
-  $('#go').textContent=view==='sum'?'Invia ordine':'Riepilogo';
+  $('#go').textContent=view==='sum'?(st.mod?'Invia modifica':'Invia ordine'):'Riepilogo';
   $('#go').disabled=view==='sum'&&!righe;
 }
 $('#go').onclick=()=>{if(view==='sum')confermaInvio();else go('sum')};
@@ -530,7 +530,7 @@ function renderSum(v){
   h+=`<div class="extra"><input id="xd" placeholder="Descrizione prodotto"><input id="xq" inputmode="numeric" placeholder="Q.tà"><select id="xu" aria-label="Unità">${UMS().map(u=>`<option value="${u}">${UM[u][0]}</option>`).join('')}</select><button class="btn" id="xadd">Aggiungi</button></div>`;
   h+=`<div class="field" style="margin-top:16px"><label for="nota">Note per l'ufficio (facoltative)</label><input id="nota" value="${esc(st.nota||'')}" placeholder="es. carico per domenica"></div>`;
   h+=`<div id="conf"></div><div class="btns" style="margin-top:12px"><button class="btn" id="svuota">Svuota carico</button></div><div id="smsg" class="msg"></div>
-  <p class="note">La bozza resta salvata su questo telefono finché non premi “Invia ordine”. Dopo l'invio non si può più modificare: per correzioni chiama l'ufficio.</p></div>`;
+  <p class="note">La bozza resta salvata su questo telefono finché non premi “Invia ordine”. Dopo l'invio puoi modificarlo entro un'ora da I miei ordini, finché l'ufficio non lo mette in preparazione; poi per correzioni chiama l'ufficio.</p></div>`;
   v.innerHTML=h;
   $('#nota').oninput=e=>{st.nota=e.target.value;save()};
   v.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{delete st.q[b.dataset.k];save();render()});
@@ -541,7 +541,7 @@ function renderSum(v){
 }
 function confermaInvio(){
   const c=$('#conf');if(!c)return;
-  c.innerHTML=`<div class="card" style="margin-top:14px;border-color:var(--accent)"><h3>Inviare l'ordine?</h3><p style="margin:0 0 10px;color:var(--muted)">Carico del ${dataIt(st.data)} · ${$('#tot').textContent}. Dopo l'invio non si potrà modificare.</p>
+  c.innerHTML=`<div class="card" style="margin-top:14px;border-color:var(--accent)"><h3>${st.mod?'Inviare la modifica dell\'ordine N. '+st.mod.numero+'?':'Inviare l\'ordine?'}</h3><p style="margin:0 0 10px;color:var(--muted)">Carico del ${dataIt(st.data)} · ${$('#tot').textContent}. ${st.mod?'L\'ufficio riceverà una nuova mail con le differenze.':'Potrai modificarlo entro un\'ora dall\'invio, finché l\'ufficio non lo mette in preparazione.'}</p>
    <div class="btns"><button class="btn main" id="si">Sì, invia</button><button class="btn" id="no">Annulla</button></div></div>`;
   c.scrollIntoView({behavior:'smooth',block:'center'});
   $('#no').onclick=()=>c.innerHTML='';
@@ -549,6 +549,7 @@ function confermaInvio(){
 }
 async function inviaOrdine(){
   const m=$('#smsg');$('#si').disabled=true;m.className='msg';m.textContent='Invio in corso…';
+  if(st.mod)return inviaModifica(m);
   const righe=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);const u=uOf(id),r={p:id,v:vi,q:st.q[k],u};if(u==='st'||u==='pl'){const c=convCt(byId[id],vi,u,st.q[k]);if(c)r.ct=c}return r});
   // chiave unica del carico: se la rete cade dopo il salvataggio e si ripreme Invia, l'ordine non viene duplicato
   if(!st.chiave){st.chiave=(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random());save()}
@@ -571,6 +572,41 @@ async function inviaOrdine(){
   $('#ok-sh').onclick=e=>condividiPdf(ordInviato,ME,e.currentTarget);$('#ok-dl').onclick=()=>scaricaPdf(ordInviato,ME);$('#ok-op').onclick=()=>apriPdf(ordInviato,ME);
 }
 
+// righe del carico nel formato salvato nell'ordine
+function righeCarico(){return Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);const u=uOf(id),r={p:id,v:vi,q:st.q[k],u};if(u==='st'||u==='pl'){const c=convCt(byId[id],vi,u,st.q[k]);if(c)r.ct=c}return r})}
+const MOD_MIN=60; // minuti per modificare un ordine dopo il primo invio
+const scadenzaMod=o=>new Date(o.inviato_il||o.creato_il).getTime()+MOD_MIN*60000;
+const modificabile=o=>o.stato==='inviato'&&Date.now()<scadenzaMod(o);
+const oraIt=t=>new Date(t).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+// riapre un ordine inviato nel foglio di carico; un eventuale carico in corso viene messo da parte e ripristinato dopo
+function modificaOrdine(o){
+  if(!modificabile(o))return alert('Il tempo per modificare questo ordine è scaduto oppure l\'ufficio lo ha già messo in preparazione: per correzioni chiama l\'ufficio.');
+  if(!st.mod&&(Object.keys(st.q).length||st.extra.length))store.set(DKEY()+'_sospesa',st);
+  const q={},u={};(o.righe||[]).forEach(r=>{if(byId[r.p]){q[r.p+':'+r.v]=r.q;if(r.u&&r.u!=='ct')u[r.p]=r.u}});
+  st={q,u,extra:JSON.parse(JSON.stringify(o.extra||[])),data:o.data,nota:o.note||'',mod:{id:o.id,numero:NUM(o),scade:scadenzaMod(o)}};save();
+  fam=null;sub=null;view='fam';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='fam'));render();window.scrollTo(0,0);
+}
+function chiudiModifica(){const sosp=store.get(DKEY()+'_sospesa',null);try{localStorage.removeItem(DKEY()+'_sospesa')}catch(e){}st=sosp||{q:{},u:{},extra:[],data:oggi(),nota:''};delete st.mod;save()}
+async function inviaModifica(m){
+  if(Date.now()>st.mod.scade){m.className='msg err';m.textContent='Tempo per la modifica scaduto: per correzioni chiama l\'ufficio. Puoi annullare la modifica dal riquadro in alto.';$('#si').disabled=false;return}
+  const righe=righeCarico(),numero=st.mod.numero;
+  const {data,error}=await sb.from('ordini').update({data:st.data,righe,extra:st.extra,note:st.nota||null}).eq('id',st.mod.id).select('*').single();
+  if(error){m.className='msg err';m.textContent=/scaduto|preparazione/i.test(error.message)?error.message:'Modifica non inviata. Controlla la connessione e riprova. ('+error.message+')';$('#si').disabled=false;return}
+  log('modifica_ordine','N. '+numero+' v'+data.versione);
+  m.textContent='Modifica salvata, invio la mail all\'ufficio…';
+  const esitoMail=await inviaMail(data);
+  chiudiModifica();
+  view='ord';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='ord'));
+  await render();
+  const v=$('#view'),ok=document.createElement('div');ok.className='card';ok.style.borderColor='var(--ok)';
+  ok.innerHTML=`<h3 style="color:var(--ok)">Ordine N. ${numero} modificato</h3><p style="margin:0 0 10px;color:var(--muted)">${esitoMail===true?'L\'ufficio ha ricevuto la nuova versione con le differenze.':'<b style="color:var(--accent)">Attenzione: la mail all\'ufficio non è partita.</b> La modifica è salvata nel portale: riprova da I miei ordini oppure <b>avvisa l\'ufficio al telefono</b>.'}</p><div class="btns"><button class="btn" id="ok-op">Apri PDF</button><button class="btn main" id="ok-sh">Condividi PDF</button></div>`;v.prepend(ok);
+  $('#ok-sh').onclick=e=>condividiPdf(data,ME,e.currentTarget);$('#ok-op').onclick=()=>apriPdf(data,ME);
+}
+// riquadro "stai modificando" sopra il foglio di carico e il riepilogo
+function bannerModifica(v){if(!st.mod||(view!=='fam'&&view!=='sum'))return;const d=document.createElement('div');d.className='card';d.style.borderColor='var(--accent)';
+  const min=Math.max(0,Math.round((st.mod.scade-Date.now())/60000));
+  d.innerHTML=`<b>Stai modificando l'ordine N. ${st.mod.numero}</b><p class="note" style="margin:4px 0 8px">${min>0?'Puoi inviare la modifica fino alle '+oraIt(st.mod.scade)+' (ancora '+min+' min). Cambia le quantità e poi Riepilogo → Invia modifica.':'Tempo scaduto: la modifica non può più essere inviata. Per correzioni chiama l\'ufficio.'}</p><button class="btn sm" id="annmod">Annulla modifica</button>`;
+  v.prepend(d);d.querySelector('#annmod').onclick=()=>{if(!confirm('Annullare la modifica? L\'ordine resta com\'era quando lo hai inviato.'))return;chiudiModifica();render()}}
 // mail all'ufficio con il PDF allegato (se non parte, l'ordine resta comunque nel portale)
 async function inviaMail(o,utente=ME){
   try{const bytes=await pdfOrdine(o,utente);let bin='';const u8=new Uint8Array(bytes);for(let i=0;i<u8.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
@@ -589,8 +625,9 @@ async function renderOrd(v){
   const {data,error}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').gte('data',(()=>{const d=new Date();d.setDate(d.getDate()-31);return d.toISOString().slice(0,10)})()).order('id',{ascending:false});
   if(error){v.innerHTML='<div class="empty">Non riesco a leggere gli ordini. Riprova tra poco.</div>';return}
   if(!data.length){v.innerHTML='<div class="empty">Nessun ordine negli ultimi 31 giorni.</div>';return}
-  v.innerHTML=`<div class="lbl">I tuoi ordini degli ultimi 31 giorni</div><div class="list">${data.map(o=>`<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${NUM(o)} · carico del ${dataIt(o.data)}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · inviato ${new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}${'mail_il' in o&&!o.mail_il?' · <b style="color:var(--accent)">mail all\'ufficio non partita</b>':''}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="od${o.id}" hidden style="padding:0 12px 12px"></div>`).join('')}</div>`;
-  v.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=data.find(x=>x.id==b.dataset.o);const d=$('#od'+o.id);d.hidden=!d.hidden;if(!d.hidden){d.innerHTML=dettaglioHtml(o)+`<div class="btns">${'mail_il' in o&&!o.mail_il?'<button class="btn main" data-rm>Riprova mail all\'ufficio</button>':''}<button class="btn" data-op>Apri PDF</button><button class="btn${'mail_il' in o&&!o.mail_il?'':' main'}" data-sh>Condividi PDF</button><button class="btn" data-pdf="${o.id}">Scarica PDF</button></div>`;d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,ME);d.querySelector('[data-op]').onclick=()=>apriPdf(o,ME);
+  v.innerHTML=`<div class="lbl">I tuoi ordini degli ultimi 31 giorni</div><div class="list">${data.map(o=>`<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${NUM(o)} · carico del ${dataIt(o.data)}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · inviato ${new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}${o.versione>1?' · modificato '+oraIt(o.modificato_il):''}${modificabile(o)?' · modificabile fino alle '+oraIt(scadenzaMod(o)):''}${'mail_il' in o&&!o.mail_il?' · <b style="color:var(--accent)">mail all\'ufficio non partita</b>':''}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="od${o.id}" hidden style="padding:0 12px 12px"></div>`).join('')}</div>`;
+  v.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=data.find(x=>x.id==b.dataset.o);const d=$('#od'+o.id);d.hidden=!d.hidden;if(!d.hidden){d.innerHTML=dettaglioHtml(o)+`<div class="btns">${modificabile(o)?`<button class="btn main" data-mod>Modifica ordine (ancora ${Math.max(1,Math.round((scadenzaMod(o)-Date.now())/60000))} min)</button>`:''}${'mail_il' in o&&!o.mail_il?'<button class="btn main" data-rm>Riprova mail all\'ufficio</button>':''}<button class="btn" data-op>Apri PDF</button><button class="btn${'mail_il' in o&&!o.mail_il?'':' main'}" data-sh>Condividi PDF</button><button class="btn" data-pdf="${o.id}">Scarica PDF</button></div>`;d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,ME);d.querySelector('[data-op]').onclick=()=>apriPdf(o,ME);
+      const md=d.querySelector('[data-mod]');if(md)md.onclick=()=>modificaOrdine(o);
       const rm=d.querySelector('[data-rm]');if(rm)rm.onclick=async()=>{rm.disabled=true;rm.textContent='Invio…';const r=await inviaMail(o);if(r===true){rm.textContent='Mail inviata';o.mail_il=new Date().toISOString();b.querySelector('small b').remove()}else{rm.disabled=false;rm.textContent='Riprova mail all\'ufficio';alert('Ancora niente: '+r)}};
       preparaPdf(o,ME).catch(()=>{});d.querySelector('[data-sh]').onclick=e=>condividiPdf(o,ME,e.currentTarget)}});
 }
@@ -626,10 +663,11 @@ async function pdfOrdine(o,utente){
       cols.forEach((c,ci)=>{const h=c.length*lh;let y=top-(boxH-h)/2-sz*0.8;c.split('').forEach(ch=>{if(ch!==' '){const w=f.widthOfTextAtSize(ch,sz);pages[0].drawText(ch,{x:x0+ci*cw+(cw-w)/2,y,size:sz,font:f,color:blue})}y-=lh})})}}
   const conv=(o.righe||[]).filter(r=>r.u==='st'||r.u==='pl').map(r=>{const p=byId[r.p];return {q:r.q,u:r.u,d:(p?p[2]+(p[6].length>1?' - '+(p[6][r.v]||[''])[0]:''):'Prodotto '+r.p)+(r.ct?'  =  '+r.ct+' ct':'  (conversione da fare)')}});
   const agg=fuori.concat(o.extra||[]);
-  if(agg.length||o.note||conv.length){const pg=doc.addPage([595.32,841.92]);let yy=790;
+  if(agg.length||o.note||conv.length||o.versione>1){const pg=doc.addPage([595.32,841.92]);let yy=790;
     const nmA=(utente.nome_stampa||utente.nome||utente.username||'').toUpperCase();let szA=40;while(szA>18&&f.widthOfTextAtSize(nmA,szA)>515)szA-=2;
     pg.drawText(nmA,{x:40,y:yy-szA*0.8,size:szA,font:f,color:blue});yy-=szA+14;
     pg.drawText('PRODOTTI AGGIUNTIVI E NOTE  ·  carico del '+dataIt(o.data),{x:40,y:yy,size:12,font:f});yy-=10;
+    if(o.versione>1){yy-=4;pg.drawText('ORDINE MODIFICATO il '+new Date(o.modificato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})+(o.versione>2?'  ('+o.versione+'ª versione)':'')+': sostituisce le stampe precedenti',{x:40,y:yy-8,size:11,font:f,color:red});yy-=16}
     pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:1.2,color:blue});yy-=28;
     if(agg.length){pg.drawText('Q.tà',{x:40,y:yy,size:10,font:f});pg.drawText('Descrizione',{x:100,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
       agg.forEach(e=>{pg.drawText(e.q+' '+ULAB(e.u),{x:40,y:yy,size:11,font:f,color:e.u==='pz'?red:blue});pg.drawText(String(e.d).slice(0,80),{x:100,y:yy,size:11,font:fr});yy-=18})}
@@ -641,7 +679,7 @@ async function pdfOrdine(o,utente){
 // condivisione del PDF (WhatsApp, mail, Drive...) con il menu del telefono; il file si prepara prima, cosi' il tocco su Condividi parte subito
 const pdfPronti={};
 function nomePdf(o,utente){return `Carico_${NUM(o)}_${(utente.nome_stampa||utente.username||'').replace(/[^A-Za-z0-9]+/g,'_')}_${o.data}.pdf`}
-function preparaPdf(o,utente){return pdfPronti[o.id]||(pdfPronti[o.id]=pdfOrdine(o,utente).then(b=>new File([b],nomePdf(o,utente),{type:'application/pdf'})).catch(e=>{delete pdfPronti[o.id];throw e}))}
+function preparaPdf(o,utente){const k=o.id+'_'+(o.versione||1);return pdfPronti[k]||(pdfPronti[k]=pdfOrdine(o,utente).then(b=>new File([b],nomePdf(o,utente),{type:'application/pdf'})).catch(e=>{delete pdfPronti[k];throw e}))}
 async function condividiPdf(o,utente,btn){
   const t=btn&&btn.textContent;if(btn){btn.disabled=true;btn.textContent='Preparo…'}
   try{const file=await preparaPdf(o,utente);
@@ -680,7 +718,7 @@ async function uffOrdini(v){
   if(error){$('#ul').innerHTML='<div class="empty">Errore: '+esc(error.message)+'</div>';return}
   const U={};(ut||[]).forEach(u=>U[u.id]=u);
   if(!ord.length){$('#ul').innerHTML='<div class="empty">'+(uffTutti?'Nessun ordine negli ultimi 7 giorni.':'Nessun ordine per questo giorno.')+'</div>';return}
-  $('#ul').innerHTML=`<div class="list">${ord.map(o=>{const u=U[o.utente_id]||{};return `<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${NUM(o)} · ${esc((u.nome_stampa||u.nome||'?'))}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · ${uffTutti?'carico del '+dataIt(o.data)+' · inviato '+new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):new Date(o.inviato_il||o.creato_il).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}${o.note?' · con note':''}${'mail_il' in o&&!o.mail_il?' · <b style="color:var(--accent)">mail non arrivata</b>':''}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="uo${o.id}" hidden style="padding:0 12px 12px"></div>`}).join('')}</div>`;
+  $('#ul').innerHTML=`<div class="list">${ord.map(o=>{const u=U[o.utente_id]||{};return `<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${NUM(o)} · ${esc((u.nome_stampa||u.nome||'?'))}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · ${uffTutti?'carico del '+dataIt(o.data)+' · inviato '+new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):new Date(o.inviato_il||o.creato_il).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}${o.note?' · con note':''}${o.versione>1?' · <b style="color:var(--accent)">modificato '+oraIt(o.modificato_il)+(o.versione>2?' ('+o.versione+'ª versione)':'')+'</b>':''}${'mail_il' in o&&!o.mail_il?' · <b style="color:var(--accent)">mail non arrivata</b>':''}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="uo${o.id}" hidden style="padding:0 12px 12px"></div>`}).join('')}</div>`;
   $('#ul').querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=ord.find(x=>x.id==b.dataset.o),u=U[o.utente_id]||{};const d=$('#uo'+o.id);d.hidden=!d.hidden;if(d.hidden)return;
     d.innerHTML=dettaglioHtml(o)+`<div class="btns"><button class="btn main" data-pdf>Scarica PDF</button><button class="btn" data-op>Apri PDF</button><button class="btn" data-mail>Rinvia mail</button>${['in_lavorazione','caricato','annullato'].map(s=>`<button class="btn" data-s="${s}">${STATI[s]}</button>`).join('')}</div>`;
     d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,u);d.querySelector('[data-op]').onclick=()=>apriPdf(o,u);
@@ -1076,7 +1114,7 @@ window.addEventListener('scroll',()=>{const y=window.scrollY,d=y-prevY;prevY=y;i
 
 /* ================= AVVIO ================= */
 async function render(){const v=$('#view');
-  if(view==='fam')renderFam(v);else if(view==='sum')renderSum(v);else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);testata();bar()}
+  if(view==='fam'){renderFam(v);bannerModifica(v)}else if(view==='sum'){renderSum(v);bannerModifica(v)}else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);testata();bar()}
 sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')show('s-login')});
 avvia();
 </script>
