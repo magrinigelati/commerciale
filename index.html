@@ -599,7 +599,7 @@ async function renderOrd(v){
 let MODULO=null;
 async function pdfOrdine(o,utente){
   const {PDFDocument,StandardFonts,rgb,degrees}=PDFLib;
-  if(!MODULO)MODULO=await fetch('modulo-presa-ordini.pdf').then(r=>{if(!r.ok)throw new Error('modulo non trovato');return r.arrayBuffer()});
+  if(!MODULO)MODULO=await fetch('modulo-presa-ordini.pdf?v=2').then(r=>{if(!r.ok)throw new Error('modulo non trovato');return r.arrayBuffer()});
   const doc=await PDFDocument.load(MODULO.slice(0));
   const f=await doc.embedFont(StandardFonts.HelveticaBold),fr=await doc.embedFont(StandardFonts.Helvetica);
   const pages=doc.getPages(),H=pages[0].getHeight(),blue=rgb(.05,.22,.7),red=rgb(.75,.05,.15),EVID=rgb(1,.9,.25);
