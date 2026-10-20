@@ -221,6 +221,41 @@ body{overflow-anchor:none}
 .pwbox{position:relative;display:block}.pwbox input{width:100%;padding-right:48px}
 .pw-eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:40px;border:0;background:none;color:var(--muted,#667);display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer}
 .pw-eye svg{width:22px;height:22px}
+/* modulo interattivo */
+body.wide main{max-width:none}
+.mtool{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 8px}
+.mtool .zoom{display:flex;gap:6px}
+.mtool .zoom .btn{min-width:40px}
+.mtool .note{margin:0;flex:1 1 220px}
+.msheet{--s:1;position:relative;overflow:auto;height:60vh;border:1px solid var(--line);border-radius:10px;background:#8d9ba6;padding:8px;touch-action:pan-x pan-y;overscroll-behavior:contain}
+.mpage{position:relative;margin:0 auto 10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.mpage:last-child{margin-bottom:0}
+.mpage img{display:block;width:100%;height:auto;user-select:none;-webkit-user-select:none;pointer-events:none}
+.mc{position:absolute;display:flex;align-items:center;justify-content:center;gap:.2em;padding:0;border:0;border-radius:0;background:transparent;cursor:pointer;color:#0d38b3;font:700 calc(var(--s) * 7px)/1 Helvetica,Arial,sans-serif;white-space:nowrap;overflow:hidden}
+.mc:hover{background:rgba(13,56,179,.08)}
+.mc.on{background:rgba(255,230,64,.28)}
+.mc.pz{color:#bf0d26}
+.mc em{font-style:normal;background:#ffe640;padding:0 .2em}
+.mc small{font-weight:400;font-size:.8em}
+.mc.sel{outline:calc(var(--s) * 1px + 1px) solid var(--accent);outline-offset:-1px;background:rgba(196,24,60,.10);z-index:2}
+.minfo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:8px}
+.minfo .mn{flex:1 1 170px;min-width:0}
+.minfo .mn b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.minfo .mn small{display:block;color:var(--muted);font-size:12px}
+.minfo .mctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.minfo .mnav{display:flex;gap:6px}
+.minfo .mnav button{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:16px}
+.minfo #mfatto{display:none}
+.minfo .step input{width:56px!important;flex:0 0 56px}
+@media (max-width:600px){.mtool .note{display:none}.mtool{margin-bottom:6px}.minfo .mctl{flex-wrap:nowrap;gap:6px}.minfo .mnav{gap:4px}}
+.minfo[data-vuoto] .mctl{opacity:.4;pointer-events:none}
+body.medit .mwrap{position:fixed;left:0;right:0;top:var(--vvt,0px);height:var(--vvh,100vh);z-index:30;background:var(--bg);display:flex;flex-direction:column;padding:6px}
+body.medit .mwrap .msheet{flex:1;height:auto!important}
+body.medit .mwrap .minfo{margin-top:6px;padding:6px 8px;gap:6px}
+body.medit .minfo #mfatto{display:inline-block}
+body.medit .minfo [data-mn="-1"]{display:none}
+body.medit .minfo .mn small{display:none}
+body.medit #bar{display:none}
 </style>
 </head>
 <body>
@@ -334,7 +369,7 @@ async function avvia(){
   freq=store.get('mc_freq_'+ME.id,{});caricaFreq();
   $('#me-n').textContent=(u.nome_stampa||u.nome||u.username).toUpperCase();
   $('#data').value=st.data;$('#data').onchange=e=>{st.data=e.target.value;save()};
-  const tabs=[['fam','Carico'],['sum','Riepilogo']];
+  const tabs=[['fam','Carico'],['mod','Modulo'],['sum','Riepilogo']];
   $('#tabs').style.setProperty('--ntab',tabs.length);
   $('#tabs').innerHTML=tabs.map(([v,l],i)=>`<button role="tab" aria-selected="${i===0}" data-v="${v}">${l}</button>`).join('');
   $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
@@ -385,7 +420,7 @@ const code=p=>[...new Set(p[6].map(v=>v[2]).filter(Boolean))].join(' · ');
 const vLab=v=>v[6]||v[0];
 
 function bar(){
-  const onCarico=view==='fam'||view==='sum';$('#bar').hidden=!onCarico;
+  const onCarico=view==='fam'||view==='mod'||view==='sum';$('#bar').hidden=!onCarico;
   const keys=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]);const T={ct:0,pz:0,st:0,pl:0};
   keys.forEach(k=>{T[uOf(k.split(':')[0])]+=st.q[k]});
   st.extra.forEach(e=>{T[UM[e.u]?e.u:'ct']+=e.q});
@@ -396,8 +431,8 @@ function bar(){
   $('#go').disabled=view==='sum'&&!righe;
 }
 $('#go').onclick=()=>{if(view==='sum')confermaInvio();else go('sum')};
-const TITOLI={home:'Area commerciale',fam:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio',foto:'Foto prodotti'};
-function testata(){schermoAcceso(view==='fam'||view==='sum');const h=view==='home';$('#home').hidden=h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!(view==='fam'||view==='sum');$('#data').hidden=!(view==='fam'||view==='sum')}
+const TITOLI={home:'Area commerciale',fam:'Foglio di carico',mod:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio',foto:'Foto prodotti'};
+function testata(){const car=view==='fam'||view==='mod'||view==='sum';schermoAcceso(car);const h=view==='home';$('#home').hidden=h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!car;$('#data').hidden=!car;document.body.classList.toggle('wide',view==='mod');if(view!=='mod')mEsci()}
 $('#home').onclick=()=>{docCart=null;go('home')};
 // navigazione: ogni passaggio entra nella cronologia del telefono, cosi' lo swipe indietro torna alla schermata precedente
 function snap(){return {mc:1,view,fam,sub,docCart,docDaHome,uffTab,catFam,fotoFam}}
@@ -501,6 +536,90 @@ function drawRes(){
   r.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{fam=b.dataset.f==='rec'?'rec':+b.dataset.f;sub=null;nav();render();window.scrollTo(0,0)});
 }
 
+/* ================= MODULO INTERATTIVO ================= */
+// il modulo stampato a schermo: si tocca la casella accanto al prodotto e si scrive la quantita', come in un foglio Excel.
+// Le caselle usano le stesse coordinate del PDF, quindi quello che si vede e' quello che si stampa.
+const MW=595.32,MH=841.92,MRH=8.1;
+let MC=null,mSel=null,mScala=null,mPinch=null;
+const mTouch=()=>matchMedia('(pointer:coarse)').matches;
+function mCelle(){if(MC&&MC.P===P)return MC;
+  const c=[];P.forEach(p=>{if(p[4]==null||p[5]==null)return;p[6].forEach((v,vi)=>{if(v[1]==null)return;const w=v[3]||28;c.push({k:p[0]+':'+vi,id:p[0],vi,pg:p[4],x0:v[1]-w/2,w,top:MH-p[5]-6.2})})});
+  // ordine di avanzamento (Invio / freccia giu'): pagina, colonna, dall'alto in basso
+  const cols=[];c.forEach(e=>{let k=cols.find(k=>k.pg===e.pg&&Math.abs(k.x-e.x0)<6);if(!k){k={pg:e.pg,x:e.x0};cols.push(k)}e.col=k});
+  cols.sort((a,b)=>a.pg-b.pg||a.x-b.x);c.sort((a,b)=>cols.indexOf(a.col)-cols.indexOf(b.col)||a.top-b.top);c.forEach((e,i)=>e.i=i);
+  MC={P,c,by:Object.fromEntries(c.map(e=>[e.k,e]))};return MC}
+function mTesto(e){const q=qOf(e.id,e.vi);if(!q)return '';const u=uOf(e.id),ev=u==='st'||u==='pl',c=ev?convCt(byId[e.id],e.vi,u,q):null;
+  const t=q+(u!=='ct'?' <small>'+ULAB(u)+'</small>':'');return (ev?'<em>'+t+'</em>':t)+(c?'<small>('+c+')</small>':'')}
+const mCls=e=>{const q=qOf(e.id,e.vi);return 'mc'+(q?' on':'')+(q&&uOf(e.id)==='pz'?' pz':'')+(mSel===e.k?' sel':'')};
+const pc=n=>(n*100).toFixed(3)+'%';
+function renderMod(v){document.body.classList.add('wide');
+  const {c}=mCelle();if(mSel&&!MC.by[mSel])mSel=null;
+  const pages=[0,1].map(pg=>`<div class="mpage"><img src="img/modulo-${pg+1}.webp?v=1" width="1786" height="2526" alt="Modulo, pagina ${pg+1}" draggable="false">${c.filter(e=>e.pg===pg).map(e=>`<button class="${mCls(e)}" data-mk="${e.k}" tabindex="-1" style="left:${pc(e.x0/MW)};top:${pc(e.top/MH)};width:${pc(e.w/MW)};height:${pc(MRH/MH)}" aria-label="${esc(byId[e.id][2]+(byId[e.id][6].length>1?' '+vLab(byId[e.id][6][e.vi]):''))}">${mTesto(e)}</button>`).join('')}</div>`).join('');
+  const um=UMS().length>2?`<select class="umsel" id="mus" aria-label="Unità di misura">${UMS().map(u=>`<option value="${u}">${UM[u][0]}</option>`).join('')}</select>`:`<div class="um" role="group" aria-label="Unità di misura">${UMS().map(u=>`<button data-mu="${u}" aria-pressed="false">${UM[u][0]}</button>`).join('')}</div>`;
+  v.innerHTML=`<div class="mtool"><div class="zoom"><button class="btn sm" id="mzm" aria-label="Rimpicciolisci">−</button><button class="btn sm" id="mzf">Adatta</button><button class="btn sm" id="mzp" aria-label="Ingrandisci">+</button></div><div class="zoom"><button class="btn sm" data-mp="0">Pag. 1</button><button class="btn sm" data-mp="1">Pag. 2</button></div><p class="note">Tocca la casella accanto al prodotto e scrivi la quantità; con Invio passi alla casella sotto. Quello che non è nel modulo si aggiunge da Carico.</p></div>
+  <div class="mwrap"><div class="msheet" id="msheet">${pages}</div>
+  <div class="minfo" id="minfo"><div class="mn"><b id="mnome"></b><small id="mdett"></small></div>
+   <div class="mctl">${um}<div class="step"><button data-ma="-1" aria-label="Togli">−</button><input id="mqty" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" autocomplete="off" placeholder="0" aria-label="Quantità"><button class="plus" data-ma="1" aria-label="Aggiungi">+</button></div>
+   <div class="mnav"><button data-mn="-1" aria-label="Casella sopra">▲</button><button data-mn="1" aria-label="Casella sotto">▼</button></div><button class="btn sm" id="mfatto">Fatto</button></div></div></div>`;
+  const sh=$('#msheet'),inp=$('#mqty'),info=$('#minfo');
+  // i pulsanti non rubano il fuoco al campo quantita' (cosi' la tastiera del telefono resta aperta)
+  v.querySelectorAll('.mc,.minfo button,#minfo select').forEach(b=>b.addEventListener('mousedown',ev=>{if(b.id!=='mfatto'&&b.tagName!=='SELECT')ev.preventDefault()}));
+  sh.addEventListener('click',ev=>{const b=ev.target.closest('.mc');if(b)mSeleziona(b.dataset.mk,true)});
+  inp.oninput=()=>{const e=MC.by[mSel];if(!e)return;inp.value=inp.value.replace(/\D/g,'').slice(0,3);setQ(e.id,e.vi,inp.value);mAgg(e.id)};
+  inp.onfocus=()=>{inp.select();if(mTouch()&&!document.body.classList.contains('medit')){document.body.classList.add('medit');mVV();setTimeout(()=>mVedi(),60)}};
+  inp.onblur=()=>setTimeout(()=>{if(document.activeElement!==inp)mEsci()},250);
+  inp.onkeydown=ev=>{const k=ev.key;
+    if(k==='Enter'||k==='Tab'||k==='ArrowDown'||k==='ArrowUp'){ev.preventDefault();mSposta(k==='ArrowUp'||(k!=='ArrowDown'&&ev.shiftKey)?-1:1)}
+    else if(k==='ArrowLeft'||k==='ArrowRight'){ev.preventDefault();mLato(k==='ArrowLeft'?-1:1)}
+    else if(k==='Escape'){inp.blur()}};
+  info.querySelectorAll('[data-ma]').forEach(b=>b.onclick=()=>{const e=MC.by[mSel];if(!e)return;setQ(e.id,e.vi,qOf(e.id,e.vi)+(+b.dataset.ma));inp.value=qOf(e.id,e.vi)||'';mAgg(e.id)});
+  info.querySelectorAll('[data-mn]').forEach(b=>b.onclick=()=>mSposta(+b.dataset.mn));
+  info.querySelectorAll('[data-mu]').forEach(b=>b.onclick=()=>{const e=MC.by[mSel];if(!e)return;setU(e.id,b.dataset.mu);mAgg(e.id);mInfo()});
+  const us=$('#mus');if(us)us.onchange=()=>{const e=MC.by[mSel];if(!e)return;setU(e.id,us.value);mAgg(e.id);mInfo()};
+  $('#mfatto').onclick=()=>{inp.blur();mEsci()};
+  v.querySelectorAll('[data-mp]').forEach(b=>b.onclick=()=>{const pg=sh.querySelectorAll('.mpage')[+b.dataset.mp];sh.scrollTo({top:pg.offsetTop-8,left:0,behavior:'smooth'})});
+  $('#mzm').onclick=()=>mZoom(mScala/1.25);$('#mzp').onclick=()=>mZoom(mScala*1.25);$('#mzf').onclick=()=>{sh.scrollLeft=0;mZoom(mFit())};
+  // zoom con due dita (telefono) e con Ctrl + rotellina o pinch del touchpad (PC)
+  let raf=0;const zoomA=(s,x,y)=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>mZoom(s,x,y))};
+  sh.addEventListener('touchstart',ev=>{if(ev.touches.length===2){const [a,b]=ev.touches;mPinch={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),s:mScala}}},{passive:true});
+  sh.addEventListener('touchmove',ev=>{if(!mPinch||ev.touches.length!==2)return;ev.preventDefault();const [a,b]=ev.touches,r=sh.getBoundingClientRect();
+    zoomA(mPinch.s*Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)/mPinch.d,(a.clientX+b.clientX)/2-r.left,(a.clientY+b.clientY)/2-r.top)},{passive:false});
+  sh.addEventListener('touchend',ev=>{if(ev.touches.length<2)mPinch=null});
+  sh.addEventListener('wheel',ev=>{if(!ev.ctrlKey)return;ev.preventDefault();const r=sh.getBoundingClientRect();zoomA(mScala*Math.exp(-ev.deltaY/500),ev.clientX-r.left,ev.clientY-r.top)},{passive:false});
+  const z=+store.get('mc_mzoom',0);mScala=null;mZoom(z||Math.max(mFit(),1.9),0,0);
+  mInfo();if(mSel)requestAnimationFrame(()=>mVedi());
+}
+const mFit=()=>{const s=$('#msheet');return s?Math.max(.3,(s.clientWidth-18)/MW):1};
+function mZoom(sc,ax,ay){const s=$('#msheet');if(!s)return;sc=Math.min(4,Math.max(Math.min(mFit(),1),sc||1));
+  const old=mScala||sc;ax=ax??s.clientWidth/2;ay=ay??s.clientHeight/2;const px=(s.scrollLeft+ax)/old,py=(s.scrollTop+ay)/old;
+  mScala=sc;s.style.setProperty('--s',sc);s.querySelectorAll('.mpage').forEach(p=>p.style.width=(MW*sc)+'px');
+  s.scrollLeft=px*sc-ax;s.scrollTop=py*sc-ay;store.set('mc_mzoom',sc)}
+function mAgg(id){if(!MC)return;document.querySelectorAll('#msheet .mc').forEach(b=>{const e=MC.by[b.dataset.mk];if(e&&e.id===id){b.className=mCls(e);b.innerHTML=mTesto(e)}})}
+function mInfo(){const box=$('#minfo');if(!box)return;const e=mSel&&MC.by[mSel];const inp=$('#mqty');
+  if(!e){box.setAttribute('data-vuoto','');$('#mnome').textContent='Tocca una casella del modulo';$('#mdett').textContent='Poi scrivi la quantità: CT cartoni, PZ pezzi';inp.value='';return}
+  box.removeAttribute('data-vuoto');const p=byId[e.id],v=p[6][e.vi],u=uOf(e.id);
+  $('#mnome').textContent=p[2]+(p[6].length>1?' · '+vLab(v):'');
+  $('#mdett').textContent=[S[p[1]],v[2],v[4]?'':'su ordinazione',(u==='st'||u==='pl')?(convCt(p,e.vi,u,1)?'1 '+UM[u][1]+convTxt(convCt(p,e.vi,u,1)):'conversione a cura dell\'ufficio'):''].filter(Boolean).join(' · ');
+  if(document.activeElement!==inp||String(qOf(e.id,e.vi)||'')!==inp.value)inp.value=qOf(e.id,e.vi)||'';
+  box.querySelectorAll('[data-mu]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mu===u));const us=$('#mus');if(us)us.value=u}
+function mSeleziona(k,fuoco){const old=mSel&&document.querySelector(`#msheet [data-mk="${mSel}"]`);if(old)old.classList.remove('sel');
+  mSel=k;const b=document.querySelector(`#msheet [data-mk="${k}"]`);if(b)b.classList.add('sel');mInfo();mVedi();
+  const inp=$('#mqty');if(fuoco&&inp){inp.focus({preventScroll:true});inp.select()}else if(inp&&document.activeElement===inp)inp.select()}
+function mSposta(d){const e=MC.by[mSel];if(!e)return mSeleziona(MC.c[0].k,true);const n=MC.c[e.i+d];if(n)mSeleziona(n.k,false)}
+function mLato(d){const e=MC.by[mSel];if(!e)return;let best=null;MC.c.forEach(x=>{if(x.pg===e.pg&&Math.abs(x.top-e.top)<3&&(x.x0-e.x0)*d>0&&(!best||Math.abs(x.x0-e.x0)<Math.abs(best.x0-e.x0)))best=x});if(best)mSeleziona(best.k,false)}
+// tiene la casella selezionata visibile, con un po' di margine
+function mVedi(){const s=$('#msheet'),b=mSel&&s&&s.querySelector(`[data-mk="${mSel}"]`);if(!b)return;const r=s.getBoundingClientRect(),c=b.getBoundingClientRect(),m=24;
+  if(c.top<r.top+m)s.scrollTop-=r.top+m-c.top;else if(c.bottom>r.bottom-m)s.scrollTop+=c.bottom-r.bottom+m;
+  if(c.left<r.left+m)s.scrollLeft-=r.left+m-c.left;else if(c.right>r.right-m)s.scrollLeft+=Math.min(c.right-r.right+m,c.left-r.left-m)}
+// altezza del foglio: tutto lo spazio libero fino alla barra in basso
+function mAltezza(){const s=$('#msheet');if(!s||document.body.classList.contains('medit'))return;const top=s.getBoundingClientRect().top+scrollY;
+  const bar=$('#bar').hidden?0:$('#bar').offsetHeight;s.style.height=Math.max(260,innerHeight-top-$('#minfo').offsetHeight-bar-22)+'px'}
+// al telefono, mentre si scrive, il modulo occupa lo schermo sopra la tastiera
+function mVV(){const vv=window.visualViewport;document.documentElement.style.setProperty('--vvt',(vv?vv.offsetTop:0)+'px');document.documentElement.style.setProperty('--vvh',(vv?vv.height:innerHeight)+'px')}
+function mEsci(){if(!document.body.classList.contains('medit'))return;document.body.classList.remove('medit');mAltezza();requestAnimationFrame(()=>mVedi())}
+if(window.visualViewport){visualViewport.addEventListener('resize',()=>{if(document.body.classList.contains('medit')){mVV();mVedi()}});visualViewport.addEventListener('scroll',()=>{if(document.body.classList.contains('medit'))mVV()})}
+addEventListener('resize',()=>{if(view==='mod')mAltezza()});
+
 /* ================= RICERCA ================= */
 const STOP=new Set('e ed di da del della dei delle degli il lo la i gli le un una uno con per al alla x'.split(' '));
 function norm(s){s=s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/novita/g,' ');
@@ -603,7 +722,7 @@ async function inviaModifica(m){
   $('#ok-sh').onclick=e=>condividiPdf(data,ME,e.currentTarget);$('#ok-op').onclick=()=>apriPdf(data,ME);
 }
 // riquadro "stai modificando" sopra il foglio di carico e il riepilogo
-function bannerModifica(v){if(!st.mod||(view!=='fam'&&view!=='sum'))return;const d=document.createElement('div');d.className='card';d.style.borderColor='var(--accent)';
+function bannerModifica(v){if(!st.mod||(view!=='fam'&&view!=='mod'&&view!=='sum'))return;const d=document.createElement('div');d.className='card';d.style.borderColor='var(--accent)';
   const min=Math.max(0,Math.round((st.mod.scade-Date.now())/60000));
   d.innerHTML=`<b>Stai modificando l'ordine N. ${st.mod.numero}</b><p class="note" style="margin:4px 0 8px">${min>0?'Puoi inviare la modifica fino alle '+oraIt(st.mod.scade)+' (ancora '+min+' min). Cambia le quantità e poi Riepilogo → Invia modifica.':'Tempo scaduto: la modifica non può più essere inviata. Per correzioni chiama l\'ufficio.'}</p><button class="btn sm" id="annmod">Annulla modifica</button>`;
   v.prepend(d);d.querySelector('#annmod').onclick=()=>{if(!confirm('Annullare la modifica? L\'ordine resta com\'era quando lo hai inviato.'))return;chiudiModifica();render()}}
@@ -1114,7 +1233,7 @@ window.addEventListener('scroll',()=>{const y=window.scrollY,d=y-prevY;prevY=y;i
 
 /* ================= AVVIO ================= */
 async function render(){const v=$('#view');
-  if(view==='fam'){renderFam(v);bannerModifica(v)}else if(view==='sum'){renderSum(v);bannerModifica(v)}else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);testata();bar()}
+  if(view==='fam'){renderFam(v);bannerModifica(v)}else if(view==='mod'){renderMod(v);bannerModifica(v)}else if(view==='sum'){renderSum(v);bannerModifica(v)}else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);testata();bar();if(view==='mod')mAltezza()}
 sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')show('s-login')});
 avvia();
 </script>
