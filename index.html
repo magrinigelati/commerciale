@@ -231,6 +231,7 @@ body{overflow-anchor:none}
 .mnm{position:absolute;border:0;background:transparent;padding:0 0 0 .3em;text-align:left;overflow:hidden;white-space:nowrap;cursor:pointer;color:#0d38b3;font:700 calc(var(--s) * 7px)/1 Helvetica,Arial,sans-serif;display:flex;align-items:center}
 .mnm.ren,.mnm.add{background:#fff3b0;box-shadow:inset 0 0 0 1px #e6b800}
 .mnm.add{cursor:default}
+.mnm.sel{outline:3px solid #0a7d3b;outline-offset:-2px;background:#fff;z-index:2}
 /* modulo interattivo */
 body.wide main{max-width:none}
 .mtool{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 8px}
@@ -566,7 +567,7 @@ function renderMod(v){document.body.classList.add('wide');
   const {c}=mCelle();if(mSel&&!MC.by[mSel])mSel=null;
   // celle del nome: le rinominate e gli aggiunti in giallo con testo blu; le altre trasparenti ma toccabili
   const piano=pianoAggiunti(righeCarico(),st.extra),nomi=[];
-  P.forEach(p=>{const cn=cellaNome(p,0);if(!cn||p[6].some((v,vi)=>vi>0&&v[1]!=null&&Math.round(v[1])!==Math.round(p[6][0][1])))return;nomi.push({k:p[0],pg:cn.pg,y:cn.y,x0:cn.x0,x1:cn.x1,t:st.d[p[0]]||'',cls:st.d[p[0]]?'ren':''})});
+  P.forEach(p=>{const cn=cellaNome(p,0);if(!cn)return;nomi.push({k:p[0],pg:cn.pg,y:cn.y,x0:cn.x0,x1:cn.x1,t:st.d[p[0]]||'',cls:st.d[p[0]]?'ren':''})});
   piano.celle.forEach(cc=>nomi.push({k:'',pg:cc.pg,y:cc.y,x0:cc.x0,x1:cc.x1,t:cc.e.d,cls:'add',q:cc.e.q+(cc.e.u&&cc.e.u!=='ct'?' '+ULAB(cc.e.u):''),qx:cc.qx,qw:cc.qw,pz:cc.e.u==='pz'}));
   const nomeHtml=n=>`<button class="mnm ${n.cls}" ${n.k!==''?`data-mnm="${n.k}"`:'tabindex="-1"'} style="left:${pc(n.x0/MW)};top:${pc((MH-n.y-6.2)/MH)};width:${pc((n.x1-n.x0)/MW)};height:${pc(MRH/MH)}" aria-label="${esc(n.k!==''?'Modifica descrizione di '+byId[n.k][2]:n.t)}">${esc(n.t)}</button>`+(n.q?`<span class="mc on${n.pz?' pz':''}" style="left:${pc((n.qx-n.qw/2)/MW)};top:${pc((MH-n.y-6.2)/MH)};width:${pc(n.qw/MW)};height:${pc(MRH/MH)}">${esc(n.q)}</span>`:'');
   const pages=[0,1].map(pg=>`<div class="mpage"><img src="img/modulo-${pg+1}.webp?v=1" width="1786" height="2526" alt="Modulo, pagina ${pg+1}" draggable="false">${nomi.filter(n=>n.pg===pg).map(nomeHtml).join('')}${c.filter(e=>e.pg===pg).map(e=>`<button class="${mCls(e)}" data-mk="${e.k}" tabindex="-1" style="left:${pc(e.x0/MW)};top:${pc(e.top/MH)};width:${pc(e.w/MW)};height:${pc(MRH/MH)}" aria-label="${esc(byId[e.id][2]+(byId[e.id][6].length>1?' '+vLab(byId[e.id][6][e.vi]):''))}">${mTesto(e)}</button>`).join('')}</div>`).join('');
@@ -580,11 +581,13 @@ function renderMod(v){document.body.classList.add('wide');
   // i pulsanti non rubano il fuoco al campo quantita' (cosi' la tastiera del telefono resta aperta)
   v.querySelectorAll('.mc,.minfo button,#minfo select').forEach(b=>b.addEventListener('mousedown',ev=>{if(b.id!=='mfatto'&&b.tagName!=='SELECT')ev.preventDefault()}));
   sh.addEventListener('click',ev=>{const b=ev.target.closest('.mc');if(b)mSeleziona(b.dataset.mk,true)});
-  sh.addEventListener('click',ev=>{const b=ev.target.closest('[data-mnm]');if(!b)return;const id=+b.dataset.mnm,p=byId[id],att=st.d[id]||'';
-    if(!confirm(att?`La descrizione di "${p[2]}" è già stata modificata in "${att}".\nVuoi modificarla di nuovo?`:`Vuoi modificare la descrizione di "${p[2]}" solo per questo ordine?`))return;
-    let n=prompt('Nuova descrizione (lascia vuoto per tornare a "'+p[2]+'"):',att||p[2]);if(n===null)return;n=n.trim().slice(0,60);
-    if(!n||n===p[2]){if(att&&confirm('Tornare alla descrizione originale "'+p[2]+'"?')){delete st.d[id];save();render()}return}
-    if(!confirm('Salvare la nuova descrizione?\n\n"'+n+'"\n\nSul foglio di carico comparirà in blu su giallo al posto di "'+p[2]+'".'))return;
+  sh.addEventListener('click',async ev=>{const b=ev.target.closest('[data-mnm]');if(!b)return;const id=+b.dataset.mnm,p=byId[id],att=st.d[id]||'';
+    sh.querySelectorAll('.mnm.sel').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');b.scrollIntoView({block:'center',inline:'nearest'});await new Promise(r=>setTimeout(r,120)); // la cella si evidenzia in verde prima della domanda
+    const fine=()=>b.classList.remove('sel');
+    if(!confirm(att?`La descrizione di "${p[2]}" è già stata modificata in "${att}".\nVuoi modificarla di nuovo?`:`Vuoi modificare la descrizione di "${p[2]}" solo per questo ordine?`))return fine();
+    let n=prompt('Nuova descrizione (lascia vuoto per tornare a "'+p[2]+'"):',att||p[2]);if(n===null)return fine();n=n.trim().slice(0,60);
+    if(!n||n===p[2]){if(att&&confirm('Tornare alla descrizione originale "'+p[2]+'"?')){delete st.d[id];save();render()}return fine()}
+    if(!confirm('Salvare la nuova descrizione?\n\n"'+n+'"\n\nSul foglio di carico comparirà in blu su giallo al posto di "'+p[2]+'".'))return fine();
     st.d[id]=n;save();render()});
   inp.oninput=()=>{const e=MC.by[mSel];if(!e)return;inp.value=inp.value.replace(/\D/g,'').slice(0,3);setQ(e.id,e.vi,inp.value);mAgg(e.id)};
   inp.onfocus=()=>{inp.select();if(mTouch()&&!document.body.classList.contains('medit')){document.body.classList.add('medit');mVV();setTimeout(()=>mVedi(),60)}};
@@ -791,8 +794,9 @@ async function renderOrd(v){
 
 /* ================= CELLE DEL NOME E PRODOTTI AGGIUNTI ================= */
 // limiti orizzontali della cella del nome, per pagina e colonna delle quantita' (misurati sul modulo)
-const NCELL={'0:42':[72,189],'0:43':[72,189],'0:218':[248.5,367],'0:219':[248.5,367],'0:221':[248.5,367],'0:398':[429,522.5],'0:405':[429,522.5],'1:43':[76.5,190.5],'1:44':[76.5,190.5],'1:218':[251.5,374],'1:221':[251.5,374],'1:222':[251.5,374],'1:405':[435.5,571.5],'1:406':[435.5,571.5]};
-function cellaNome(p,vi){const v=p[6][vi]||p[6][0];if(p[4]==null||p[5]==null||!v||v[1]==null)return null;const c=NCELL[p[4]+':'+Math.round(v[1])];return c?{pg:p[4],y:p[5],x0:c[0],x1:c[1],qx:v[1],qw:v[3]||28}:null}
+const NCELL={'0:42':[72,189],'0:43':[72,189],'0:218':[248.5,367],'0:219':[248.5,367],'0:221':[248.5,367],'0:398':[429,522.5],'0:405':[429,522.5],'0:416':[429,522.5],'1:43':[76.5,190.5],'1:44':[76.5,190.5],'1:218':[251.5,374],'1:221':[251.5,374],'1:222':[251.5,374],'1:405':[435.5,571.5],'1:406':[435.5,571.5]};
+// la cella del nome e' una sola per riga: per le vaschette (piu' formati sulla stessa riga) si usa quella della prima colonna
+function cellaNome(p,vi){const v=p[6][vi]||p[6][0];if(p[4]==null||p[5]==null||!v||v[1]==null)return null;const c=NCELL[p[4]+':'+Math.round(v[1])]||NCELL[p[4]+':'+Math.round(p[6][0][1])];return c?{pg:p[4],y:p[5],x0:c[0],x1:c[1],qx:v[1],qw:v[3]||28}:null}
 const RIGA_VUOTA={pg:1,y:83.3,x0:435.5,x1:571.5,qx:405.5,qw:61,vuota:true}; // riga libera sopra "Firma", pagina 2
 // prodotti da scrivere nelle celle in fondo a pagina 2: prima la riga vuota, poi le celle della colonna di destra
 // dal basso verso l'alto (sciroppi, tanica...), saltando quelle gia' ordinate. Restituisce le celle usate e gli avanzi.
@@ -815,7 +819,7 @@ async function pdfOrdine(o,utente){
   const doc=await PDFDocument.load(MODULO.slice(0));
   const f=await doc.embedFont(StandardFonts.HelveticaBold),fr=await doc.embedFont(StandardFonts.Helvetica);
   const pages=doc.getPages(),H=pages[0].getHeight(),blue=rgb(.05,.22,.7),red=rgb(.75,.05,.15),EVID=rgb(1,.9,.25);
-  const fuori=[];const cop=(pg,c)=>{pages[pg].drawRectangle({x:c.x0+.6,y:c.y-1.7,width:c.x1-c.x0-1.2,height:7.9,color:rgb(1,1,1)})};
+  const fuori=[],rin=new Set();const cop=(pg,c)=>{pages[pg].drawRectangle({x:c.x0+.6,y:c.y-1.7,width:c.x1-c.x0-1.2,height:7.9,color:rgb(1,1,1)})};
   const scriviNome=(pg,c,t)=>{pages[pg].drawRectangle({x:c.x0+1,y:c.y-1.4,width:c.x1-c.x0-2,height:7.4,color:EVID});let sz=7;while(sz>5&&f.widthOfTextAtSize(t,sz)>c.x1-c.x0-6)sz-=.25;pages[pg].drawText(t,{x:c.x0+2.5,y:c.y,size:sz,font:f,color:blue})};
   // quantita' su righe consecutive della stessa colonna: sfalsate di poco a sinistra/destra, cosi' non sembrano una linea unica
   const SFAL=2.5,sfal={};{const col={};
@@ -823,7 +827,7 @@ async function pdfOrdine(o,utente){
     for(const k in col){const ys=[...new Set(col[k])].sort((a,b)=>b-a);let i=0;ys.forEach((y,j)=>{const giu=j<ys.length-1&&ys[j]-ys[j+1]<9.5,su=j>0&&ys[j-1]-y<9.5;i=su?i+1:0;sfal[k+'|'+y]=(su||giu)?(i%2?1:-1):0})}}
   for(const r of (o.righe||[])){const p=byId[r.p];if(!p){fuori.push({d:'Prodotto '+r.p,q:r.q,u:r.u});continue}const v=p[6][r.v]||p[6][0];
     if(p[4]==null||v[1]==null)continue; // finisce nelle celle in fondo a pagina 2 (pianoAggiunti)
-    if(r.d){const c=cellaNome(p,r.v);if(c){cop(c.pg,c);scriviNome(c.pg,c,String(r.d).slice(0,60))}} // descrizione modificata dall'agente: blu su giallo
+    if(r.d&&!rin.has(r.p)){rin.add(r.p);const c=cellaNome(p,r.v);if(c){cop(c.pg,c);scriviNome(c.pg,c,String(r.d).slice(0,60))}} // descrizione modificata dall'agente: blu su giallo
     const isPz=r.u==='pz',ev=r.u==='st'||r.u==='pl',t=r.q+(r.u&&r.u!=='ct'?' '+ULAB(r.u):'');let sz=ev||isPz?7:8;const room=(v[3]||28)-3;
     const par=ev&&r.ct?'('+r.ct+')':'',tot=z=>(f.widthOfTextAtSize(t,z)+(par?2+fr.widthOfTextAtSize(par,z-1.5):0))*LARGO; // cartoni convertiti tra parentesi, piu' piccoli e non evidenziati
     while(sz>5&&tot(sz)>room)sz-=.25;
