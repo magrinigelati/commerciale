@@ -234,7 +234,7 @@ body{overflow-anchor:none}
 .qalt{margin-top:8px}
 .qalt input{width:100%}
 /* modulo interattivo: celle del nome (tocco = modifica descrizione) e prodotti aggiunti */
-.mnm{position:absolute;border:0;background:transparent;padding:0 0 0 .3em;text-align:left;overflow:hidden;white-space:nowrap;cursor:pointer;color:#0d38b3;font:700 calc(var(--s) * 7px)/1 Helvetica,Arial,sans-serif;display:flex;align-items:center}
+.mnm{position:absolute;border:0;background:transparent;padding:0 0 0 .3em;text-align:left;overflow:hidden;white-space:nowrap;cursor:pointer;color:#0d38b3;font:700 calc(var(--s) * 8px)/1 Helvetica,Arial,sans-serif;display:flex;align-items:center}
 .mnm.ren,.mnm.add{background:#fff3b0;box-shadow:inset 0 0 0 1px #e6b800}
 .mnm.add{cursor:default}
 .mnm.sel{outline:3px solid #0a7d3b;outline-offset:-2px;z-index:2}
@@ -837,7 +837,7 @@ async function pdfOrdine(o,utente){
   const f=await doc.embedFont(StandardFonts.HelveticaBold),fr=await doc.embedFont(StandardFonts.Helvetica);
   const pages=doc.getPages(),H=pages[0].getHeight(),blue=rgb(.05,.22,.7),red=rgb(.75,.05,.15),EVID=rgb(1,.9,.25);
   const fuori=[],rin=new Set();const cop=(pg,c)=>{pages[pg].drawRectangle({x:c.x0+.6,y:c.y-1.7,width:c.x1-c.x0-1.2,height:7.9,color:rgb(1,1,1)})};
-  const scriviNome=(pg,c,t)=>{pages[pg].drawRectangle({x:c.x0+1,y:c.y-1.4,width:c.x1-c.x0-2,height:7.4,color:EVID});let sz=7;while(sz>5&&f.widthOfTextAtSize(t,sz)>c.x1-c.x0-6)sz-=.25;pages[pg].drawText(t,{x:c.x0+2.5,y:c.y,size:sz,font:f,color:blue})};
+  const scriviNome=(pg,c,t)=>{pages[pg].drawRectangle({x:c.x0+1,y:c.y-1.4,width:c.x1-c.x0-2,height:7.4,color:EVID});let sz=8;while(sz>5&&f.widthOfTextAtSize(t,sz)>c.x1-c.x0-6)sz-=.25;pages[pg].drawText(t,{x:c.x0+2.5,y:c.y,size:sz,font:f,color:blue})};
   // quantita' su righe consecutive della stessa colonna: sfalsate di poco a sinistra/destra, cosi' non sembrano una linea unica
   const SFAL=2.5,sfal={};{const col={};
     for(const r of (o.righe||[])){const p=byId[r.p];if(!p||p[4]==null)continue;const v=p[6][r.v]||p[6][0];if(v[1]==null)continue;const k=p[4]+'|'+v[1];(col[k]=col[k]||[]).push(p[5])}
