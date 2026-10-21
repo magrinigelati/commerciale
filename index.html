@@ -231,7 +231,12 @@ body{overflow-anchor:none}
 .mnm{position:absolute;border:0;background:transparent;padding:0 0 0 .3em;text-align:left;overflow:hidden;white-space:nowrap;cursor:pointer;color:#0d38b3;font:700 calc(var(--s) * 7px)/1 Helvetica,Arial,sans-serif;display:flex;align-items:center}
 .mnm.ren,.mnm.add{background:#fff3b0;box-shadow:inset 0 0 0 1px #e6b800}
 .mnm.add{cursor:default}
-.mnm.sel{outline:3px solid #0a7d3b;outline-offset:-2px;background:#fff;z-index:2}
+.mnm.sel{outline:3px solid #0a7d3b;outline-offset:-2px;z-index:2}
+.mask{position:fixed;left:0;right:0;bottom:0;z-index:40;padding:10px;background:transparent;pointer-events:none}
+.mdlg{pointer-events:auto;max-width:560px;margin:0 auto;background:var(--surface);color:var(--ink);border:2px solid #0a7d3b;border-radius:14px;padding:14px 16px;box-shadow:0 -4px 24px rgba(0,0,0,.25)}
+.mdlg b{font-size:17px}.mdlg p{margin:6px 0 0;color:var(--muted);font-size:14px}
+.mdlg input{width:100%;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font-size:17px}
+.mdlg .btns{display:flex;gap:8px;margin-top:12px}
 /* modulo interattivo */
 body.wide main{max-width:none}
 .mtool{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 8px}
@@ -582,13 +587,13 @@ function renderMod(v){document.body.classList.add('wide');
   v.querySelectorAll('.mc,.minfo button,#minfo select').forEach(b=>b.addEventListener('mousedown',ev=>{if(b.id!=='mfatto'&&b.tagName!=='SELECT')ev.preventDefault()}));
   sh.addEventListener('click',ev=>{const b=ev.target.closest('.mc');if(b)mSeleziona(b.dataset.mk,true)});
   sh.addEventListener('click',async ev=>{const b=ev.target.closest('[data-mnm]');if(!b)return;const id=+b.dataset.mnm,p=byId[id],att=st.d[id]||'';
-    sh.querySelectorAll('.mnm.sel').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');b.scrollIntoView({block:'center',inline:'nearest'});await new Promise(r=>setTimeout(r,120)); // la cella si evidenzia in verde prima della domanda
+    sh.querySelectorAll('.mnm.sel').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');b.scrollIntoView({block:'center',inline:'nearest'}); // la cella si evidenzia in verde e resta visibile sopra il riquadro
     const fine=()=>b.classList.remove('sel');
-    if(!confirm(att?`La descrizione di "${p[2]}" è già stata modificata in "${att}".\nVuoi modificarla di nuovo?`:`Vuoi modificare la descrizione di "${p[2]}" solo per questo ordine?`))return fine();
-    let n=prompt('Nuova descrizione (lascia vuoto per tornare a "'+p[2]+'"):',att||p[2]);if(n===null)return fine();n=n.trim().slice(0,60);
-    if(!n||n===p[2]){if(att&&confirm('Tornare alla descrizione originale "'+p[2]+'"?')){delete st.d[id];save();render()}return fine()}
-    if(!confirm('Salvare la nuova descrizione?\n\n"'+n+'"\n\nSul foglio di carico comparirà in blu su giallo al posto di "'+p[2]+'".'))return fine();
-    st.d[id]=n;save();render()});
+    if(!(await mChiedi({t:att?`"${p[2]}" è già stato modificato in "${att}".`:`Vuoi modificare la descrizione di "${p[2]}"?`,s:att?'Vuoi modificarla di nuovo?':'Vale solo per questo ordine; il catalogo non cambia.',ok:att?'Sì, modifica':'Sì, modifica'})))return fine();
+    const n=await mChiedi({t:'Nuova descrizione',s:'Lascia vuoto per tornare a "'+p[2]+'".',input:att||p[2],ok:'Avanti'});if(n===null)return fine();const v=n.trim().slice(0,60);
+    if(!v||v===p[2]){if(att&&await mChiedi({t:'Tornare alla descrizione originale?',s:'"'+p[2]+'"',ok:'Sì, ripristina'})){delete st.d[id];save();render()}return fine()}
+    if(!(await mChiedi({t:'Salvare la nuova descrizione?',s:'"'+v+'" comparirà sul foglio di carico in blu su giallo al posto di "'+p[2]+'".',ok:'Sì, salva'})))return fine();
+    st.d[id]=v;save();render()});
   inp.oninput=()=>{const e=MC.by[mSel];if(!e)return;inp.value=inp.value.replace(/\D/g,'').slice(0,3);setQ(e.id,e.vi,inp.value);mAgg(e.id)};
   inp.onfocus=()=>{inp.select();if(mTouch()&&!document.body.classList.contains('medit')){document.body.classList.add('medit');mVV();setTimeout(()=>mVedi(),60)}};
   inp.onblur=()=>setTimeout(()=>{if(document.activeElement!==inp)mEsci()},250);
@@ -613,6 +618,12 @@ function renderMod(v){document.body.classList.add('wide');
   const z=+store.get('mc_mzoom',0);mScala=null;mZoom(z||Math.max(mFit(),1.9),0,0);
   mInfo();if(mSel)requestAnimationFrame(()=>mVedi());
 }
+// domanda in un riquadro in basso (le finestre del telefono coprirebbero la cella selezionata)
+function mChiedi({t,s,input,ok}){return new Promise(res=>{document.querySelectorAll('.mask').forEach(x=>x.remove());
+  const d=document.createElement('div');d.className='mask';d.innerHTML=`<div class="mdlg"><b>${esc(t)}</b>${s?`<p>${esc(s)}</p>`:''}${input!=null?`<input id="mdi" maxlength="60" value="${esc(input)}">`:''}<div class="btns"><button class="btn main" id="mdok">${esc(ok||'Sì')}</button><button class="btn" id="mdno">Annulla</button></div></div>`;
+  document.body.appendChild(d);const inp=d.querySelector('#mdi');const chiudi=v=>{d.remove();res(v)};
+  d.querySelector('#mdok').onclick=()=>chiudi(input!=null?inp.value:true);d.querySelector('#mdno').onclick=()=>chiudi(input!=null?null:false);
+  if(inp){inp.focus();inp.select();inp.onkeydown=e=>{if(e.key==='Enter')chiudi(inp.value);if(e.key==='Escape')chiudi(null)}}})}
 const mFit=()=>{const s=$('#msheet');return s?Math.max(.3,(s.clientWidth-18)/MW):1};
 function mZoom(sc,ax,ay){const s=$('#msheet');if(!s)return;sc=Math.min(4,Math.max(Math.min(mFit(),1),sc||1));
   const old=mScala||sc;ax=ax??s.clientWidth/2;ay=ay??s.clientHeight/2;const px=(s.scrollLeft+ax)/old,py=(s.scrollTop+ay)/old;
