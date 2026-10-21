@@ -760,12 +760,16 @@ async function pdfOrdine(o,utente){
   const f=await doc.embedFont(StandardFonts.HelveticaBold),fr=await doc.embedFont(StandardFonts.Helvetica);
   const pages=doc.getPages(),H=pages[0].getHeight(),blue=rgb(.05,.22,.7),red=rgb(.75,.05,.15),EVID=rgb(1,.9,.25);
   const fuori=[];
+  // quantita' su righe consecutive della stessa colonna: sfalsate di poco a sinistra/destra, cosi' non sembrano una linea unica
+  const SFAL=2.5,sfal={};{const col={};
+    for(const r of (o.righe||[])){const p=byId[r.p];if(!p||p[4]==null)continue;const v=p[6][r.v]||p[6][0];if(v[1]==null)continue;const k=p[4]+'|'+v[1];(col[k]=col[k]||[]).push(p[5])}
+    for(const k in col){const ys=[...new Set(col[k])].sort((a,b)=>b-a);let i=0;ys.forEach((y,j)=>{const giu=j<ys.length-1&&ys[j]-ys[j+1]<9.5,su=j>0&&ys[j-1]-y<9.5;i=su?i+1:0;sfal[k+'|'+y]=(su||giu)?(i%2?1:-1):0})}}
   for(const r of (o.righe||[])){const p=byId[r.p];if(!p){fuori.push({d:'Prodotto '+r.p,q:r.q,u:r.u});continue}const v=p[6][r.v]||p[6][0];
     if(p[4]==null||v[1]==null){fuori.push({d:p[2]+(p[6].length>1?' - Vaschetta '+v[0]:'')+(v[4]?'':' (su ordinazione)'),q:r.q,u:r.u});continue}
     const isPz=r.u==='pz',ev=r.u==='st'||r.u==='pl',t=r.q+(r.u&&r.u!=='ct'?' '+ULAB(r.u):'');let sz=ev||isPz?7:8;const room=(v[3]||28)-3;
     const par=ev&&r.ct?'('+r.ct+')':'',tot=z=>(f.widthOfTextAtSize(t,z)+(par?2+fr.widthOfTextAtSize(par,z-1.5):0))*LARGO; // cartoni convertiti tra parentesi, piu' piccoli e non evidenziati
     while(sz>5&&tot(sz)>room)sz-=.25;
-    const tw=f.widthOfTextAtSize(t,sz)*LARGO,x0=v[1]-tot(sz)/2;
+    const sp=sfal[p[4]+'|'+v[1]+'|'+p[5]]||0,tw=f.widthOfTextAtSize(t,sz)*LARGO,x0=v[1]-tot(sz)/2+sp*Math.min(SFAL,Math.max(0,(room-tot(sz))/2));
     if(ev||isPz)pages[p[4]].drawRectangle({x:x0-1.2,y:p[5]-1.1,width:tw+2.4,height:sz+0.3,color:EVID}); // pezzi, strati e pallet evidenziati in giallo, dentro la riga
     // quantita' un po' piu' grassetta (contorno sottile) e piu' larga (12%), stessa altezza: non tocca la riga sopra
     const col=isPz?blue:red; // cartoni (anche strati e pallet) in rosso, pezzi in blu
