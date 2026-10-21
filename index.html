@@ -227,6 +227,10 @@ body{overflow-anchor:none}
 .chips button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .qalt{margin-top:8px}
 .qalt input{width:100%}
+/* modulo interattivo: celle del nome (tocco = modifica descrizione) e prodotti aggiunti */
+.mnm{position:absolute;border:0;background:transparent;padding:0 0 0 .3em;text-align:left;overflow:hidden;white-space:nowrap;cursor:pointer;color:#0d38b3;font:700 calc(var(--s) * 7px)/1 Helvetica,Arial,sans-serif;display:flex;align-items:center}
+.mnm.ren,.mnm.add{background:#fff3b0;box-shadow:inset 0 0 0 1px #e6b800}
+.mnm.add{cursor:default}
 /* modulo interattivo */
 body.wide main{max-width:none}
 .mtool{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 8px}
@@ -370,7 +374,7 @@ async function avvia(){
   ME=u;
   if(u.cambio_password){show('s-pass');return}
   await caricaCatalogo();
-  st=store.get(DKEY(),null)||{q:{},u:{},extra:[],data:oggi()};if(!st.u)st.u={};
+  st=store.get(DKEY(),null)||{q:{},u:{},extra:[],data:oggi()};if(!st.u)st.u={};if(!st.d)st.d={};
   if(!st.data||st.data<oggi()){if(st.data&&st.data<oggi()&&!Object.keys(st.q).length&&!st.extra.length)st.data=oggi();if(!st.data)st.data=oggi()}
   freq=store.get('mc_freq_'+ME.id,{});caricaFreq();
   $('#me-n').textContent=(u.nome_stampa||u.nome||u.username).toUpperCase();
@@ -462,7 +466,7 @@ function rowHtml(p,showSec,o){
     <button class="plus" aria-label="Aggiungi" data-a="p" data-id="${p[0]}" data-vi="${vi}">+</button></div>`).join('');
   return `<div class="row${on?' on':''}${p[8]?' evid':''}" data-row="${p[0]}" data-o="${one?o:''}" data-sec="${showSec?1:''}">
     <div class="info"><button class="pn" data-a="p" data-id="${p[0]}" data-vi="${vis.length?vis[0][1]:0}"><b>${esc(p[2])}${p[3]?'<span class="nov">novità</span>':''}${one&&!p[6][o][4]?' <span class="so">su ordinazione</span>':''}</b>
-    <small>${showSec?esc(S[p[1]])+' · ':''}${cd||(p[4]==null||(one&&p[6][o][1]==null)?'fuori foglio: va nella pagina aggiuntiva':'')}</small>${notes.length?`<small class="nt">${esc(notes.join(' · '))}</small>`:''}${p[8]?'<small class="ev">Peso ridotto: g 2.600</small>':''}${(uOf(p[0])==='st'||uOf(p[0])==='pl')?(()=>{const vi=vis.length?vis[0][1]:0,c=convCt(p,vi,uOf(p[0]),1);return `<small class="cv">${c?'1 '+(uOf(p[0])==='st'?'strato':'pallet')+convTxt(c):'dati '+(uOf(p[0])==='st'?'strato':'pallet')+' mancanti: converte l\'ufficio'}</small>`})():''}</button>
+    <small>${showSec?esc(S[p[1]])+' · ':''}${cd||(p[4]==null||(one&&p[6][o][1]==null)?'fuori foglio: va in fondo a pagina 2, in blu su giallo':'')}</small>${notes.length?`<small class="nt">${esc(notes.join(' · '))}</small>`:''}${p[8]?'<small class="ev">Peso ridotto: g 2.600</small>':''}${(uOf(p[0])==='st'||uOf(p[0])==='pl')?(()=>{const vi=vis.length?vis[0][1]:0,c=convCt(p,vi,uOf(p[0]),1);return `<small class="cv">${c?'1 '+(uOf(p[0])==='st'?'strato':'pallet')+convTxt(c):'dati '+(uOf(p[0])==='st'?'strato':'pallet')+' mancanti: converte l\'ufficio'}</small>`})():''}</button>
     ${UMS().length>2?`<select class="umsel" data-us="${p[0]}" aria-label="Unità di misura">${UMS().map(u=>`<option value="${u}" ${uOf(p[0])===u?'selected':''}>${UM[u][0]}</option>`).join('')}</select>`:`<div class="um" role="group" aria-label="Unità di misura">${UMS().map(u=>`<button data-u="${u}" data-id="${p[0]}" aria-pressed="${uOf(p[0])===u}">${UM[u][0]}</button>`).join('')}</div>`}</div>
     <div class="${multi?'vars':''}">${steps}</div></div>`;
 }
@@ -492,7 +496,7 @@ function subView(){
   return `<div class="list">${m.ps().map(p=>rowHtml(p,false,m.o)).join('')}</div>`;
 }
 function mantBox(){
-  return `<div class="mbox"><span>Gusti non disponibili nei formati 4,75 L e 4,25 L (minimo 12 cartoni), la vaschetta <b>Serie Oro Lt. 4,250 g 3.300</b> con i gusti a scelta, oppure un formato che qui non c'è. Si ordinano su richiesta, l'ufficio verifica la disponibilità; nel PDF vanno nella pagina dei prodotti aggiuntivi.</span>
+  return `<div class="mbox"><span>Gusti non disponibili nei formati 4,75 L e 4,25 L (minimo 12 cartoni), la vaschetta <b>Serie Oro Lt. 4,250 g 3.300</b> con i gusti a scelta, oppure un formato che qui non c'è. Si ordinano su richiesta, l'ufficio verifica la disponibilità; nel PDF vanno in fondo a pagina 2, in blu su giallo.</span>
   <div class="mrow"><select id="mf" aria-label="Formato"><option value="1">Lt. 4,750 g 3.300</option><option value="2">Lt. 4,250 g 2.900</option><option value="o">Lt. 4,250 g 3.300 Serie Oro</option><option value="x">Altro formato: scrivilo</option></select>
   <select id="mg" aria-label="Gusto"></select></div>
   <input id="mff" placeholder="Scrivi il formato" hidden><input id="mt" placeholder="Scrivi il gusto" hidden>
@@ -560,9 +564,14 @@ const mCls=e=>{const q=qOf(e.id,e.vi);return 'mc'+(q?' on':'')+(q&&uOf(e.id)==='
 const pc=n=>(n*100).toFixed(3)+'%';
 function renderMod(v){document.body.classList.add('wide');
   const {c}=mCelle();if(mSel&&!MC.by[mSel])mSel=null;
-  const pages=[0,1].map(pg=>`<div class="mpage"><img src="img/modulo-${pg+1}.webp?v=1" width="1786" height="2526" alt="Modulo, pagina ${pg+1}" draggable="false">${c.filter(e=>e.pg===pg).map(e=>`<button class="${mCls(e)}" data-mk="${e.k}" tabindex="-1" style="left:${pc(e.x0/MW)};top:${pc(e.top/MH)};width:${pc(e.w/MW)};height:${pc(MRH/MH)}" aria-label="${esc(byId[e.id][2]+(byId[e.id][6].length>1?' '+vLab(byId[e.id][6][e.vi]):''))}">${mTesto(e)}</button>`).join('')}</div>`).join('');
+  // celle del nome: le rinominate e gli aggiunti in giallo con testo blu; le altre trasparenti ma toccabili
+  const piano=pianoAggiunti(righeCarico(),st.extra),nomi=[];
+  P.forEach(p=>{const cn=cellaNome(p,0);if(!cn||p[6].some((v,vi)=>vi>0&&v[1]!=null&&Math.round(v[1])!==Math.round(p[6][0][1])))return;nomi.push({k:p[0],pg:cn.pg,y:cn.y,x0:cn.x0,x1:cn.x1,t:st.d[p[0]]||'',cls:st.d[p[0]]?'ren':''})});
+  piano.celle.forEach(cc=>nomi.push({k:'',pg:cc.pg,y:cc.y,x0:cc.x0,x1:cc.x1,t:cc.e.d,cls:'add',q:cc.e.q+(cc.e.u&&cc.e.u!=='ct'?' '+ULAB(cc.e.u):''),qx:cc.qx,qw:cc.qw,pz:cc.e.u==='pz'}));
+  const nomeHtml=n=>`<button class="mnm ${n.cls}" ${n.k!==''?`data-mnm="${n.k}"`:'tabindex="-1"'} style="left:${pc(n.x0/MW)};top:${pc((MH-n.y-6.2)/MH)};width:${pc((n.x1-n.x0)/MW)};height:${pc(MRH/MH)}" aria-label="${esc(n.k!==''?'Modifica descrizione di '+byId[n.k][2]:n.t)}">${esc(n.t)}</button>`+(n.q?`<span class="mc on${n.pz?' pz':''}" style="left:${pc((n.qx-n.qw/2)/MW)};top:${pc((MH-n.y-6.2)/MH)};width:${pc(n.qw/MW)};height:${pc(MRH/MH)}">${esc(n.q)}</span>`:'');
+  const pages=[0,1].map(pg=>`<div class="mpage"><img src="img/modulo-${pg+1}.webp?v=1" width="1786" height="2526" alt="Modulo, pagina ${pg+1}" draggable="false">${nomi.filter(n=>n.pg===pg).map(nomeHtml).join('')}${c.filter(e=>e.pg===pg).map(e=>`<button class="${mCls(e)}" data-mk="${e.k}" tabindex="-1" style="left:${pc(e.x0/MW)};top:${pc(e.top/MH)};width:${pc(e.w/MW)};height:${pc(MRH/MH)}" aria-label="${esc(byId[e.id][2]+(byId[e.id][6].length>1?' '+vLab(byId[e.id][6][e.vi]):''))}">${mTesto(e)}</button>`).join('')}</div>`).join('');
   const um=UMS().length>2?`<select class="umsel" id="mus" aria-label="Unità di misura">${UMS().map(u=>`<option value="${u}">${UM[u][0]}</option>`).join('')}</select>`:`<div class="um" role="group" aria-label="Unità di misura">${UMS().map(u=>`<button data-mu="${u}" aria-pressed="false">${UM[u][0]}</button>`).join('')}</div>`;
-  v.innerHTML=`<div class="mtool"><div class="zoom"><button class="btn sm" id="mzm" aria-label="Rimpicciolisci">−</button><button class="btn sm" id="mzf">Adatta</button><button class="btn sm" id="mzp" aria-label="Ingrandisci">+</button></div><div class="zoom"><button class="btn sm" data-mp="0">Pag. 1</button><button class="btn sm" data-mp="1">Pag. 2</button></div><p class="note">Tocca la casella accanto al prodotto e scrivi la quantità; con Invio passi alla casella sotto. Quello che non è nel modulo si aggiunge da Carico.</p></div>
+  v.innerHTML=`<div class="mtool"><div class="zoom"><button class="btn sm" id="mzm" aria-label="Rimpicciolisci">−</button><button class="btn sm" id="mzf">Adatta</button><button class="btn sm" id="mzp" aria-label="Ingrandisci">+</button></div><div class="zoom"><button class="btn sm" data-mp="0">Pag. 1</button><button class="btn sm" data-mp="1">Pag. 2</button></div><p class="note">Tocca la casella accanto al prodotto e scrivi la quantità; con Invio passi alla casella sotto. Toccando il nome puoi cambiarne la descrizione solo per questo ordine. I prodotti aggiunti da Carico compaiono in fondo a pagina 2.</p></div>
   <div class="mwrap"><div class="msheet" id="msheet">${pages}</div>
   <div class="minfo" id="minfo"><div class="mn"><b id="mnome"></b><small id="mdett"></small></div>
    <div class="mctl">${um}<div class="step"><button data-ma="-1" aria-label="Togli">−</button><input id="mqty" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" autocomplete="off" placeholder="0" aria-label="Quantità"><button class="plus" data-ma="1" aria-label="Aggiungi">+</button></div>
@@ -571,6 +580,12 @@ function renderMod(v){document.body.classList.add('wide');
   // i pulsanti non rubano il fuoco al campo quantita' (cosi' la tastiera del telefono resta aperta)
   v.querySelectorAll('.mc,.minfo button,#minfo select').forEach(b=>b.addEventListener('mousedown',ev=>{if(b.id!=='mfatto'&&b.tagName!=='SELECT')ev.preventDefault()}));
   sh.addEventListener('click',ev=>{const b=ev.target.closest('.mc');if(b)mSeleziona(b.dataset.mk,true)});
+  sh.addEventListener('click',ev=>{const b=ev.target.closest('[data-mnm]');if(!b)return;const id=+b.dataset.mnm,p=byId[id],att=st.d[id]||'';
+    if(!confirm(att?`La descrizione di "${p[2]}" è già stata modificata in "${att}".\nVuoi modificarla di nuovo?`:`Vuoi modificare la descrizione di "${p[2]}" solo per questo ordine?`))return;
+    let n=prompt('Nuova descrizione (lascia vuoto per tornare a "'+p[2]+'"):',att||p[2]);if(n===null)return;n=n.trim().slice(0,60);
+    if(!n||n===p[2]){if(att&&confirm('Tornare alla descrizione originale "'+p[2]+'"?')){delete st.d[id];save();render()}return}
+    if(!confirm('Salvare la nuova descrizione?\n\n"'+n+'"\n\nSul foglio di carico comparirà in blu su giallo al posto di "'+p[2]+'".'))return;
+    st.d[id]=n;save();render()});
   inp.oninput=()=>{const e=MC.by[mSel];if(!e)return;inp.value=inp.value.replace(/\D/g,'').slice(0,3);setQ(e.id,e.vi,inp.value);mAgg(e.id)};
   inp.onfocus=()=>{inp.select();if(mTouch()&&!document.body.classList.contains('medit')){document.body.classList.add('medit');mVV();setTimeout(()=>mVedi(),60)}};
   inp.onblur=()=>setTimeout(()=>{if(document.activeElement!==inp)mEsci()},250);
@@ -649,15 +664,15 @@ function renderSum(v){
   let h=`<div class="sum">`;
   if(!keys.length&&!st.extra.length)h+=`<div class="empty">Il carico è vuoto. Aggiungi prodotti da <b>Carico</b>.</div>`;
   Object.keys(groups).sort((a,b)=>a-b).forEach(si=>{h+=`<h3>${esc(S[si])}</h3><div class="list">${groups[si].map(k=>{const [id,vi]=k.split(':').map(Number);const p=byId[id];const u=uOf(id);
-    return `<div class="sr"><span class="q">${st.q[k]}<i>${ULAB(u)}</i></span><div class="n">${esc(p[2])}${(u==='st'||u==='pl')?` <b class="cv">${convCt(p,vi,u,st.q[k])?'= '+convCt(p,vi,u,st.q[k])+' ct':'(conversione a cura dell\'ufficio)'}</b>`:''}${p[6].length>1?' · '+esc(p[6][vi][0]):''}${p[6][vi][4]?'':' <b class="so">su ordinazione</b>'}<small>${p[6][vi][2]||(p[4]==null||p[6][vi][1]==null?'fuori foglio: pagina aggiuntiva':'')}</small></div><div class="um sm"><button data-su="ct" data-id="${id}" aria-pressed="${u==='ct'}">CT</button><button data-su="pz" data-id="${id}" aria-pressed="${u==='pz'}">PZ</button></div><button data-k="${k}" aria-label="Rimuovi">Togli</button></div>`}).join('')}</div>`});
+    return `<div class="sr"><span class="q">${st.q[k]}<i>${ULAB(u)}</i></span><div class="n">${st.d[id]?`<b style="color:#0d38b3;background:#fff3b0">${esc(st.d[id])}</b> <small>(era: ${esc(p[2])})</small>`:esc(p[2])}${(u==='st'||u==='pl')?` <b class="cv">${convCt(p,vi,u,st.q[k])?'= '+convCt(p,vi,u,st.q[k])+' ct':'(conversione a cura dell\'ufficio)'}</b>`:''}${p[6].length>1?' · '+esc(p[6][vi][0]):''}${p[6][vi][4]?'':' <b class="so">su ordinazione</b>'}<small>${p[6][vi][2]||(p[4]==null||p[6][vi][1]==null?'fuori foglio: in fondo a pagina 2':'')}</small></div><div class="um sm"><button data-su="ct" data-id="${id}" aria-pressed="${u==='ct'}">CT</button><button data-su="pz" data-id="${id}" aria-pressed="${u==='pz'}">PZ</button></div><button data-k="${k}" aria-label="Rimuovi">Togli</button></div>`}).join('')}</div>`});
   h+=`<h3>Prodotti non presenti nel foglio</h3>`;
-  if(st.extra.length)h+=`<div class="list">${st.extra.map((e,i)=>`<div class="sr"><span class="q">${e.q}<i>${ULAB(e.u)}</i></span><div class="n">${esc(e.d)}<small>andrà su una pagina aggiuntiva del PDF</small></div><button data-x="${i}">Togli</button></div>`).join('')}</div>`;
+  if(st.extra.length)h+=`<div class="list">${st.extra.map((e,i)=>`<div class="sr"><span class="q">${e.q}<i>${ULAB(e.u)}</i></span><div class="n">${esc(e.d)}<small>andrà in fondo a pagina 2 del PDF, in blu su giallo</small></div><button data-x="${i}">Togli</button></div>`).join('')}</div>`;
   h+=`<div class="extra"><input id="xd" placeholder="Descrizione prodotto"><input id="xq" inputmode="numeric" placeholder="Q.tà"><select id="xu" aria-label="Unità">${UMS().map(u=>`<option value="${u}">${UM[u][0]}</option>`).join('')}</select><button class="btn" id="xadd">Aggiungi</button></div>`;
   // scelte con la data di oggi e di domani (es. "Questa mattina 21 ott")
   const gg=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toLocaleDateString('it-IT',{day:'numeric',month:'short'}).replace('.','')};
   const QS=['Questa mattina '+gg(0),'Questo pomeriggio '+gg(0),'Domani mattina '+gg(1),'Domani pomeriggio '+gg(1)];const qAltro=st.quando&&!QS.includes(st.quando);
   h+=`<div class="field" style="margin-top:16px"><label>Quando carichi? (facoltativo)</label><div class="chips"><button type="button" data-qc="" aria-pressed="${!st.quando}">Lascio vuoto</button>${QS.map(q=>`<button type="button" data-qc="${esc(q)}" aria-pressed="${st.quando===q}">${esc(q)}</button>`).join('')}<button type="button" data-qc="*" aria-pressed="${!!qAltro}">Altro</button></div><div class="qalt" ${qAltro?'':'hidden'}><input id="qaltro" placeholder="Scrivi quando carichi, es. giovedì mattina" value="${esc(qAltro?st.quando:'')}" maxlength="40"></div></div>`;
-  h+=`<div class="field" style="margin-top:16px"><label for="nota">Note per l'ufficio (facoltative)</label><input id="nota" value="${esc(st.nota||'')}" placeholder="es. carico per domenica"></div>`;
+  h+=`<div class="field" style="margin-top:16px"><label for="nota">Note per l'ufficio (facoltative, arrivano nella mail e non sul PDF)</label><input id="nota" value="${esc(st.nota||'')}" placeholder="es. carico per domenica"></div>`;
   h+=`<div id="conf"></div><div class="btns" style="margin-top:12px"><button class="btn" id="svuota">Svuota carico</button></div><div id="smsg" class="msg"></div>
   <p class="note">La bozza resta salvata su questo telefono finché non premi “Invia ordine”. Dopo l'invio puoi modificarlo entro un'ora da I miei ordini, finché l'ufficio non lo mette in preparazione; poi per correzioni chiama l'ufficio.</p></div>`;
   v.innerHTML=h;
@@ -671,7 +686,7 @@ function renderSum(v){
   v.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{st.extra.splice(+b.dataset.x,1);save();render()});
   v.querySelectorAll('[data-su]').forEach(b=>b.onclick=()=>{setU(+b.dataset.id,b.dataset.su);render()});
   $('#xadd').onclick=()=>{const d=$('#xd').value.trim(),q=parseInt($('#xq').value)||0;if(!d||!q){$('#smsg').className='msg err';$('#smsg').textContent='Scrivi descrizione e quantità.';return}st.extra.push({d,q,u:$('#xu').value});save();render()};
-  let armed=false;$('#svuota').onclick=e=>{if(!armed){armed=true;e.target.textContent='Tocca di nuovo per svuotare';setTimeout(()=>{armed=false;if(e.target.isConnected)e.target.textContent='Svuota carico'},3000);return}st.q={};st.u={};st.extra=[];st.nota='';save();render()};
+  let armed=false;$('#svuota').onclick=e=>{if(!armed){armed=true;e.target.textContent='Tocca di nuovo per svuotare';setTimeout(()=>{armed=false;if(e.target.isConnected)e.target.textContent='Svuota carico'},3000);return}st.q={};st.u={};st.d={};st.extra=[];st.nota='';st.quando='';save();render()};
 }
 function confermaInvio(){
   const c=$('#conf');if(!c)return;
@@ -691,7 +706,7 @@ async function inviaOrdine(){
   const m=$('#smsg');$('#si').disabled=true;m.className='msg';m.textContent='Invio in corso…';
   if(!(await sessioneValida())){m.className='msg err';m.textContent=MSG_SESS;$('#si').disabled=false;return}
   if(st.mod)return inviaModifica(m);
-  const righe=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);const u=uOf(id),r={p:id,v:vi,q:st.q[k],u};if(u==='st'||u==='pl'){const c=convCt(byId[id],vi,u,st.q[k]);if(c)r.ct=c}return r});
+  const righe=righeCarico();
   // chiave unica del carico: se la rete cade dopo il salvataggio e si ripreme Invia, l'ordine non viene duplicato
   if(!st.chiave){st.chiave=(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random());save()}
   let {data,error}=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null,quando:st.quando||null,chiave:st.chiave}).select('*').single();
@@ -703,7 +718,7 @@ async function inviaOrdine(){
   const ordInviato={id:data.id,numero:data.numero,data:st.data,righe,extra:st.extra,note:st.nota||null,quando:st.quando||null};
   m.textContent='Ordine salvato, invio la mail all\'ufficio…';
   const esitoMail=await inviaMail(ordInviato);
-  st={q:{},u:{},extra:[],data:oggi(),nota:''};save();
+  st={q:{},u:{},d:{},extra:[],data:oggi(),nota:''};save();
   view='ord';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='ord'));
   await render();
   const v=$('#view');const ok=document.createElement('div');ok.className='card';ok.style.borderColor='var(--ok)';
@@ -714,7 +729,7 @@ async function inviaOrdine(){
 }
 
 // righe del carico nel formato salvato nell'ordine
-function righeCarico(){return Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);const u=uOf(id),r={p:id,v:vi,q:st.q[k],u};if(u==='st'||u==='pl'){const c=convCt(byId[id],vi,u,st.q[k]);if(c)r.ct=c}return r})}
+function righeCarico(){return Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);const u=uOf(id),r={p:id,v:vi,q:st.q[k],u};if(st.d&&st.d[id])r.d=st.d[id];if(u==='st'||u==='pl'){const c=convCt(byId[id],vi,u,st.q[k]);if(c)r.ct=c}return r})}
 const MOD_MIN=60; // minuti per modificare un ordine dopo il primo invio
 const scadenzaMod=o=>new Date(o.inviato_il||o.creato_il).getTime()+MOD_MIN*60000;
 const modificabile=o=>o.stato==='inviato'&&Date.now()<scadenzaMod(o);
@@ -723,11 +738,11 @@ const oraIt=t=>new Date(t).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-
 function modificaOrdine(o){
   if(!modificabile(o))return alert('Il tempo per modificare questo ordine è scaduto oppure l\'ufficio lo ha già messo in preparazione: per correzioni chiama l\'ufficio.');
   if(!st.mod&&(Object.keys(st.q).length||st.extra.length))store.set(DKEY()+'_sospesa',st);
-  const q={},u={};(o.righe||[]).forEach(r=>{if(byId[r.p]){q[r.p+':'+r.v]=r.q;if(r.u&&r.u!=='ct')u[r.p]=r.u}});
-  st={q,u,extra:JSON.parse(JSON.stringify(o.extra||[])),data:o.data,nota:o.note||'',quando:o.quando||'',mod:{id:o.id,numero:NUM(o),scade:scadenzaMod(o)}};save();
+  const q={},u={},dd={};(o.righe||[]).forEach(r=>{if(byId[r.p]){q[r.p+':'+r.v]=r.q;if(r.u&&r.u!=='ct')u[r.p]=r.u;if(r.d)dd[r.p]=r.d}});
+  st={q,u,d:dd,extra:JSON.parse(JSON.stringify(o.extra||[])),data:o.data,nota:o.note||'',quando:o.quando||'',mod:{id:o.id,numero:NUM(o),scade:scadenzaMod(o)}};save();
   fam=null;sub=null;view='fam';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='fam'));render();window.scrollTo(0,0);
 }
-function chiudiModifica(){const sosp=store.get(DKEY()+'_sospesa',null);try{localStorage.removeItem(DKEY()+'_sospesa')}catch(e){}st=sosp||{q:{},u:{},extra:[],data:oggi(),nota:''};delete st.mod;save()}
+function chiudiModifica(){const sosp=store.get(DKEY()+'_sospesa',null);try{localStorage.removeItem(DKEY()+'_sospesa')}catch(e){}st=sosp||{q:{},u:{},d:{},extra:[],data:oggi(),nota:''};delete st.mod;save()}
 async function inviaModifica(m){
   if(Date.now()>st.mod.scade){m.className='msg err';m.textContent='Tempo per la modifica scaduto: per correzioni chiama l\'ufficio. Puoi annullare la modifica dal riquadro in alto.';$('#si').disabled=false;return}
   const righe=righeCarico(),numero=st.mod.numero;
@@ -759,7 +774,7 @@ async function inviaMail(o,utente=ME){
 /* ================= ORDINI (agente) ================= */
 const NUM=o=>o.numero??o.id; // numero progressivo dell'agente (se manca, l'id)
 const STATI={inviato:'Inviato',in_lavorazione:'In preparazione',caricato:'Caricato',annullato:'Annullato',bozza:'Bozza'};
-function righeTesto(o){return (o.righe||[]).map(r=>{const p=byId[r.p];return p?{q:r.q,u:r.u,ct:r.ct,n:p[2]+(p[6].length>1?' · '+p[6][r.v][0]:''),c:p[6][r.v]?p[6][r.v][2]:''}:{q:r.q,u:r.u,n:'(prodotto non più a catalogo)',c:''}}).concat((o.extra||[]).map(e=>({q:e.q,u:e.u,n:e.d,c:'aggiuntivo'})))}
+function righeTesto(o){return (o.righe||[]).map(r=>{const p=byId[r.p];return p?{q:r.q,u:r.u,ct:r.ct,n:(r.d||p[2])+(p[6].length>1?' · '+p[6][r.v][0]:''),c:r.d?'descrizione modificata (era: '+p[2]+')':(p[6][r.v]?p[6][r.v][2]:''),mod:!!r.d}:{q:r.q,u:r.u,n:'(prodotto non più a catalogo)',c:''}}).concat((o.extra||[]).map(e=>({q:e.q,u:e.u,n:e.d,c:'aggiuntivo'})))}
 function dettaglioHtml(o){return `<div class="list">${righeTesto(o).map(r=>`<div class="sr"><span class="q">${r.q}<i>${ULAB(r.u)}</i></span><div class="n">${esc(r.n)}${r.ct?` <b class="cv">${r.ct} ct</b>`:''}<small>${esc(r.c)}</small></div></div>`).join('')}</div>${o.quando?`<p class="note" style="color:var(--accent);font-weight:700">Carico: ${esc(o.quando)}</p>`:''}${o.note?`<p class="note">Note: ${esc(o.note)}</p>`:''}`}
 async function renderOrd(v){
   v.innerHTML='<div class="empty">Carico gli ordini…</div>';
@@ -773,6 +788,25 @@ async function renderOrd(v){
       preparaPdf(o,ME).catch(()=>{});d.querySelector('[data-sh]').onclick=e=>condividiPdf(o,ME,e.currentTarget)}});
 }
 
+
+/* ================= CELLE DEL NOME E PRODOTTI AGGIUNTI ================= */
+// limiti orizzontali della cella del nome, per pagina e colonna delle quantita' (misurati sul modulo)
+const NCELL={'0:42':[72,189],'0:43':[72,189],'0:218':[248.5,367],'0:219':[248.5,367],'0:221':[248.5,367],'0:398':[429,522.5],'0:405':[429,522.5],'1:43':[76.5,190.5],'1:44':[76.5,190.5],'1:218':[251.5,374],'1:221':[251.5,374],'1:222':[251.5,374],'1:405':[435.5,571.5],'1:406':[435.5,571.5]};
+function cellaNome(p,vi){const v=p[6][vi]||p[6][0];if(p[4]==null||p[5]==null||!v||v[1]==null)return null;const c=NCELL[p[4]+':'+Math.round(v[1])];return c?{pg:p[4],y:p[5],x0:c[0],x1:c[1],qx:v[1],qw:v[3]||28}:null}
+const RIGA_VUOTA={pg:1,y:83.3,x0:435.5,x1:571.5,qx:405.5,qw:61,vuota:true}; // riga libera sopra "Firma", pagina 2
+// prodotti da scrivere nelle celle in fondo a pagina 2: prima la riga vuota, poi le celle della colonna di destra
+// dal basso verso l'alto (sciroppi, tanica...), saltando quelle gia' ordinate. Restituisce le celle usate e gli avanzi.
+function pianoAggiunti(righe,extra){
+  const usati=new Set((righe||[]).map(r=>r.p+':'+r.v));
+  const lista=[];
+  for(const r of (righe||[])){const p=byId[r.p];if(!p)continue;const v=p[6][r.v]||p[6][0];
+    if(p[4]==null||v[1]==null)lista.push({d:(r.d||p[2])+(p[6].length>1?' - Vaschetta '+v[0]:'')+(v[4]?'':' (su ordinazione)'),q:r.q,u:r.u,ct:r.ct,orig:'catalogo'})}
+  (extra||[]).forEach(e=>lista.push({d:e.d,q:e.q,u:e.u,orig:'extra'}));
+  const cand=[RIGA_VUOTA].concat(P.filter(p=>p[4]===1&&p[5]!=null&&p[6][0]&&Math.round(p[6][0][1])===406&&!p[6].some((v,vi)=>usati.has(p[0]+':'+vi))).sort((a,b)=>a[5]-b[5]).map(p=>Object.assign({copre:p[0]},cellaNome(p,0))).filter(c=>c.x0));
+  const celle=[],resto=[];lista.forEach((e,i)=>{if(i<cand.length)celle.push(Object.assign({},cand[i],{e}));else resto.push(e)});
+  return {celle,resto};
+}
+
 /* ================= PDF ================= */
 let MODULO=null;
 async function pdfOrdine(o,utente){
@@ -781,13 +815,15 @@ async function pdfOrdine(o,utente){
   const doc=await PDFDocument.load(MODULO.slice(0));
   const f=await doc.embedFont(StandardFonts.HelveticaBold),fr=await doc.embedFont(StandardFonts.Helvetica);
   const pages=doc.getPages(),H=pages[0].getHeight(),blue=rgb(.05,.22,.7),red=rgb(.75,.05,.15),EVID=rgb(1,.9,.25);
-  const fuori=[];
+  const fuori=[];const cop=(pg,c)=>{pages[pg].drawRectangle({x:c.x0+.6,y:c.y-1.7,width:c.x1-c.x0-1.2,height:7.9,color:rgb(1,1,1)})};
+  const scriviNome=(pg,c,t)=>{pages[pg].drawRectangle({x:c.x0+1,y:c.y-1.4,width:c.x1-c.x0-2,height:7.4,color:EVID});let sz=7;while(sz>5&&f.widthOfTextAtSize(t,sz)>c.x1-c.x0-6)sz-=.25;pages[pg].drawText(t,{x:c.x0+2.5,y:c.y,size:sz,font:f,color:blue})};
   // quantita' su righe consecutive della stessa colonna: sfalsate di poco a sinistra/destra, cosi' non sembrano una linea unica
   const SFAL=2.5,sfal={};{const col={};
     for(const r of (o.righe||[])){const p=byId[r.p];if(!p||p[4]==null)continue;const v=p[6][r.v]||p[6][0];if(v[1]==null)continue;const k=p[4]+'|'+v[1];(col[k]=col[k]||[]).push(p[5])}
     for(const k in col){const ys=[...new Set(col[k])].sort((a,b)=>b-a);let i=0;ys.forEach((y,j)=>{const giu=j<ys.length-1&&ys[j]-ys[j+1]<9.5,su=j>0&&ys[j-1]-y<9.5;i=su?i+1:0;sfal[k+'|'+y]=(su||giu)?(i%2?1:-1):0})}}
   for(const r of (o.righe||[])){const p=byId[r.p];if(!p){fuori.push({d:'Prodotto '+r.p,q:r.q,u:r.u});continue}const v=p[6][r.v]||p[6][0];
-    if(p[4]==null||v[1]==null){fuori.push({d:p[2]+(p[6].length>1?' - Vaschetta '+v[0]:'')+(v[4]?'':' (su ordinazione)'),q:r.q,u:r.u});continue}
+    if(p[4]==null||v[1]==null)continue; // finisce nelle celle in fondo a pagina 2 (pianoAggiunti)
+    if(r.d){const c=cellaNome(p,r.v);if(c){cop(c.pg,c);scriviNome(c.pg,c,String(r.d).slice(0,60))}} // descrizione modificata dall'agente: blu su giallo
     const isPz=r.u==='pz',ev=r.u==='st'||r.u==='pl',t=r.q+(r.u&&r.u!=='ct'?' '+ULAB(r.u):'');let sz=ev||isPz?7:8;const room=(v[3]||28)-3;
     const par=ev&&r.ct?'('+r.ct+')':'',tot=z=>(f.widthOfTextAtSize(t,z)+(par?2+fr.widthOfTextAtSize(par,z-1.5):0))*LARGO; // cartoni convertiti tra parentesi, piu' piccoli e non evidenziati
     while(sz>5&&tot(sz)>room)sz-=.25;
@@ -800,6 +836,15 @@ async function pdfOrdine(o,utente){
     pages[p[4]].pushOperators(setTextRenderingMode(TextRenderingMode.Fill));
     if(par)pages[p[4]].drawText(par,{x:x0+tw+2*LARGO,y:p[5]+0.3,size:sz-1.5,font:fr,color:red});
     pages[p[4]].pushOperators(popGraphicsState())}
+  // prodotti aggiunti e fuori foglio: celle in fondo a pagina 2, blu su giallo, quantita' nella casella Q.ta'
+  const piano=pianoAggiunti(o.righe,o.extra);
+  piano.celle.forEach(c=>{if(!c.vuota)cop(c.pg,c);scriviNome(c.pg,c,String(c.e.d).slice(0,60));
+    const isPz=c.e.u==='pz',ev=c.e.u==='st'||c.e.u==='pl',t=c.e.q+(c.e.u&&c.e.u!=='ct'?' '+ULAB(c.e.u):'');let sz=ev||isPz?7:8;while(sz>5&&f.widthOfTextAtSize(t,sz)*LARGO>c.qw-3)sz-=.25;const tw=f.widthOfTextAtSize(t,sz)*LARGO,x0=c.qx-tw/2;
+    if(ev||isPz)pages[c.pg].drawRectangle({x:x0-1.2,y:c.y-1.1,width:tw+2.4,height:sz+0.3,color:EVID});
+    pages[c.pg].pushOperators(pushGraphicsState(),setCharacterSqueeze(LARGO*100),setTextRenderingMode(TextRenderingMode.FillAndOutline),setLineWidth(.25),setStrokingColor(isPz?blue:red));
+    pages[c.pg].drawText(t,{x:x0,y:c.y,size:sz,font:f,color:isPz?blue:red});pages[c.pg].pushOperators(popGraphicsState())});
+  fuori.push(...piano.resto);
+  if(o.versione>1){const t='MODIFICATO il '+new Date(o.modificato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})+(o.versione>2?' ('+o.versione+'ª versione)':'')+': sostituisce le stampe precedenti';let sz=9;while(sz>6&&f.widthOfTextAtSize(t,sz)>235)sz-=.25;pages[0].drawText(t,{x:14,y:H-12.5,size:sz,font:f,color:red})} // margine in alto a sinistra
   if(o.quando){const t='CARICO: '+String(o.quando).toUpperCase().slice(0,40),k=1.2;let sz=12.5;while(sz>8&&f.widthOfTextAtSize(t,sz)*k>330)sz-=.5;const w=f.widthOfTextAtSize(t,sz)*k;
     pages[0].pushOperators(pushGraphicsState(),setCharacterSqueeze(k*100));pages[0].drawText(t,{x:575-w,y:H-13.5,size:sz,font:f,color:blue});pages[0].pushOperators(popGraphicsState())} // margine sopra la tabella, in alto a destra
   if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)}); // bordo destro mancante nel modulo originale
@@ -814,18 +859,18 @@ async function pdfOrdine(o,utente){
       const lh=sz*1.08,cw=W/cols.length;
       cols.forEach((c,ci)=>{const h=c.length*lh;let y=top-(boxH-h)/2-sz*0.8;c.split('').forEach(ch=>{if(ch!==' '){const w=f.widthOfTextAtSize(ch,sz);pages[0].drawText(ch,{x:x0+ci*cw+(cw-w)/2,y,size:sz,font:f,color:blue})}y-=lh})})}}
   const conv=(o.righe||[]).filter(r=>r.u==='st'||r.u==='pl').map(r=>{const p=byId[r.p];return {q:r.q,u:r.u,d:(p?p[2]+(p[6].length>1?' - '+(p[6][r.v]||[''])[0]:''):'Prodotto '+r.p)+(r.ct?'  =  '+r.ct+' ct':'  (conversione da fare)')}});
-  const agg=fuori.concat(o.extra||[]);
-  if(agg.length||o.note||conv.length||o.versione>1){const pg=doc.addPage([595.32,841.92]);let yy=790;
+  const agg=fuori;
+  if(agg.length){ // solo se le celle in fondo a pagina 2 non bastanoconst pg=doc.addPage([595.32,841.92]);let yy=790;
     const nmA=(utente.nome_stampa||utente.nome||utente.username||'').toUpperCase();let szA=40;while(szA>18&&f.widthOfTextAtSize(nmA,szA)>515)szA-=2;
     pg.drawText(nmA,{x:40,y:yy-szA*0.8,size:szA,font:f,color:blue});yy-=szA+14;
-    pg.drawText('PRODOTTI AGGIUNTIVI E NOTE  ·  carico del '+dataIt(o.data),{x:40,y:yy,size:12,font:f});yy-=10;
-    if(o.versione>1){yy-=4;pg.drawText('ORDINE MODIFICATO il '+new Date(o.modificato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})+(o.versione>2?'  ('+o.versione+'ª versione)':'')+': sostituisce le stampe precedenti',{x:40,y:yy-8,size:11,font:f,color:red});yy-=16}
+    pg.drawText('ALTRI PRODOTTI AGGIUNTI (non entrati a pagina 2)  ·  carico del '+dataIt(o.data),{x:40,y:yy,size:12,font:f});yy-=10;
+    if(false){yy-=4;pg.drawText('ORDINE MODIFICATO il '+new Date(o.modificato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})+(o.versione>2?'  ('+o.versione+'ª versione)':'')+': sostituisce le stampe precedenti',{x:40,y:yy-8,size:11,font:f,color:red});yy-=16}
     pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:1.2,color:blue});yy-=28;
     if(agg.length){pg.drawText('Q.tà',{x:40,y:yy,size:10,font:f});pg.drawText('Descrizione',{x:100,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
       agg.forEach(e=>{const tq=e.q+' '+ULAB(e.u),pzz=e.u==='pz';if(pzz||e.u==='st'||e.u==='pl')pg.drawRectangle({x:38,y:yy-3,width:f.widthOfTextAtSize(tq,11)+4,height:13,color:EVID});pg.drawText(tq,{x:40,y:yy,size:11,font:f,color:pzz?blue:red});pg.drawText(String(e.d).slice(0,80),{x:100,y:yy,size:11,font:fr});yy-=18})}
-    if(conv.length){yy-=10;pg.drawText('STRATI E PALLET CONVERTITI IN CARTONI',{x:40,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
+    if(false){yy-=10;pg.drawText('STRATI E PALLET CONVERTITI IN CARTONI',{x:40,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
       conv.forEach(e=>{pg.drawRectangle({x:36,y:yy-4,width:519,height:16,color:EVID});pg.drawText(e.q+' '+ULAB(e.u),{x:40,y:yy,size:11,font:f,color:red});pg.drawText(String(e.d).slice(0,85),{x:100,y:yy,size:11,font:fr});yy-=18})}
-    if(o.note){yy-=12;pg.drawText('Note: '+String(o.note).slice(0,90),{x:40,y:yy,size:11,font:fr})}}
+    if(false){yy-=12;pg.drawText('Note: '+String(o.note).slice(0,90),{x:40,y:yy,size:11,font:fr})}}
   return await doc.save();
 }
 // condivisione del PDF (WhatsApp, mail, Drive...) con il menu del telefono; il file si prepara prima, cosi' il tocco su Condividi parte subito
