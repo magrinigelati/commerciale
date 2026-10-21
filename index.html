@@ -685,9 +685,9 @@ async function inviaOrdine(){
   view='ord';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='ord'));
   await render();
   const v=$('#view');const ok=document.createElement('div');ok.className='card';ok.style.borderColor='var(--ok)';
-  ok.innerHTML=`<h3 style="color:var(--ok)">Ordine N. ${NUM(data)} inviato</h3><p style="margin:0 0 10px;color:var(--muted)">${esitoMail===true?'L\'ufficio lo ha ricevuto. Per correzioni chiama l\'ufficio.':'<b style="color:var(--accent)">Attenzione: la mail all\'ufficio non è partita.</b> L\'ordine è salvato nel portale ma l\'ufficio non lo ha ricevuto: riprova con il pulsante qui sotto oppure <b>avvisa l\'ufficio al telefono</b>.'}</p><div class="btns">${esitoMail===true?'':'<button class="btn main" id="ok-rm">Riprova mail</button>'}<button class="btn" id="ok-op">Apri PDF</button><button class="btn main" id="ok-sh">Condividi PDF</button><button class="btn" id="ok-dl">Scarica PDF</button></div>`;v.prepend(ok);
+  ok.innerHTML=`<h3 style="color:var(--ok)">Ordine N. ${NUM(data)} inviato</h3><p style="margin:0 0 10px;color:var(--muted)">${esitoMail===true?'L\'ufficio lo ha ricevuto. Puoi modificarlo entro un\'ora da I miei ordini, finché l\'ufficio non lo mette in preparazione.':'<b style="color:var(--accent)">Attenzione: la mail all\'ufficio non è partita.</b> L\'ordine è salvato nel portale ma l\'ufficio non lo ha ricevuto: riprova con il pulsante qui sotto oppure <b>avvisa l\'ufficio al telefono</b>.'}</p><div class="btns">${esitoMail===true?'':'<button class="btn main" id="ok-rm">Riprova mail</button>'}<button class="btn" id="ok-op">Apri PDF</button><button class="btn main" id="ok-sh">Condividi PDF</button><button class="btn" id="ok-dl">Scarica PDF</button></div>`;v.prepend(ok);
   preparaPdf(ordInviato,ME).catch(()=>{});
-  if($('#ok-rm'))$('#ok-rm').onclick=async e=>{const b=e.currentTarget;b.disabled=true;b.textContent='Invio…';const r=await inviaMail(ordInviato);if(r===true){b.textContent='Mail inviata';ok.querySelector('p').innerHTML='L\'ufficio lo ha ricevuto. Per correzioni chiama l\'ufficio.'}else{b.disabled=false;b.textContent='Riprova mail';alert('Ancora niente: '+r)}};
+  if($('#ok-rm'))$('#ok-rm').onclick=async e=>{const b=e.currentTarget;b.disabled=true;b.textContent='Invio…';const r=await inviaMail(ordInviato);if(r===true){b.textContent='Mail inviata';ok.querySelector('p').innerHTML='L\'ufficio lo ha ricevuto. Puoi modificarlo entro un\'ora da I miei ordini, finché l\'ufficio non lo mette in preparazione.'}else{b.disabled=false;b.textContent='Riprova mail';alert('Ancora niente: '+r)}};
   $('#ok-sh').onclick=e=>condividiPdf(ordInviato,ME,e.currentTarget);$('#ok-dl').onclick=()=>scaricaPdf(ordInviato,ME);$('#ok-op').onclick=()=>apriPdf(ordInviato,ME);
 }
 
@@ -798,14 +798,22 @@ async function pdfOrdine(o,utente){
 // condivisione del PDF (WhatsApp, mail, Drive...) con il menu del telefono; il file si prepara prima, cosi' il tocco su Condividi parte subito
 const pdfPronti={};
 function nomePdf(o,utente){return `Carico_${NUM(o)}_${(utente.nome_stampa||utente.username||'').replace(/[^A-Za-z0-9]+/g,'_')}_${o.data}.pdf`}
-function preparaPdf(o,utente){const k=o.id+'_'+(o.versione||1);return pdfPronti[k]||(pdfPronti[k]=pdfOrdine(o,utente).then(b=>new File([b],nomePdf(o,utente),{type:'application/pdf'})).catch(e=>{delete pdfPronti[k];throw e}))}
+const pdfFatti={}; // PDF gia' pronti, leggibili subito: il telefono permette di condividere solo nell'istante del tocco
+const kPdf=o=>o.id+'_'+(o.versione||1);
+function preparaPdf(o,utente){const k=kPdf(o);return pdfPronti[k]||(pdfPronti[k]=pdfOrdine(o,utente).then(b=>pdfFatti[k]=new File([b],nomePdf(o,utente),{type:'application/pdf'})).catch(e=>{delete pdfPronti[k];throw e}))}
 async function condividiPdf(o,utente,btn){
-  const t=btn&&btn.textContent;if(btn){btn.disabled=true;btn.textContent='Preparo…'}
-  try{const file=await preparaPdf(o,utente);
-    if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:'Ordine N. '+NUM(o)});
+  const k=kPdf(o),file=pdfFatti[k];
+  if(btn&&!btn.dataset.t)btn.dataset.t=btn.textContent;
+  // PDF non ancora pronto: lo preparo e chiedo un secondo tocco (Android rifiuta la condivisione se passa troppo tempo dal tocco)
+  if(!file){if(btn){btn.disabled=true;btn.textContent='Preparo…'}
+    try{await preparaPdf(o,utente);if(btn){btn.disabled=false;btn.textContent='Tocca per condividere'}}
+    catch(e){if(btn){btn.disabled=false;btn.textContent=btn.dataset.t}alert('PDF non pronto: '+(e.message||e))}
+    return}
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Ordine N. '+NUM(o)});if(btn)btn.textContent=btn.dataset.t}
     else{scaricaPdf(o,utente);alert('Da questo dispositivo non posso condividere direttamente: ho scaricato il PDF, allegalo tu nella chat.')}}
-  catch(e){if(!(e&&e.name==='AbortError'))alert('Condivisione non riuscita: '+(e.message||e))}
-  finally{if(btn){btn.disabled=false;btn.textContent=t}}
+  catch(e){if(e&&e.name==='AbortError'){if(btn)btn.textContent=btn.dataset.t}
+    else if(e&&e.name==='NotAllowedError'){if(btn)btn.textContent='Tocca per condividere'}
+    else alert('Condivisione non riuscita: '+(e.message||e))}
 }
 // apre il PDF in una nuova scheda (su Android si apre nel visualizzatore PDF del telefono)
 async function apriPdf(o,utente){
@@ -1046,11 +1054,15 @@ function apriFoto(f,titolo){
   const chiudi=()=>{d.remove();document.body.style.overflow=''};$('#fv-x').onclick=chiudi;d.onclick=e=>{if(e.target===d)chiudi()};
   const nomeFile=slug(titolo)+'.jpg';
   async function jpg(){const r=await fetch(f.img);if(!r.ok)throw new Error('foto non raggiungibile');const bm=await createImageBitmap(await r.blob());const c=document.createElement('canvas');c.width=bm.width;c.height=bm.height;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(bm,0,0);return new Promise(res=>c.toBlob(res,'image/jpeg',.9))}
-  $('#fv-dl').onclick=async()=>{const m=$('#fv-m');try{m.textContent='Preparo la foto…';const b=await jpg();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=nomeFile;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000);m.className='msg ok';m.textContent='Foto salvata: '+nomeFile}catch(e){m.className='msg err';m.textContent='Non riesco a scaricare la foto ('+(e.message||e)+')'}};
-  $('#fv-sh').onclick=async()=>{const m=$('#fv-m');try{m.textContent='Preparo la foto…';const b=await jpg();const file=new File([b],nomeFile,{type:'image/jpeg'});
-    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:titolo});m.textContent=''}
+  $('#fv-dl').onclick=async()=>{const m=$('#fv-m');try{m.textContent='Preparo la foto…';const b=await prep;const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=nomeFile;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000);m.className='msg ok';m.textContent='Foto salvata: '+nomeFile}catch(e){m.className='msg err';m.textContent='Non riesco a scaricare la foto ('+(e.message||e)+')'}};
+  // la foto si prepara subito all'apertura: al tocco su Condividi deve essere gia' pronta, altrimenti Android rifiuta
+  let pronta=null;const prep=jpg().then(b=>pronta=b);prep.catch(()=>{});
+  $('#fv-sh').onclick=async()=>{const m=$('#fv-m'),bt=$('#fv-sh');m.className='msg';
+    if(!pronta){m.textContent='Preparo la foto…';bt.disabled=true;try{await prep;m.textContent='';bt.textContent='Tocca per condividere'}catch(e){m.className='msg err';m.textContent='Foto non disponibile ('+(e.message||e)+')'}finally{bt.disabled=false}return}
+    try{const file=new File([pronta],nomeFile,{type:'image/jpeg'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:titolo});m.textContent='';bt.textContent='Condividi'}
     else{await navigator.clipboard.writeText(new URL(f.img,location.href).href);m.className='msg ok';m.textContent='Questo dispositivo non condivide le foto direttamente: ho copiato il link, incollalo in chat.'}}
-    catch(e){if(e&&e.name==='AbortError'){m.textContent='';return}m.className='msg err';m.textContent='Condivisione non riuscita ('+(e.message||e)+')'}};
+    catch(e){if(e&&e.name==='AbortError'){m.textContent='';return}if(e&&e.name==='NotAllowedError'){bt.textContent='Tocca per condividere';return}m.className='msg err';m.textContent='Condivisione non riuscita ('+(e.message||e)+')'}};
 }
 
 /* ================= DOCUMENTI ================= */
