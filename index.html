@@ -666,8 +666,15 @@ function confermaInvio(){
   $('#no').onclick=()=>c.innerHTML='';
   $('#si').onclick=inviaOrdine;
 }
+// prima di inviare controllo che il collegamento sia ancora valido: se il rinnovo automatico non e' riuscito
+// il database vede la richiesta come "non collegato" e la rifiuta (permission denied / row-level security)
+const MSG_SESS='Il collegamento è scaduto o il servizio è momentaneamente lento. La bozza resta salvata: riprova tra poco; se non passa, premi Esci, rientra con nome e password e invia di nuovo.';
+async function sessioneValida(){try{let {data:{session}}=await sb.auth.getSession();
+  if(!session||session.expires_at*1000<Date.now()+30000){const r=await sb.auth.refreshSession();session=r.data&&r.data.session}return !!session}catch(e){return false}}
+const erroreSess=e=>/row-level security|permission denied|JWT|not authenticated/i.test((e&&e.message)||'');
 async function inviaOrdine(){
   const m=$('#smsg');$('#si').disabled=true;m.className='msg';m.textContent='Invio in corso…';
+  if(!(await sessioneValida())){m.className='msg err';m.textContent=MSG_SESS;$('#si').disabled=false;return}
   if(st.mod)return inviaModifica(m);
   const righe=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);const u=uOf(id),r={p:id,v:vi,q:st.q[k],u};if(u==='st'||u==='pl'){const c=convCt(byId[id],vi,u,st.q[k]);if(c)r.ct=c}return r});
   // chiave unica del carico: se la rete cade dopo il salvataggio e si ripreme Invia, l'ordine non viene duplicato
@@ -675,7 +682,7 @@ async function inviaOrdine(){
   let {data,error}=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null,chiave:st.chiave}).select('*').single();
   if(error&&/chiave/.test(error.message||'')){const r=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null}).select('*').single();data=r.data;error=r.error} // database non ancora aggiornato
   if(error&&error.code==='23505'){const r=await sb.from('ordini').select('*').eq('chiave',st.chiave).single();data=r.data;error=r.error}
-  if(error){m.className='msg err';m.textContent='Invio non riuscito. Controlla la connessione e riprova. ('+error.message+')';$('#si').disabled=false;return}
+  if(error){m.className='msg err';m.textContent=erroreSess(error)?MSG_SESS:'Invio non riuscito. Controlla la connessione e riprova. ('+error.message+')';$('#si').disabled=false;return}
   righe.forEach(r=>freq[r.p]=(freq[r.p]||0)+1);store.set('mc_freq_'+ME.id,freq);
   log('invio_ordine','N. '+NUM(data));
   const ordInviato={id:data.id,numero:data.numero,data:st.data,righe,extra:st.extra,note:st.nota||null};
@@ -710,7 +717,7 @@ async function inviaModifica(m){
   if(Date.now()>st.mod.scade){m.className='msg err';m.textContent='Tempo per la modifica scaduto: per correzioni chiama l\'ufficio. Puoi annullare la modifica dal riquadro in alto.';$('#si').disabled=false;return}
   const righe=righeCarico(),numero=st.mod.numero;
   const {data,error}=await sb.from('ordini').update({data:st.data,righe,extra:st.extra,note:st.nota||null}).eq('id',st.mod.id).select('*').single();
-  if(error){m.className='msg err';m.textContent=/scaduto|preparazione/i.test(error.message)?error.message:'Modifica non inviata. Controlla la connessione e riprova. ('+error.message+')';$('#si').disabled=false;return}
+  if(error){m.className='msg err';m.textContent=/scaduto|preparazione/i.test(error.message)?error.message:erroreSess(error)?MSG_SESS:'Modifica non inviata. Controlla la connessione e riprova. ('+error.message+')';$('#si').disabled=false;return}
   log('modifica_ordine','N. '+numero+' v'+data.versione);
   m.textContent='Modifica salvata, invio la mail all\'ufficio…';
   const esitoMail=await inviaMail(data);
