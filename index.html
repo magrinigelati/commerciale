@@ -231,10 +231,10 @@ body.wide main{max-width:none}
 .mpage{position:relative;margin:0 auto 10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .mpage:last-child{margin-bottom:0}
 .mpage img{display:block;width:100%;height:auto;user-select:none;-webkit-user-select:none;pointer-events:none}
-.mc{position:absolute;display:flex;align-items:center;justify-content:center;gap:.2em;padding:0;border:0;border-radius:0;background:transparent;cursor:pointer;color:#0d38b3;font:700 calc(var(--s) * 7px)/1 Helvetica,Arial,sans-serif;white-space:nowrap;overflow:hidden}
+.mc{position:absolute;display:flex;align-items:center;justify-content:center;gap:.2em;padding:0;border:0;border-radius:0;background:transparent;cursor:pointer;color:#bf0d26;font:700 calc(var(--s) * 7px)/1 Helvetica,Arial,sans-serif;white-space:nowrap;overflow:hidden}
 .mc:hover{background:rgba(13,56,179,.08)}
-.mc.on{background:rgba(255,230,64,.28)}
-.mc.pz{color:#bf0d26}
+.mc.on{background:rgba(0,0,0,.05)}
+.mc.pz{color:#0d38b3}
 .mc em{font-style:normal;background:#ffe640;padding:0 .2em}
 .mc small{font-weight:400;font-size:.8em}
 .mc.sel{outline:calc(var(--s) * 1px + 1px) solid var(--accent);outline-offset:-1px;background:rgba(196,24,60,.10);z-index:2}
@@ -548,7 +548,7 @@ function mCelle(){if(MC&&MC.P===P)return MC;
   const cols=[];c.forEach(e=>{let k=cols.find(k=>k.pg===e.pg&&Math.abs(k.x-e.x0)<6);if(!k){k={pg:e.pg,x:e.x0};cols.push(k)}e.col=k});
   cols.sort((a,b)=>a.pg-b.pg||a.x-b.x);c.sort((a,b)=>cols.indexOf(a.col)-cols.indexOf(b.col)||a.top-b.top);c.forEach((e,i)=>e.i=i);
   MC={P,c,by:Object.fromEntries(c.map(e=>[e.k,e]))};return MC}
-function mTesto(e){const q=qOf(e.id,e.vi);if(!q)return '';const u=uOf(e.id),ev=u==='st'||u==='pl',c=ev?convCt(byId[e.id],e.vi,u,q):null;
+function mTesto(e){const q=qOf(e.id,e.vi);if(!q)return '';const u=uOf(e.id),ev=u!=='ct',c=u==='st'||u==='pl'?convCt(byId[e.id],e.vi,u,q):null;
   const t=q+(u!=='ct'?' <small>'+ULAB(u)+'</small>':'');return (ev?'<em>'+t+'</em>':t)+(c?'<small>('+c+')</small>':'')}
 const mCls=e=>{const q=qOf(e.id,e.vi);return 'mc'+(q?' on':'')+(q&&uOf(e.id)==='pz'?' pz':'')+(mSel===e.k?' sel':'')};
 const pc=n=>(n*100).toFixed(3)+'%';
@@ -762,13 +762,13 @@ async function pdfOrdine(o,utente){
   const fuori=[];
   for(const r of (o.righe||[])){const p=byId[r.p];if(!p){fuori.push({d:'Prodotto '+r.p,q:r.q,u:r.u});continue}const v=p[6][r.v]||p[6][0];
     if(p[4]==null||v[1]==null){fuori.push({d:p[2]+(p[6].length>1?' - Vaschetta '+v[0]:'')+(v[4]?'':' (su ordinazione)'),q:r.q,u:r.u});continue}
-    const isPz=r.u==='pz',ev=r.u==='st'||r.u==='pl',t=r.q+(r.u&&r.u!=='ct'?' '+ULAB(r.u):'');let sz=ev?7:8;const room=(v[3]||28)-3;
+    const isPz=r.u==='pz',ev=r.u==='st'||r.u==='pl',t=r.q+(r.u&&r.u!=='ct'?' '+ULAB(r.u):'');let sz=ev||isPz?7:8;const room=(v[3]||28)-3;
     const par=ev&&r.ct?'('+r.ct+')':'',tot=z=>f.widthOfTextAtSize(t,z)+(par?2+fr.widthOfTextAtSize(par,z-1.5):0); // cartoni convertiti tra parentesi, piu' piccoli e non evidenziati
     while(sz>5&&tot(sz)>room)sz-=.25;
     const tw=f.widthOfTextAtSize(t,sz),x0=v[1]-tot(sz)/2;
-    if(ev)pages[p[4]].drawRectangle({x:x0-1.2,y:p[5]-1.1,width:tw+2.4,height:sz+0.3,color:EVID}); // strati e pallet evidenziati in giallo, dentro la riga
-    pages[p[4]].drawText(t,{x:x0,y:p[5],size:sz,font:f,color:isPz?red:blue});
-    if(par)pages[p[4]].drawText(par,{x:x0+tw+2,y:p[5]+0.3,size:sz-1.5,font:fr,color:blue})}
+    if(ev||isPz)pages[p[4]].drawRectangle({x:x0-1.2,y:p[5]-1.1,width:tw+2.4,height:sz+0.3,color:EVID}); // pezzi, strati e pallet evidenziati in giallo, dentro la riga
+    pages[p[4]].drawText(t,{x:x0,y:p[5],size:sz,font:f,color:isPz?blue:red}); // cartoni (anche strati e pallet) in rosso, pezzi in blu
+    if(par)pages[p[4]].drawText(par,{x:x0+tw+2,y:p[5]+0.3,size:sz-1.5,font:fr,color:red})}
   if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)}); // bordo destro mancante nel modulo originale
   // data con il nostro numero accanto (es. 07/10/26 - 05); il campo N. resta libero per il numero di Mexal
   { const [yy,mm,dd]=String(o.data).slice(0,10).split('-'),t=`${dd}/${mm}/${yy}`; // solo la data: il numero d'ordine non va sul PDF (in magazzino si usa quello di Mexal)
@@ -789,9 +789,9 @@ async function pdfOrdine(o,utente){
     if(o.versione>1){yy-=4;pg.drawText('ORDINE MODIFICATO il '+new Date(o.modificato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})+(o.versione>2?'  ('+o.versione+'ª versione)':'')+': sostituisce le stampe precedenti',{x:40,y:yy-8,size:11,font:f,color:red});yy-=16}
     pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:1.2,color:blue});yy-=28;
     if(agg.length){pg.drawText('Q.tà',{x:40,y:yy,size:10,font:f});pg.drawText('Descrizione',{x:100,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
-      agg.forEach(e=>{pg.drawText(e.q+' '+ULAB(e.u),{x:40,y:yy,size:11,font:f,color:e.u==='pz'?red:blue});pg.drawText(String(e.d).slice(0,80),{x:100,y:yy,size:11,font:fr});yy-=18})}
+      agg.forEach(e=>{const tq=e.q+' '+ULAB(e.u),pzz=e.u==='pz';if(pzz||e.u==='st'||e.u==='pl')pg.drawRectangle({x:38,y:yy-3,width:f.widthOfTextAtSize(tq,11)+4,height:13,color:EVID});pg.drawText(tq,{x:40,y:yy,size:11,font:f,color:pzz?blue:red});pg.drawText(String(e.d).slice(0,80),{x:100,y:yy,size:11,font:fr});yy-=18})}
     if(conv.length){yy-=10;pg.drawText('STRATI E PALLET CONVERTITI IN CARTONI',{x:40,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
-      conv.forEach(e=>{pg.drawRectangle({x:36,y:yy-4,width:519,height:16,color:EVID});pg.drawText(e.q+' '+ULAB(e.u),{x:40,y:yy,size:11,font:f,color:blue});pg.drawText(String(e.d).slice(0,85),{x:100,y:yy,size:11,font:fr});yy-=18})}
+      conv.forEach(e=>{pg.drawRectangle({x:36,y:yy-4,width:519,height:16,color:EVID});pg.drawText(e.q+' '+ULAB(e.u),{x:40,y:yy,size:11,font:f,color:red});pg.drawText(String(e.d).slice(0,85),{x:100,y:yy,size:11,font:fr});yy-=18})}
     if(o.note){yy-=12;pg.drawText('Note: '+String(o.note).slice(0,90),{x:40,y:yy,size:11,font:fr})}}
   return await doc.save();
 }
