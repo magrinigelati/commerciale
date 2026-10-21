@@ -587,7 +587,7 @@ function renderMod(v){document.body.classList.add('wide');
   v.querySelectorAll('.mc,.minfo button,#minfo select').forEach(b=>b.addEventListener('mousedown',ev=>{if(b.id!=='mfatto'&&b.tagName!=='SELECT')ev.preventDefault()}));
   sh.addEventListener('click',ev=>{const b=ev.target.closest('.mc');if(b)mSeleziona(b.dataset.mk,true)});
   sh.addEventListener('click',async ev=>{const b=ev.target.closest('[data-mnm]');if(!b)return;const id=+b.dataset.mnm,p=byId[id],att=st.d[id]||'';
-    sh.querySelectorAll('.mnm.sel').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');b.scrollIntoView({block:'center',inline:'nearest'}); // la cella si evidenzia in verde e resta visibile sopra il riquadro
+    sh.querySelectorAll('.mnm.sel').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');{const r=sh.getBoundingClientRect(),c=b.getBoundingClientRect();sh.scrollTop+=c.top-r.top-40} // la cella si evidenzia in verde e si porta in alto, lontana dal riquadro delle domande
     const fine=()=>b.classList.remove('sel');
     if(!(await mChiedi({t:att?`"${p[2]}" è già stato modificato in "${att}".`:`Vuoi modificare la descrizione di "${p[2]}"?`,s:att?'Vuoi modificarla di nuovo?':'Vale solo per questo ordine; il catalogo non cambia.',ok:att?'Sì, modifica':'Sì, modifica'})))return fine();
     const n=await mChiedi({t:'Nuova descrizione',s:'Lascia vuoto per tornare a "'+p[2]+'".',input:att||p[2],ok:'Avanti'});if(n===null)return fine();const v=n.trim().slice(0,60);
