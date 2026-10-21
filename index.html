@@ -653,8 +653,10 @@ function renderSum(v){
   h+=`<h3>Prodotti non presenti nel foglio</h3>`;
   if(st.extra.length)h+=`<div class="list">${st.extra.map((e,i)=>`<div class="sr"><span class="q">${e.q}<i>${ULAB(e.u)}</i></span><div class="n">${esc(e.d)}<small>andrà su una pagina aggiuntiva del PDF</small></div><button data-x="${i}">Togli</button></div>`).join('')}</div>`;
   h+=`<div class="extra"><input id="xd" placeholder="Descrizione prodotto"><input id="xq" inputmode="numeric" placeholder="Q.tà"><select id="xu" aria-label="Unità">${UMS().map(u=>`<option value="${u}">${UM[u][0]}</option>`).join('')}</select><button class="btn" id="xadd">Aggiungi</button></div>`;
-  const QS=['Questa mattina','Questo pomeriggio','Domani mattina','Domani pomeriggio'];const qAltro=st.quando&&!QS.includes(st.quando);
-  h+=`<div class="field" style="margin-top:16px"><label>Quando carichi? (facoltativo)</label><div class="chips">${QS.map(q=>`<button type="button" data-qc="${esc(q)}" aria-pressed="${st.quando===q}">${esc(q)}</button>`).join('')}<button type="button" data-qc="*" aria-pressed="${!!qAltro}">Altro</button></div><div class="qalt" ${qAltro?'':'hidden'}><input id="qaltro" placeholder="Scrivi quando carichi, es. giovedì mattina" value="${esc(qAltro?st.quando:'')}" maxlength="40"></div></div>`;
+  // scelte con la data di oggi e di domani (es. "Questa mattina 21 ott")
+  const gg=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toLocaleDateString('it-IT',{day:'numeric',month:'short'}).replace('.','')};
+  const QS=['Questa mattina '+gg(0),'Questo pomeriggio '+gg(0),'Domani mattina '+gg(1),'Domani pomeriggio '+gg(1)];const qAltro=st.quando&&!QS.includes(st.quando);
+  h+=`<div class="field" style="margin-top:16px"><label>Quando carichi?</label><div class="chips">${QS.map(q=>`<button type="button" data-qc="${esc(q)}" aria-pressed="${st.quando===q}">${esc(q)}</button>`).join('')}<button type="button" data-qc="*" aria-pressed="${!!qAltro}">Altro</button><button type="button" data-qc="" aria-pressed="${!st.quando}">Lascio vuoto</button></div><div class="qalt" ${qAltro?'':'hidden'}><input id="qaltro" placeholder="Scrivi quando carichi, es. giovedì mattina" value="${esc(qAltro?st.quando:'')}" maxlength="40"></div></div>`;
   h+=`<div class="field" style="margin-top:16px"><label for="nota">Note per l'ufficio (facoltative)</label><input id="nota" value="${esc(st.nota||'')}" placeholder="es. carico per domenica"></div>`;
   h+=`<div id="conf"></div><div class="btns" style="margin-top:12px"><button class="btn" id="svuota">Svuota carico</button></div><div id="smsg" class="msg"></div>
   <p class="note">La bozza resta salvata su questo telefono finché non premi “Invia ordine”. Dopo l'invio puoi modificarlo entro un'ora da I miei ordini, finché l'ufficio non lo mette in preparazione; poi per correzioni chiama l'ufficio.</p></div>`;
@@ -662,8 +664,8 @@ function renderSum(v){
   $('#nota').oninput=e=>{st.nota=e.target.value;save()};
   v.querySelectorAll('[data-qc]').forEach(b=>b.onclick=()=>{const q=b.dataset.qc,alt=v.querySelector('.qalt'),inp=$('#qaltro');
     if(q==='*'){const on=b.getAttribute('aria-pressed')==='true';alt.hidden=on;if(on){st.quando='';inp.value=''}else{st.quando=inp.value.trim();inp.focus()}}
-    else{st.quando=st.quando===q?'':q;alt.hidden=true;inp.value=''}
-    save();v.querySelectorAll('[data-qc]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.qc==='*'?String(!alt.hidden):String(st.quando===x.dataset.qc)))});
+    else{st.quando=q;alt.hidden=true;inp.value=''}
+    save();v.querySelectorAll('[data-qc]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.qc==='*'?String(!alt.hidden):x.dataset.qc===''?String(!st.quando&&alt.hidden):String(st.quando===x.dataset.qc)))});
   $('#qaltro').oninput=e=>{st.quando=e.target.value.trim().slice(0,40);save()};
   v.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{delete st.q[b.dataset.k];save();render()});
   v.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{st.extra.splice(+b.dataset.x,1);save();render()});
@@ -802,9 +804,9 @@ async function pdfOrdine(o,utente){
     pages[0].pushOperators(pushGraphicsState(),setCharacterSqueeze(k*100));pages[0].drawText(t,{x:575-w,y:H-13.5,size:sz,font:f,color:blue});pages[0].pushOperators(popGraphicsState())} // margine sopra la tabella, in alto a destra
   if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)}); // bordo destro mancante nel modulo originale
   // data con il nostro numero accanto (es. 07/10/26 - 05); il campo N. resta libero per il numero di Mexal
-  { const [yy,mm,dd]=String(o.data).slice(0,10).split('-'),t=`${dd}/${mm}/${yy}`; // solo la data: il numero d'ordine non va sul PDF (in magazzino si usa quello di Mexal)
-    let sz=7.5;while(sz>5&&f.widthOfTextAtSize(t,sz)>47)sz-=.25;
-    pages[0].drawText(t,{x:548.5-f.widthOfTextAtSize(t,sz)/2,y:H-38,size:sz,font:f,color:blue}); }
+  { const [yy,mm,dd]=String(o.data).slice(0,10).split('-'),t=`${dd}/${mm}/${yy.slice(2)}`; // solo la data, anno a 2 cifre, alta e stretta per leggerla bene (il numero d'ordine non va sul PDF)
+    const sz=14,k=Math.min(1,46/f.widthOfTextAtSize(t,sz)),w=f.widthOfTextAtSize(t,sz)*k;
+    pages[0].pushOperators(pushGraphicsState(),setCharacterSqueeze(k*100));pages[0].drawText(t,{x:548.5-w/2,y:H-40.5,size:sz,font:f,color:blue});pages[0].pushOperators(popGraphicsState()); }
   { const nm=(utente.nome_stampa||utente.nome||utente.username||'').trim().toUpperCase(),top=H-80,bot=H-256,boxH=top-bot,x0=524,W=49;
     const fit=cols=>{const k=cols.length,cw=W/k,L=Math.max(...cols.map(c=>c.length));const mw=Math.max(...cols.join('').split('').map(ch=>f.widthOfTextAtSize(ch,1)));return Math.min(30,boxH/(L*1.08),(cw-2)/mw)};
     if(nm){let cols=[nm.replace(/\s+/g,' ')],sz=fit(cols);const words=nm.split(/\s+/).filter(Boolean);
