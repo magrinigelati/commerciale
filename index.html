@@ -754,7 +754,7 @@ async function renderOrd(v){
 /* ================= PDF ================= */
 let MODULO=null;
 async function pdfOrdine(o,utente){
-  const {PDFDocument,StandardFonts,rgb,degrees}=PDFLib;
+  const {PDFDocument,StandardFonts,rgb,degrees,pushGraphicsState,popGraphicsState,setCharacterSqueeze,setTextRenderingMode,TextRenderingMode,setLineWidth,setStrokingColor}=PDFLib,LARGO=1.12;
   if(!MODULO)MODULO=await fetch('modulo-presa-ordini.pdf?v=2').then(r=>{if(!r.ok)throw new Error('modulo non trovato');return r.arrayBuffer()});
   const doc=await PDFDocument.load(MODULO.slice(0));
   const f=await doc.embedFont(StandardFonts.HelveticaBold),fr=await doc.embedFont(StandardFonts.Helvetica);
@@ -763,12 +763,17 @@ async function pdfOrdine(o,utente){
   for(const r of (o.righe||[])){const p=byId[r.p];if(!p){fuori.push({d:'Prodotto '+r.p,q:r.q,u:r.u});continue}const v=p[6][r.v]||p[6][0];
     if(p[4]==null||v[1]==null){fuori.push({d:p[2]+(p[6].length>1?' - Vaschetta '+v[0]:'')+(v[4]?'':' (su ordinazione)'),q:r.q,u:r.u});continue}
     const isPz=r.u==='pz',ev=r.u==='st'||r.u==='pl',t=r.q+(r.u&&r.u!=='ct'?' '+ULAB(r.u):'');let sz=ev||isPz?7:8;const room=(v[3]||28)-3;
-    const par=ev&&r.ct?'('+r.ct+')':'',tot=z=>f.widthOfTextAtSize(t,z)+(par?2+fr.widthOfTextAtSize(par,z-1.5):0); // cartoni convertiti tra parentesi, piu' piccoli e non evidenziati
+    const par=ev&&r.ct?'('+r.ct+')':'',tot=z=>(f.widthOfTextAtSize(t,z)+(par?2+fr.widthOfTextAtSize(par,z-1.5):0))*LARGO; // cartoni convertiti tra parentesi, piu' piccoli e non evidenziati
     while(sz>5&&tot(sz)>room)sz-=.25;
-    const tw=f.widthOfTextAtSize(t,sz),x0=v[1]-tot(sz)/2;
+    const tw=f.widthOfTextAtSize(t,sz)*LARGO,x0=v[1]-tot(sz)/2;
     if(ev||isPz)pages[p[4]].drawRectangle({x:x0-1.2,y:p[5]-1.1,width:tw+2.4,height:sz+0.3,color:EVID}); // pezzi, strati e pallet evidenziati in giallo, dentro la riga
-    pages[p[4]].drawText(t,{x:x0,y:p[5],size:sz,font:f,color:isPz?blue:red}); // cartoni (anche strati e pallet) in rosso, pezzi in blu
-    if(par)pages[p[4]].drawText(par,{x:x0+tw+2,y:p[5]+0.3,size:sz-1.5,font:fr,color:red})}
+    // quantita' un po' piu' grassetta (contorno sottile) e piu' larga (12%), stessa altezza: non tocca la riga sopra
+    const col=isPz?blue:red; // cartoni (anche strati e pallet) in rosso, pezzi in blu
+    pages[p[4]].pushOperators(pushGraphicsState(),setCharacterSqueeze(LARGO*100),setTextRenderingMode(TextRenderingMode.FillAndOutline),setLineWidth(.25),setStrokingColor(col));
+    pages[p[4]].drawText(t,{x:x0,y:p[5],size:sz,font:f,color:col});
+    pages[p[4]].pushOperators(setTextRenderingMode(TextRenderingMode.Fill));
+    if(par)pages[p[4]].drawText(par,{x:x0+tw+2*LARGO,y:p[5]+0.3,size:sz-1.5,font:fr,color:red});
+    pages[p[4]].pushOperators(popGraphicsState())}
   if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)}); // bordo destro mancante nel modulo originale
   // data con il nostro numero accanto (es. 07/10/26 - 05); il campo N. resta libero per il numero di Mexal
   { const [yy,mm,dd]=String(o.data).slice(0,10).split('-'),t=`${dd}/${mm}/${yy}`; // solo la data: il numero d'ordine non va sul PDF (in magazzino si usa quello di Mexal)
