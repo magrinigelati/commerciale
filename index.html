@@ -221,6 +221,12 @@ body{overflow-anchor:none}
 .pwbox{position:relative;display:block}.pwbox input{width:100%;padding-right:48px}
 .pw-eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:40px;border:0;background:none;color:var(--muted,#667);display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer}
 .pw-eye svg{width:22px;height:22px}
+/* quando carichi: scelte a pulsante */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.chips button{padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:600;font-size:15px}
+.chips button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.qalt{margin-top:8px}
+.qalt input{width:100%}
 /* modulo interattivo */
 body.wide main{max-width:none}
 .mtool{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 8px}
@@ -647,11 +653,18 @@ function renderSum(v){
   h+=`<h3>Prodotti non presenti nel foglio</h3>`;
   if(st.extra.length)h+=`<div class="list">${st.extra.map((e,i)=>`<div class="sr"><span class="q">${e.q}<i>${ULAB(e.u)}</i></span><div class="n">${esc(e.d)}<small>andrà su una pagina aggiuntiva del PDF</small></div><button data-x="${i}">Togli</button></div>`).join('')}</div>`;
   h+=`<div class="extra"><input id="xd" placeholder="Descrizione prodotto"><input id="xq" inputmode="numeric" placeholder="Q.tà"><select id="xu" aria-label="Unità">${UMS().map(u=>`<option value="${u}">${UM[u][0]}</option>`).join('')}</select><button class="btn" id="xadd">Aggiungi</button></div>`;
+  const QS=['Questa mattina','Questo pomeriggio','Domani mattina','Domani pomeriggio'];const qAltro=st.quando&&!QS.includes(st.quando);
+  h+=`<div class="field" style="margin-top:16px"><label>Quando carichi? (facoltativo)</label><div class="chips">${QS.map(q=>`<button type="button" data-qc="${esc(q)}" aria-pressed="${st.quando===q}">${esc(q)}</button>`).join('')}<button type="button" data-qc="*" aria-pressed="${!!qAltro}">Altro</button></div><div class="qalt" ${qAltro?'':'hidden'}><input id="qaltro" placeholder="Scrivi quando carichi, es. giovedì mattina" value="${esc(qAltro?st.quando:'')}" maxlength="40"></div></div>`;
   h+=`<div class="field" style="margin-top:16px"><label for="nota">Note per l'ufficio (facoltative)</label><input id="nota" value="${esc(st.nota||'')}" placeholder="es. carico per domenica"></div>`;
   h+=`<div id="conf"></div><div class="btns" style="margin-top:12px"><button class="btn" id="svuota">Svuota carico</button></div><div id="smsg" class="msg"></div>
   <p class="note">La bozza resta salvata su questo telefono finché non premi “Invia ordine”. Dopo l'invio puoi modificarlo entro un'ora da I miei ordini, finché l'ufficio non lo mette in preparazione; poi per correzioni chiama l'ufficio.</p></div>`;
   v.innerHTML=h;
   $('#nota').oninput=e=>{st.nota=e.target.value;save()};
+  v.querySelectorAll('[data-qc]').forEach(b=>b.onclick=()=>{const q=b.dataset.qc,alt=v.querySelector('.qalt'),inp=$('#qaltro');
+    if(q==='*'){const on=b.getAttribute('aria-pressed')==='true';alt.hidden=on;if(on){st.quando='';inp.value=''}else{st.quando=inp.value.trim();inp.focus()}}
+    else{st.quando=st.quando===q?'':q;alt.hidden=true;inp.value=''}
+    save();v.querySelectorAll('[data-qc]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.qc==='*'?String(!alt.hidden):String(st.quando===x.dataset.qc)))});
+  $('#qaltro').oninput=e=>{st.quando=e.target.value.trim().slice(0,40);save()};
   v.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{delete st.q[b.dataset.k];save();render()});
   v.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{st.extra.splice(+b.dataset.x,1);save();render()});
   v.querySelectorAll('[data-su]').forEach(b=>b.onclick=()=>{setU(+b.dataset.id,b.dataset.su);render()});
@@ -679,13 +692,13 @@ async function inviaOrdine(){
   const righe=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);const u=uOf(id),r={p:id,v:vi,q:st.q[k],u};if(u==='st'||u==='pl'){const c=convCt(byId[id],vi,u,st.q[k]);if(c)r.ct=c}return r});
   // chiave unica del carico: se la rete cade dopo il salvataggio e si ripreme Invia, l'ordine non viene duplicato
   if(!st.chiave){st.chiave=(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random());save()}
-  let {data,error}=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null,chiave:st.chiave}).select('*').single();
-  if(error&&/chiave/.test(error.message||'')){const r=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null}).select('*').single();data=r.data;error=r.error} // database non ancora aggiornato
+  let {data,error}=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null,quando:st.quando||null,chiave:st.chiave}).select('*').single();
+  if(error&&/chiave/.test(error.message||'')){const r=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null,quando:st.quando||null}).select('*').single();data=r.data;error=r.error} // database non ancora aggiornato
   if(error&&error.code==='23505'){const r=await sb.from('ordini').select('*').eq('chiave',st.chiave).single();data=r.data;error=r.error}
   if(error){m.className='msg err';m.textContent=erroreSess(error)?MSG_SESS:'Invio non riuscito. Controlla la connessione e riprova. ('+error.message+')';$('#si').disabled=false;return}
   righe.forEach(r=>freq[r.p]=(freq[r.p]||0)+1);store.set('mc_freq_'+ME.id,freq);
   log('invio_ordine','N. '+NUM(data));
-  const ordInviato={id:data.id,numero:data.numero,data:st.data,righe,extra:st.extra,note:st.nota||null};
+  const ordInviato={id:data.id,numero:data.numero,data:st.data,righe,extra:st.extra,note:st.nota||null,quando:st.quando||null};
   m.textContent='Ordine salvato, invio la mail all\'ufficio…';
   const esitoMail=await inviaMail(ordInviato);
   st={q:{},u:{},extra:[],data:oggi(),nota:''};save();
@@ -709,14 +722,14 @@ function modificaOrdine(o){
   if(!modificabile(o))return alert('Il tempo per modificare questo ordine è scaduto oppure l\'ufficio lo ha già messo in preparazione: per correzioni chiama l\'ufficio.');
   if(!st.mod&&(Object.keys(st.q).length||st.extra.length))store.set(DKEY()+'_sospesa',st);
   const q={},u={};(o.righe||[]).forEach(r=>{if(byId[r.p]){q[r.p+':'+r.v]=r.q;if(r.u&&r.u!=='ct')u[r.p]=r.u}});
-  st={q,u,extra:JSON.parse(JSON.stringify(o.extra||[])),data:o.data,nota:o.note||'',mod:{id:o.id,numero:NUM(o),scade:scadenzaMod(o)}};save();
+  st={q,u,extra:JSON.parse(JSON.stringify(o.extra||[])),data:o.data,nota:o.note||'',quando:o.quando||'',mod:{id:o.id,numero:NUM(o),scade:scadenzaMod(o)}};save();
   fam=null;sub=null;view='fam';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='fam'));render();window.scrollTo(0,0);
 }
 function chiudiModifica(){const sosp=store.get(DKEY()+'_sospesa',null);try{localStorage.removeItem(DKEY()+'_sospesa')}catch(e){}st=sosp||{q:{},u:{},extra:[],data:oggi(),nota:''};delete st.mod;save()}
 async function inviaModifica(m){
   if(Date.now()>st.mod.scade){m.className='msg err';m.textContent='Tempo per la modifica scaduto: per correzioni chiama l\'ufficio. Puoi annullare la modifica dal riquadro in alto.';$('#si').disabled=false;return}
   const righe=righeCarico(),numero=st.mod.numero;
-  const {data,error}=await sb.from('ordini').update({data:st.data,righe,extra:st.extra,note:st.nota||null}).eq('id',st.mod.id).select('*').single();
+  const {data,error}=await sb.from('ordini').update({data:st.data,righe,extra:st.extra,note:st.nota||null,quando:st.quando||null}).eq('id',st.mod.id).select('*').single();
   if(error){m.className='msg err';m.textContent=/scaduto|preparazione/i.test(error.message)?error.message:erroreSess(error)?MSG_SESS:'Modifica non inviata. Controlla la connessione e riprova. ('+error.message+')';$('#si').disabled=false;return}
   log('modifica_ordine','N. '+numero+' v'+data.versione);
   m.textContent='Modifica salvata, invio la mail all\'ufficio…';
@@ -745,7 +758,7 @@ async function inviaMail(o,utente=ME){
 const NUM=o=>o.numero??o.id; // numero progressivo dell'agente (se manca, l'id)
 const STATI={inviato:'Inviato',in_lavorazione:'In preparazione',caricato:'Caricato',annullato:'Annullato',bozza:'Bozza'};
 function righeTesto(o){return (o.righe||[]).map(r=>{const p=byId[r.p];return p?{q:r.q,u:r.u,ct:r.ct,n:p[2]+(p[6].length>1?' · '+p[6][r.v][0]:''),c:p[6][r.v]?p[6][r.v][2]:''}:{q:r.q,u:r.u,n:'(prodotto non più a catalogo)',c:''}}).concat((o.extra||[]).map(e=>({q:e.q,u:e.u,n:e.d,c:'aggiuntivo'})))}
-function dettaglioHtml(o){return `<div class="list">${righeTesto(o).map(r=>`<div class="sr"><span class="q">${r.q}<i>${ULAB(r.u)}</i></span><div class="n">${esc(r.n)}${r.ct?` <b class="cv">${r.ct} ct</b>`:''}<small>${esc(r.c)}</small></div></div>`).join('')}</div>${o.note?`<p class="note">Note: ${esc(o.note)}</p>`:''}`}
+function dettaglioHtml(o){return `<div class="list">${righeTesto(o).map(r=>`<div class="sr"><span class="q">${r.q}<i>${ULAB(r.u)}</i></span><div class="n">${esc(r.n)}${r.ct?` <b class="cv">${r.ct} ct</b>`:''}<small>${esc(r.c)}</small></div></div>`).join('')}</div>${o.quando?`<p class="note" style="color:var(--accent);font-weight:700">Carico: ${esc(o.quando)}</p>`:''}${o.note?`<p class="note">Note: ${esc(o.note)}</p>`:''}`}
 async function renderOrd(v){
   v.innerHTML='<div class="empty">Carico gli ordini…</div>';
   const {data,error}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').gte('data',(()=>{const d=new Date();d.setDate(d.getDate()-31);return d.toISOString().slice(0,10)})()).order('id',{ascending:false});
@@ -785,6 +798,8 @@ async function pdfOrdine(o,utente){
     pages[p[4]].pushOperators(setTextRenderingMode(TextRenderingMode.Fill));
     if(par)pages[p[4]].drawText(par,{x:x0+tw+2*LARGO,y:p[5]+0.3,size:sz-1.5,font:fr,color:red});
     pages[p[4]].pushOperators(popGraphicsState())}
+  if(o.quando){const t='CARICO: '+String(o.quando).toUpperCase().slice(0,40),k=1.2;let sz=12.5;while(sz>8&&f.widthOfTextAtSize(t,sz)*k>330)sz-=.5;const w=f.widthOfTextAtSize(t,sz)*k;
+    pages[0].pushOperators(pushGraphicsState(),setCharacterSqueeze(k*100));pages[0].drawText(t,{x:575-w,y:H-13.5,size:sz,font:f,color:blue});pages[0].pushOperators(popGraphicsState())} // margine sopra la tabella, in alto a destra
   if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)}); // bordo destro mancante nel modulo originale
   // data con il nostro numero accanto (es. 07/10/26 - 05); il campo N. resta libero per il numero di Mexal
   { const [yy,mm,dd]=String(o.data).slice(0,10).split('-'),t=`${dd}/${mm}/${yy}`; // solo la data: il numero d'ordine non va sul PDF (in magazzino si usa quello di Mexal)
@@ -861,7 +876,7 @@ async function uffOrdini(v){
   if(error){$('#ul').innerHTML='<div class="empty">Errore: '+esc(error.message)+'</div>';return}
   const U={};(ut||[]).forEach(u=>U[u.id]=u);
   if(!ord.length){$('#ul').innerHTML='<div class="empty">'+(uffTutti?'Nessun ordine negli ultimi 7 giorni.':'Nessun ordine per questo giorno.')+'</div>';return}
-  $('#ul').innerHTML=`<div class="list">${ord.map(o=>{const u=U[o.utente_id]||{};return `<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${NUM(o)} · ${esc((u.nome_stampa||u.nome||'?'))}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · ${uffTutti?'carico del '+dataIt(o.data)+' · inviato '+new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):new Date(o.inviato_il||o.creato_il).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}${o.note?' · con note':''}${o.versione>1?' · <b style="color:var(--accent)">modificato '+oraIt(o.modificato_il)+(o.versione>2?' ('+o.versione+'ª versione)':'')+'</b>':''}${'mail_il' in o&&!o.mail_il?' · <b style="color:var(--accent)">mail non arrivata</b>':''}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="uo${o.id}" hidden style="padding:0 12px 12px"></div>`}).join('')}</div>`;
+  $('#ul').innerHTML=`<div class="list">${ord.map(o=>{const u=U[o.utente_id]||{};return `<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${NUM(o)} · ${esc((u.nome_stampa||u.nome||'?'))}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · ${uffTutti?'carico del '+dataIt(o.data)+' · inviato '+new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):new Date(o.inviato_il||o.creato_il).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}${o.quando?' · <b style="color:var(--accent)">carico '+esc(o.quando).toLowerCase()+'</b>':''}${o.note?' · con note':''}${o.versione>1?' · <b style="color:var(--accent)">modificato '+oraIt(o.modificato_il)+(o.versione>2?' ('+o.versione+'ª versione)':'')+'</b>':''}${'mail_il' in o&&!o.mail_il?' · <b style="color:var(--accent)">mail non arrivata</b>':''}</small></div><span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span></button><div id="uo${o.id}" hidden style="padding:0 12px 12px"></div>`}).join('')}</div>`;
   $('#ul').querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=ord.find(x=>x.id==b.dataset.o),u=U[o.utente_id]||{};const d=$('#uo'+o.id);d.hidden=!d.hidden;if(d.hidden)return;
     d.innerHTML=dettaglioHtml(o)+`<div class="btns"><button class="btn main" data-pdf>Scarica PDF</button><button class="btn" data-op>Apri PDF</button><button class="btn" data-mail>Rinvia mail</button>${['in_lavorazione','caricato','annullato'].map(s=>`<button class="btn" data-s="${s}">${STATI[s]}</button>`).join('')}</div>`;
     d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,u);d.querySelector('[data-op]').onclick=()=>apriPdf(o,u);
