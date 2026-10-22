@@ -747,10 +747,10 @@ const MM_MAG={get:(id,vi)=>{const d=MAG.d[gk(id,vi)]||0;return d*magSegno()>0?Ma
   dett:(e,p,v)=>{const g=giac(e.id,e.vi);return 'Giacenza '+g+' ct'+(g?'':' (non in magazzino)')+(v[2]?' · '+v[2]:'')}};
 // Modulo della scorta ideale: giacenza in blu, scorta ideale in arancio; si scrive la scorta
 const MM_SC={get:(id,vi)=>scorta(id,vi),set:(id,vi,v)=>scSet(gk(id,vi),v),
-  testo:e=>{const g=giac(e.id,e.vi),sc=scorta(e.id,e.vi);return (g||sc?`<span class="gb">${g}</span>`:'')+(sc?`<span class="go">/${sc}</span>`:'')},
-  cls:e=>'mc'+(giac(e.id,e.vi)||scorta(e.id,e.vi)?' on':'')+(mSel===e.k?' sel':''),um:false,nomi:false,
-  hint:'In blu la giacenza, in arancio la scorta ideale (quanti cartoni vorresti avere sempre). Tocca la casella e scrivi la scorta; poi Salva scorte in basso.',
-  vuoto:['Tocca una casella del modulo','In blu la giacenza, scrivi la scorta ideale'],
+  testo:e=>{const sc=scorta(e.id,e.vi);return sc?`<span class="go">${sc}</span>`:''},
+  cls:e=>'mc'+(scorta(e.id,e.vi)?' on':'')+(mSel===e.k?' sel':''),um:false,nomi:false,
+  hint:'Scrivi in ogni casella la scorta ideale: quanti cartoni vorresti avere sempre di quella referenza, a prescindere da cosa hai ora. Poi Salva scorte in basso.',
+  vuoto:['Tocca una casella del modulo','Scrivi la scorta ideale in cartoni'],
   dett:(e,p,v)=>'Giacenza '+giac(e.id,e.vi)+' ct · scorta ideale '+scorta(e.id,e.vi)+' ct'+(v[2]?' · '+v[2]:'')};
 async function renderMag(v){
   if(!ME.magazzino){v.innerHTML='<div class="empty">Il magazzino non è abilitato per questo account: chiedi all\'ufficio.</div>';return}
@@ -823,14 +823,14 @@ function renderScorta(v){
   const testa=`<div class="seg" style="margin-bottom:8px"><button data-scv="el" aria-pressed="${MAG.scv!=='mod'}">Elenco</button><button data-scv="mod" aria-pressed="${MAG.scv==='mod'}">Modulo</button></div>`;
   if(MAG.scv==='mod'){v.innerHTML=testa+`<div class="btns" style="margin-bottom:8px"><button class="btn main" id="scbozza" ${m.length?'':'disabled'}>Crea bozza d'ordine${m.length?' ('+m.length+' ref. · '+tot+' ct)':''}</button></div><div id="scmod"></div>`;
     v.querySelectorAll('[data-scv]').forEach(b=>b.onclick=()=>{MAG.scv=b.dataset.scv;render()});$('#scbozza').onclick=bozzaDaScorte;renderMod($('#scmod'));return}
-  v.innerHTML=testa+`<p class="note" style="margin:0 0 10px"><b>Scorta ideale</b>: per ogni referenza scrivi quanti <b>cartoni vorresti avere sempre</b> in magazzino. Confrontando con la giacenza, il portale prepara una <b>bozza d'ordine</b> con quello che manca, da rivedere e inviare come un ordine normale. La trovi anche in Effettua un ordine → "Ottimizza dal magazzino".</p>
+  v.innerHTML=testa+`<p class="note" style="margin:0 0 10px"><b>Scorta ideale</b>: scegli le referenze e scrivi quanti <b>cartoni vorresti avere sempre</b>, a prescindere da cosa hai ora in magazzino. Quando crei la <b>bozza d'ordine</b>, il portale sottrae la giacenza attuale e ordina solo la differenza; la bozza si rivede e si invia come un ordine normale. La trovi anche in Effettua un ordine → "Ottimizza dal magazzino".</p>
    <div class="btns" style="margin-bottom:12px"><button class="btn main" id="scbozza" ${m.length?'':'disabled'}>Crea bozza d'ordine${m.length?' ('+m.length+' ref. · '+tot+' ct)':''}</button></div>
    <input class="search" id="sccerca" type="search" placeholder="Cerca una referenza da aggiungere alle scorte…" value="${esc(MAG.scQ)}" autocomplete="off"><div id="scres"></div>`;
   $('#scbozza').onclick=bozzaDaScorte;v.querySelectorAll('[data-scv]').forEach(b=>b.onclick=()=>{MAG.scv=b.dataset.scv;render()});
-  const draw=()=>{const keys=new Set([...Object.keys(MAG.S),...Object.keys(MAG.sc),...Object.keys(MAG.G)]);let list;const q=MAG.scQ;
+  const draw=()=>{const keys=new Set([...Object.keys(MAG.S),...Object.keys(MAG.sc)]);let list;const q=MAG.scQ;
     if(q.trim().length>1)list=search(q).slice(0,40).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv,vi])=>p[6].length===1||vv[4]||keys.has(gk(p[0],vi))));
     else list=[...keys].map(k=>{const [id,vi]=k.split(':').map(Number);return byId[id]?[byId[id],vi]:null}).filter(Boolean).sort((a,b)=>P.indexOf(a[0])-P.indexOf(b[0])||a[1]-b[1]);
-    const r=$('#scres');if(!list.length){r.innerHTML=`<div class="empty">${q.trim().length>1?'Nessuna referenza trovata.':'Cerca le referenze e imposta la scorta desiderata.'}</div>`;return}
+    const r=$('#scres');if(!list.length){r.innerHTML=`<div class="empty">${q.trim().length>1?'Nessuna referenza trovata.':'Nessuna scorta impostata. Cerca le referenze qui sopra, oppure usa il Modulo, e scrivi la scorta ideale.'}</div>`;return}
     const groups=[];list.forEach(x=>{let g=groups.find(y=>y[0]===x[0][1]);if(!g){g=[x[0][1],[]];groups.push(g)}g[1].push(x)});
     r.innerHTML=groups.map(([fi,xs])=>`<div class="lbl">${esc(S[fi])}</div><div class="list">${xs.map(scRiga).join('')}</div>`).join('');scBind(r)};
   $('#sccerca').oninput=e=>{MAG.scQ=e.target.value;draw()};draw();
