@@ -1753,12 +1753,17 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 // scorrendo in giù resta solo la riga Carico/Riepilogo; tornando su (o in cima) ricompare tutto
 let prevY=0,su=0,giu=0,fermo=0;
 function setMini(on){const top=$('.top');if(!top||top.classList.contains('mini')===on)return;top.classList.toggle('mini',on);fermo=Date.now()+400;su=giu=0}
+// nei Moduli scorre il foglio e non la pagina: l'intestazione resta sempre intera
+const vistaModulo=()=>view==='mod'||(view==='mag'&&typeof magInMod==='function'&&magInMod());
+// toccando la barra scura ridotta, l'intestazione si riapre
+document.addEventListener('click',e=>{const top=$('.top');if(top&&top.classList.contains('mini')&&top.contains(e.target)&&!e.target.closest('button,input,select,a')){setMini(false)}});
 window.addEventListener('scroll',()=>{const y=window.scrollY,d=y-prevY;prevY=y;if(Date.now()<fermo)return;
+  if(vistaModulo()){setMini(false);return}
   if(y<30){setMini(false);return}
   if(d>0){giu+=d;su=0;if(giu>15)setMini(true)}else if(d<0){su-=d;giu=0;if(su>50)setMini(false)}},{passive:true});
 
 /* ================= AVVIO ================= */
-async function render(){const v=$('#view');MM=view==='mag'?(MAG.tab==='giac'&&MAG.gsv==='mod'?MM_GIAC:MAG.tab==='sc'&&MAG.scv==='mod'?MM_SC:MAG.tab==='car'&&MAG.ord&&MAG.carv==='mod'?MM_CAR:MAG.tab==='inv'&&MAG.inv&&MAG.invv==='mod'?MM_INV:MM_MAG):MM_ORD;
+async function render(){const v=$('#view');if(typeof setMini==='function')setMini(false);MM=view==='mag'?(MAG.tab==='giac'&&MAG.gsv==='mod'?MM_GIAC:MAG.tab==='sc'&&MAG.scv==='mod'?MM_SC:MAG.tab==='car'&&MAG.ord&&MAG.carv==='mod'?MM_CAR:MAG.tab==='inv'&&MAG.inv&&MAG.invv==='mod'?MM_INV:MM_MAG):MM_ORD;
   if(view==='fam'){renderFam(v);bannerModifica(v)}else if(view==='mod'){renderMod(v);bannerModifica(v)}else if(view==='sum'){renderSum(v);bannerModifica(v)}else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);else if(view==='mag')await renderMag(v);testata();bar();if(view==='mod'||(view==='mag'&&magInMod()))mAltezza()}
 sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')show('s-login')});
 avvia();
