@@ -691,7 +691,7 @@ addEventListener('resize',()=>{if(view==='mod'||(view==='mag'&&magInMod()))mAlte
 
 /* ================= MAGAZZINO ================= */
 // magazzino personale (in cartoni): giacenze G, variazioni in sospeso d (delta) e rettifiche set, carico da ordine
-let MAG={tab:'giac',modo:'scarico',scv:'el',gv:'mov',carv:'el',invv:'el',inv:null,invQ:'',G:{},S:{},sc:{},d:{},set:{},ord:null,car:null,q:'',carQ:'',scQ:'',mov:null,ordini:null,aperto:null};
+let MAG={tab:'giac',modo:'scarico',scv:'el',gv:'mov',carv:'el',invv:'el',inv:null,invQ:'',invFam:null,G:{},S:{},sc:{},d:{},set:{},ord:null,car:null,q:'',carQ:'',scQ:'',mov:null,ordini:null,aperto:null};
 const MKEY=()=>'mc_mag_'+ME.id;
 function magSave(){store.set(MKEY(),{d:MAG.d,set:MAG.set,ord:MAG.ord,car:MAG.car,sc:MAG.sc,inv:MAG.inv})}
 function magLoad(){const m=store.get(MKEY(),null);if(m){MAG.d=m.d||{};MAG.set=m.set||{};MAG.ord=m.ord||null;MAG.car=m.car||null;MAG.sc=m.sc||{};MAG.inv=m.inv||null}}
@@ -832,7 +832,7 @@ async function stampaGiacenza(azione,btn){
 const magInMod=()=>MAG.tab==='mod'||(MAG.tab==='sc'&&MAG.scv==='mod')||(MAG.tab==='car'&&!!MAG.ord&&MAG.carv==='mod')||(MAG.tab==='inv'&&!!MAG.inv&&MAG.invv==='mod');
 // Inventario: conta da zero; MAG.inv = {chiave: cartoni contati}; alla conferma sostituisce tutta la giacenza
 const invQ=(id,vi)=>(MAG.inv&&MAG.inv[gk(id,vi)])||0;
-function invSet(id,vi,v){if(!MAG.inv)MAG.inv={};v=Math.max(0,Math.min(9999,parseInt(v)||0));const k=gk(id,vi);if(v)MAG.inv[k]=v;else delete MAG.inv[k];magSave();bar()}
+function invSet(id,vi,v){if(!MAG.inv)MAG.inv={};v=Math.max(0,Math.min(9999,parseInt(v)||0));const k=gk(id,vi);if(v)MAG.inv[k]=v;else delete MAG.inv[k];magSave();bar();const c=$('#invcnt');if(c){const n=Object.keys(MAG.inv).length,t=Object.values(MAG.inv).reduce((a,b)=>a+b,0);c.textContent=n+' referenze, '+t+' cartoni contati'}}
 const MM_INV={get:(id,vi)=>invQ(id,vi),set:(id,vi,v)=>invSet(id,vi,v),
   testo:e=>{const q=invQ(e.id,e.vi);return q?`<span class="gb">${q}</span>`:''},
   cls:e=>'mc'+(invQ(e.id,e.vi)?' on':'')+(mSel===e.k?' sel':''),um:false,nomi:false,
@@ -862,18 +862,25 @@ function renderInv(v){
     return}
   const n=Object.keys(MAG.inv).length,tot=Object.values(MAG.inv).reduce((a,b)=>a+b,0);
   const testa=`<div class="seg sub" style="margin-bottom:8px"><button data-iv="el" aria-pressed="${MAG.invv!=='mod'}">Elenco</button><button data-iv="mod" aria-pressed="${MAG.invv==='mod'}">Modulo</button></div>
-   <p class="note" style="margin:0 0 10px"><b>Inventario in corso</b>: ${n} referenze, ${tot} cartoni contati. Alla conferma sostituisce tutta la giacenza. <button class="btn sm" id="invann">Annulla inventario</button></p>`;
+   <p class="note" style="margin:0 0 10px"><b>Inventario in corso</b>: <span id="invcnt">${n} referenze, ${tot} cartoni contati</span>. Alla conferma sostituisce tutta la giacenza. <button class="btn sm" id="invann">Annulla inventario</button></p>`;
   if(MAG.invv==='mod'){v.innerHTML=testa+`<div id="invmod"></div>`;renderMod($('#invmod'))}
-  else{v.innerHTML=testa+`<input class="search" id="icerca" type="search" placeholder="Cerca una referenza da contare…" value="${esc(MAG.invQ)}" autocomplete="off"><div id="ires"></div>`;
-    const draw=()=>{const keys=new Set(Object.keys(MAG.inv));let list;const q=MAG.invQ;
-      if(q.trim().length>1)list=search(q).slice(0,40).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv,vi])=>p[6].length===1||vv[4]||keys.has(gk(p[0],vi))));
-      else list=[...keys].map(k=>{const [id,vi]=k.split(':').map(Number);return byId[id]?[byId[id],vi]:null}).filter(Boolean).sort((a,b)=>P.indexOf(a[0])-P.indexOf(b[0])||a[1]-b[1]);
-      const r=$('#ires');if(!list.length){r.innerHTML=`<div class="empty">${q.trim().length>1?'Nessuna referenza trovata.':'Cerca le referenze e scrivi i cartoni contati, oppure usa il Modulo.'}</div>`;return}
-      const groups=[];list.forEach(x=>{let g=groups.find(y=>y[0]===x[0][1]);if(!g){g=[x[0][1],[]];groups.push(g)}g[1].push(x)});
-      r.innerHTML=groups.map(([fi,xs])=>`<div class="lbl">${esc(S[fi])}</div><div class="list">${xs.map(invRiga).join('')}</div>`).join('');invBind(r)};
+  else{v.innerHTML=testa+`<input class="search" id="icerca" type="search" placeholder="Cerca una referenza oppure scegli la famiglia qui sotto…" value="${esc(MAG.invQ)}" autocomplete="off"><div id="ires"></div>`;
+    // senza ricerca: referenze gia' contate + famiglie come in "Effettua un ordine"; dentro una famiglia tutte le referenze con + e -
+    const gruppi=list=>{const groups=[];list.forEach(x=>{let g=groups.find(y=>y[0]===x[0][7]);if(!g){g=[x[0][7],[]];groups.push(g)}g[1].push(x)});return groups};
+    const draw=()=>{const keys=new Set(Object.keys(MAG.inv));const q=MAG.invQ;const r=$('#ires');
+      if(q.trim().length>1){const list=search(q).slice(0,40).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv,vi])=>p[6].length===1||vv[4]||keys.has(gk(p[0],vi))));
+        r.innerHTML=list.length?`<div class="list">${list.map(invRiga).join('')}</div>`:'<div class="empty">Nessuna referenza trovata.</div>';invBind(r);return}
+      if(MAG.invFam!=null){const fi=MAG.invFam,ps=P.filter(p=>p[1]===fi);const list=ps.flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv,vi])=>p[6].length===1||vv[4]||keys.has(gk(p[0],vi))));
+        r.innerHTML=`<div class="back"><button id="ifbk">‹ Famiglie</button><h2>${esc(S[fi])}</h2></div>`+gruppi(list).map(([sez,xs])=>`${sez&&sez.toLowerCase()!==S[fi].toLowerCase()?`<div class="lbl sub">${esc(sez)}</div>`:''}<div class="list">${xs.map(invRiga).join('')}</div>`).join('');
+        $('#ifbk').onclick=()=>{MAG.invFam=null;draw();window.scrollTo(0,0)};invBind(r);return}
+      const cont=[...keys].map(k=>{const [id,vi]=k.split(':').map(Number);return byId[id]?[byId[id],vi]:null}).filter(Boolean).sort((a,b)=>P.indexOf(a[0])-P.indexOf(b[0])||a[1]-b[1]);
+      const nFam=i=>[...keys].filter(k=>byId[k.split(':')[0]]&&byId[k.split(':')[0]][1]===i).length;
+      r.innerHTML=(cont.length?`<div class="lbl">Già contate</div><div class="list">${cont.map(invRiga).join('')}</div>`:'')+
+        `<div class="lbl">Famiglie</div><div class="fams">${S.map((nm,i)=>{const c=nFam(i),n=P.filter(p=>p[1]===i).length;return `<button class="fam${c?' has':''}" data-if="${i}"><b>${esc(nm)}</b><span>${c?c+' contate · ':''}${n} prodotti</span></button>`}).join('')}</div>`;
+      invBind(r);r.querySelectorAll('[data-if]').forEach(b=>b.onclick=()=>{MAG.invFam=+b.dataset.if;draw();window.scrollTo(0,0)})};
     $('#icerca').oninput=e=>{MAG.invQ=e.target.value;draw()};draw()}
   v.querySelectorAll('[data-iv]').forEach(b=>b.onclick=()=>{MAG.invv=b.dataset.iv;render()});
-  $('#invann').onclick=async()=>{if(!(await mChiedi({t:'Annullare l\'inventario?',s:'I conteggi inseriti andranno persi; la giacenza resta com\'è.',ok:'Sì, annulla'})))return;MAG.inv=null;magSave();render()};
+  $('#invann').onclick=async()=>{if(!(await mChiedi({t:'Annullare l\'inventario?',s:'I conteggi inseriti andranno persi; la giacenza resta com\'è.',ok:'Sì, annulla'})))return;MAG.inv=null;MAG.invFam=null;magSave();render()};
 }
 async function renderMag(v){
   if(!ME.magazzino){v.innerHTML='<div class="empty">Il magazzino non è abilitato per questo account: chiedi all\'ufficio.</div>';return}
