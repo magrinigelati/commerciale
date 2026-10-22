@@ -193,8 +193,9 @@ a.btn{text-decoration:none}
 .seg button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:8px 14px;font-weight:600}
 .seg button[aria-pressed=true]{background:var(--head);color:var(--head-ink);border-color:var(--head)}
 /* sottomenu: piu' piccoli e con il rosso del portale, per distinguerli dalle schede principali */
-.seg.sub button{padding:6px 12px;font-size:14px;border:0;border-radius:8px;background:#d9ecf5;color:#1d2b36}
+.seg.sub button{padding:6px 12px;font-size:14px;border:1.5px solid #1b6fa3;border-radius:8px;background:#e9f3fa;color:#1d2b36}
 .seg.sub button[aria-pressed=true]{background:#1b6fa3;color:#fff}
+.mtool .zoom .btn{background:#e4e9ee;color:#1d2b36}
 .pw{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:22px;font-weight:700;letter-spacing:.05em;padding:10px;background:var(--ice);border-radius:8px;text-align:center;user-select:all}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 @media (max-width:420px){.grid2{grid-template-columns:1fr}}
@@ -608,7 +609,7 @@ function renderMod(v){document.body.classList.add('wide');
   const nomeHtml=n=>`<button class="mnm ${n.cls}" ${n.k!==''?`data-mnm="${n.k}"`:'tabindex="-1"'} style="left:${pc(n.x0/MW)};top:${pc((MH-n.y-6.2)/MH)};width:${pc((n.x1-n.x0)/MW)};height:${pc(MRH/MH)}" aria-label="${esc(n.k!==''?'Modifica descrizione di '+byId[n.k][2]:n.t)}">${esc(n.t)}</button>`+(n.q?`<span class="mc on${n.pz?' pz':''}" style="left:${pc((n.qx-n.qw/2)/MW)};top:${pc((MH-n.y-6.2)/MH)};width:${pc(n.qw/MW)};height:${pc(MRH/MH)}">${esc(n.q)}</span>`:'');
   const pages=[0,1].map(pg=>`<div class="mpage"><img src="img/modulo-${pg+1}.webp?v=1" width="1786" height="2526" alt="Modulo, pagina ${pg+1}" draggable="false">${nomi.filter(n=>n.pg===pg).map(nomeHtml).join('')}${c.filter(e=>e.pg===pg).map(e=>`<button class="${MM.cls(e)}" data-mk="${e.k}" tabindex="-1" style="left:${pc(e.x0/MW)};top:${pc(e.top/MH)};width:${pc(e.w/MW)};height:${pc(MRH/MH)}" aria-label="${esc(byId[e.id][2]+(byId[e.id][6].length>1?' '+vLab(byId[e.id][6][e.vi]):''))}">${MM.testo(e)}</button>`).join('')}</div>`).join('');
   const um=UMS().length>2?`<select class="umsel" id="mus" aria-label="Unità di misura">${UMS().map(u=>`<option value="${u}">${UM[u][0]}</option>`).join('')}</select>`:`<div class="um" role="group" aria-label="Unità di misura">${UMS().map(u=>`<button data-mu="${u}" aria-pressed="false">${UM[u][0]}</button>`).join('')}</div>`;
-  v.innerHTML=`<div class="mtool"><div class="zoom"><button class="btn sm" id="mzm" aria-label="Rimpicciolisci">−</button><button class="btn sm" id="mzf">Adatta</button><button class="btn sm" id="mzp" aria-label="Ingrandisci">+</button></div><div class="zoom"><button class="btn sm" data-mp="0">Pag. 1</button><button class="btn sm" data-mp="1">Pag. 2</button></div>${MM.strumenti?MM.strumenti():''}<p class="note">${esc(MM.hint)}</p></div>
+  v.innerHTML=`${MM.strumenti?`<div style="margin:2px 0 8px">${MM.strumenti()}</div>`:''}<div class="mtool"><div class="zoom"><button class="btn sm" id="mzm" aria-label="Rimpicciolisci">−</button><button class="btn sm" id="mzf">Adatta</button><button class="btn sm" id="mzp" aria-label="Ingrandisci">+</button></div><div class="zoom"><button class="btn sm" data-mp="0">Pag. 1</button><button class="btn sm" data-mp="1">Pag. 2</button></div><p class="note">${esc(MM.hint)}</p></div>
   <div class="mwrap"><div class="msheet" id="msheet">${pages}</div>
   <div class="minfo" id="minfo"><div class="mn"><b id="mnome"></b><small id="mdett"></small></div>
    <div class="mctl">${MM.um?um:''}<div class="step"><button data-ma="-1" aria-label="Togli">−</button><input id="mqty" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" autocomplete="off" placeholder="0" aria-label="Quantità"><button class="plus" data-ma="1" aria-label="Aggiungi">+</button></div>
