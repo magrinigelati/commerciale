@@ -221,6 +221,16 @@ body{overflow-anchor:none}
 .pwbox{position:relative;display:block}.pwbox input{width:100%;padding-right:48px}
 .pw-eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:40px;border:0;background:none;color:var(--muted,#667);display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer}
 .pw-eye svg{width:22px;height:22px}
+/* magazzino */
+.mr{display:flex;align-items:center;gap:8px;padding:8px 10px 8px 12px;border-top:1px solid var(--line)}
+.mr .mn{flex:1;min-width:0;text-align:left;background:none;border:0;padding:0;color:var(--ink);display:flex;flex-direction:column;gap:2px}
+.mr .mn b{font-size:16px;line-height:1.2}.mr .mn small{color:var(--muted);font-size:12px}
+.mr .mg{flex:0 0 auto;min-width:64px;text-align:right;display:flex;flex-direction:column;align-items:flex-end}
+.mr .mg b{font-family:var(--f-display);font-weight:700;font-size:19px;color:#0d38b3;font-variant-numeric:tabular-nums}.mr .mg b i{font-style:normal;font-size:11px;margin-left:2px;color:var(--muted)}
+.mr .mg small{font-size:12px;font-weight:700}.mr .mg .dpos{color:var(--ok)}.mr .mg .dneg{color:var(--accent)}.mr .mg .gset{color:var(--warn);font-size:15px}
+.mr .step input{width:52px}
+.mc .gb{color:#0d38b3}.mc .gr{color:#b00a20;margin-left:.25em}
+.st.ok{background:var(--ok)}
 /* quando carichi: scelte a pulsante, in un riquadro rosso su fondo giallo chiaro per farlo notare */
 .qbox{margin-top:18px;padding:12px 14px;border:2px solid var(--accent);border-radius:12px;background:#fff8d6}
 .qbox label{font-size:17px;font-weight:700;color:#122433}
@@ -442,6 +452,11 @@ const code=p=>[...new Set(p[6].map(v=>v[2]).filter(Boolean))].join(' · ');
 const vLab=v=>v[6]||v[0];
 
 function bar(){
+  if(view==='mag'){$('#bar').hidden=false;const R=magRiep();
+    if(MAG.tab==='car'&&MAG.ord){const n=(MAG.car||[]).filter(r=>!r.x&&r.q>0);const ct=n.reduce((a,r)=>a+r.q,0);$('#tot').textContent=uTxt(ct,'ct');$('#tot2').textContent=n.length+(n.length===1?' referenza':' referenze')+' da caricare';$('#go').textContent='Conferma carico';$('#go').disabled=!n.length;return}
+    $('#tot').textContent=[R.pos?'+'+R.pos+' ct':'',R.neg?'−'+R.neg+' ct':'',R.ns?R.ns+(R.ns===1?' rettifica':' rettifiche'):''].filter(Boolean).join(' · ')||'nessuna variazione';
+    $('#tot2').textContent=R.n+R.ns?(R.n+R.ns)+(R.n+R.ns===1?' riga da confermare':' righe da confermare'):'usa + e − oppure il Modulo';
+    $('#go').textContent='Conferma';$('#go').disabled=!(R.n+R.ns);return}
   const onCarico=view==='fam'||view==='mod'||view==='sum';$('#bar').hidden=!onCarico;
   const keys=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]);const T={ct:0,pz:0,st:0,pl:0};
   keys.forEach(k=>{T[uOf(k.split(':')[0])]+=st.q[k]});
@@ -452,16 +467,16 @@ function bar(){
   $('#go').textContent=view==='sum'?(st.mod?'Invia modifica':'Invia ordine'):'Riepilogo';
   $('#go').disabled=view==='sum'&&!righe;
 }
-$('#go').onclick=()=>{if(view==='sum')confermaInvio();else go('sum')};
-const TITOLI={home:'Area commerciale',fam:'Foglio di carico',mod:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio',foto:'Foto prodotti'};
-function testata(){const car=view==='fam'||view==='mod'||view==='sum';schermoAcceso(car);const h=view==='home';$('#home').hidden=h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!car;$('#data').hidden=!car;document.body.classList.toggle('wide',view==='mod');if(view!=='mod')mEsci()}
+$('#go').onclick=()=>{if(view==='mag')magConferma();else if(view==='sum')confermaInvio();else go('sum')};
+const TITOLI={home:'Area commerciale',fam:'Foglio di carico',mod:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio',foto:'Foto prodotti',mag:'Magazzino'};
+function testata(){const car=view==='fam'||view==='mod'||view==='sum';schermoAcceso(car);const h=view==='home';$('#home').hidden=h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!car;$('#data').hidden=!car;document.body.classList.toggle('wide',view==='mod'||(view==='mag'&&MAG.tab==='mod'));if(view!=='mod'&&!(view==='mag'&&MAG.tab==='mod'))mEsci()}
 $('#home').onclick=()=>{docCart=null;go('home')};
 // navigazione: ogni passaggio entra nella cronologia del telefono, cosi' lo swipe indietro torna alla schermata precedente
-function snap(){return {mc:1,view,fam,sub,docCart,docDaHome,uffTab,catFam,fotoFam}}
+function snap(){return {mc:1,view,fam,sub,docCart,docDaHome,uffTab,catFam,fotoFam,magTab:MAG.tab}}
 function nav(){try{history.pushState(snap(),'')}catch(e){}}
 function indietro(){if(history.state&&history.state.mc&&history.length>1)history.back();else go('home')}
 window.addEventListener('popstate',e=>{const s=e.state;if(!s||!s.mc||!ME||$('#s-app').hidden)return;
-  view=s.view;fam=s.fam;sub=s.sub;docCart=s.docCart;docDaHome=s.docDaHome;uffTab=s.uffTab;catFam=s.catFam??null;fotoFam=s.fotoFam??null;
+  view=s.view;fam=s.fam;sub=s.sub;docCart=s.docCart;docDaHome=s.docDaHome;uffTab=s.uffTab;catFam=s.catFam??null;fotoFam=s.fotoFam??null;if(s.magTab)MAG.tab=s.magTab;
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===view));render();window.scrollTo(0,0)});
 function go(v){view=v;if(v!=='fam'){fam=null;sub=null}if(v!=='foto')fotoFam=null;document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));nav();render();window.scrollTo(0,0)}
 
@@ -574,25 +589,30 @@ function mTesto(e){const q=qOf(e.id,e.vi);if(!q)return '';const u=uOf(e.id),ev=u
   const t=q+(u!=='ct'?' <small>'+ULAB(u)+'</small>':'');return (ev?'<em>'+t+'</em>':t)+(c?'<small>('+c+' ct)</small>':'')}
 const mCls=e=>{const q=qOf(e.id,e.vi);return 'mc'+(q?' on':'')+(q&&uOf(e.id)==='pz'?' pz':'')+(mSel===e.k?' sel':'')};
 const pc=n=>(n*100).toFixed(3)+'%';
+// il Modulo lavora in due modalita': ordine (quantita' del carico) e magazzino (giacenza in blu, scarico in rosso)
+const MM_ORD={get:(id,vi)=>qOf(id,vi),set:(id,vi,v)=>setQ(id,vi,v),testo:e=>mTesto(e),cls:e=>mCls(e),um:true,nomi:true,
+  hint:'Tocca la casella accanto al prodotto e scrivi la quantità; con Invio passi alla casella sotto. Toccando il nome puoi cambiarne la descrizione solo per questo ordine. I prodotti aggiunti da Carico compaiono in fondo a pagina 2.',
+  vuoto:['Tocca una casella del modulo','Poi scrivi la quantità: CT cartoni, PZ pezzi'],dett:null};
+let MM=MM_ORD;
 function renderMod(v){document.body.classList.add('wide');
   const {c}=mCelle();if(mSel&&!MC.by[mSel])mSel=null;
   // celle del nome: le rinominate e gli aggiunti in giallo con testo blu; le altre trasparenti ma toccabili
-  const piano=pianoAggiunti(righeCarico(),st.extra),nomi=[];
-  P.forEach(p=>{const cn=cellaNome(p,0);if(!cn)return;nomi.push({k:p[0],pg:cn.pg,y:cn.y,x0:cn.x0,x1:cn.x1,t:st.d[p[0]]||'',cls:st.d[p[0]]?'ren':''})});
+  const piano=MM.nomi?pianoAggiunti(righeCarico(),st.extra):{celle:[]},nomi=[];
+  if(MM.nomi)P.forEach(p=>{const cn=cellaNome(p,0);if(!cn)return;nomi.push({k:p[0],pg:cn.pg,y:cn.y,x0:cn.x0,x1:cn.x1,t:st.d[p[0]]||'',cls:st.d[p[0]]?'ren':''})});
   piano.celle.forEach(cc=>nomi.push({k:'',pg:cc.pg,y:cc.y,x0:cc.x0,x1:cc.x1,t:cc.e.d,cls:'add',q:cc.e.q+(cc.e.u&&cc.e.u!=='ct'?' '+ULAB(cc.e.u):''),qx:cc.qx,qw:cc.qw,pz:cc.e.u==='pz'}));
   const nomeHtml=n=>`<button class="mnm ${n.cls}" ${n.k!==''?`data-mnm="${n.k}"`:'tabindex="-1"'} style="left:${pc(n.x0/MW)};top:${pc((MH-n.y-6.2)/MH)};width:${pc((n.x1-n.x0)/MW)};height:${pc(MRH/MH)}" aria-label="${esc(n.k!==''?'Modifica descrizione di '+byId[n.k][2]:n.t)}">${esc(n.t)}</button>`+(n.q?`<span class="mc on${n.pz?' pz':''}" style="left:${pc((n.qx-n.qw/2)/MW)};top:${pc((MH-n.y-6.2)/MH)};width:${pc(n.qw/MW)};height:${pc(MRH/MH)}">${esc(n.q)}</span>`:'');
-  const pages=[0,1].map(pg=>`<div class="mpage"><img src="img/modulo-${pg+1}.webp?v=1" width="1786" height="2526" alt="Modulo, pagina ${pg+1}" draggable="false">${nomi.filter(n=>n.pg===pg).map(nomeHtml).join('')}${c.filter(e=>e.pg===pg).map(e=>`<button class="${mCls(e)}" data-mk="${e.k}" tabindex="-1" style="left:${pc(e.x0/MW)};top:${pc(e.top/MH)};width:${pc(e.w/MW)};height:${pc(MRH/MH)}" aria-label="${esc(byId[e.id][2]+(byId[e.id][6].length>1?' '+vLab(byId[e.id][6][e.vi]):''))}">${mTesto(e)}</button>`).join('')}</div>`).join('');
+  const pages=[0,1].map(pg=>`<div class="mpage"><img src="img/modulo-${pg+1}.webp?v=1" width="1786" height="2526" alt="Modulo, pagina ${pg+1}" draggable="false">${nomi.filter(n=>n.pg===pg).map(nomeHtml).join('')}${c.filter(e=>e.pg===pg).map(e=>`<button class="${MM.cls(e)}" data-mk="${e.k}" tabindex="-1" style="left:${pc(e.x0/MW)};top:${pc(e.top/MH)};width:${pc(e.w/MW)};height:${pc(MRH/MH)}" aria-label="${esc(byId[e.id][2]+(byId[e.id][6].length>1?' '+vLab(byId[e.id][6][e.vi]):''))}">${MM.testo(e)}</button>`).join('')}</div>`).join('');
   const um=UMS().length>2?`<select class="umsel" id="mus" aria-label="Unità di misura">${UMS().map(u=>`<option value="${u}">${UM[u][0]}</option>`).join('')}</select>`:`<div class="um" role="group" aria-label="Unità di misura">${UMS().map(u=>`<button data-mu="${u}" aria-pressed="false">${UM[u][0]}</button>`).join('')}</div>`;
-  v.innerHTML=`<div class="mtool"><div class="zoom"><button class="btn sm" id="mzm" aria-label="Rimpicciolisci">−</button><button class="btn sm" id="mzf">Adatta</button><button class="btn sm" id="mzp" aria-label="Ingrandisci">+</button></div><div class="zoom"><button class="btn sm" data-mp="0">Pag. 1</button><button class="btn sm" data-mp="1">Pag. 2</button></div><p class="note">Tocca la casella accanto al prodotto e scrivi la quantità; con Invio passi alla casella sotto. Toccando il nome puoi cambiarne la descrizione solo per questo ordine. I prodotti aggiunti da Carico compaiono in fondo a pagina 2.</p></div>
+  v.innerHTML=`<div class="mtool"><div class="zoom"><button class="btn sm" id="mzm" aria-label="Rimpicciolisci">−</button><button class="btn sm" id="mzf">Adatta</button><button class="btn sm" id="mzp" aria-label="Ingrandisci">+</button></div><div class="zoom"><button class="btn sm" data-mp="0">Pag. 1</button><button class="btn sm" data-mp="1">Pag. 2</button></div><p class="note">${esc(MM.hint)}</p></div>
   <div class="mwrap"><div class="msheet" id="msheet">${pages}</div>
   <div class="minfo" id="minfo"><div class="mn"><b id="mnome"></b><small id="mdett"></small></div>
-   <div class="mctl">${um}<div class="step"><button data-ma="-1" aria-label="Togli">−</button><input id="mqty" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" autocomplete="off" placeholder="0" aria-label="Quantità"><button class="plus" data-ma="1" aria-label="Aggiungi">+</button></div>
+   <div class="mctl">${MM.um?um:''}<div class="step"><button data-ma="-1" aria-label="Togli">−</button><input id="mqty" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" autocomplete="off" placeholder="0" aria-label="Quantità"><button class="plus" data-ma="1" aria-label="Aggiungi">+</button></div>
    <div class="mnav"><button data-mn="-1" aria-label="Casella sopra">▲</button><button data-mn="1" aria-label="Casella sotto">▼</button></div><button class="btn sm" id="mfatto">Fatto</button></div></div></div>`;
   const sh=$('#msheet'),inp=$('#mqty'),info=$('#minfo');
   // i pulsanti non rubano il fuoco al campo quantita' (cosi' la tastiera del telefono resta aperta)
   v.querySelectorAll('.mc,.minfo button,#minfo select').forEach(b=>b.addEventListener('mousedown',ev=>{if(b.id!=='mfatto'&&b.tagName!=='SELECT')ev.preventDefault()}));
   sh.addEventListener('click',ev=>{const b=ev.target.closest('.mc');if(b)mSeleziona(b.dataset.mk,true)});
-  sh.addEventListener('click',async ev=>{const b=ev.target.closest('[data-mnm]');if(!b)return;const id=+b.dataset.mnm,p=byId[id],att=st.d[id]||'';
+  sh.addEventListener('click',async ev=>{const b=ev.target.closest('[data-mnm]');if(!b||!MM.nomi)return;const id=+b.dataset.mnm,p=byId[id],att=st.d[id]||'';
     sh.querySelectorAll('.mnm.sel').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');{const r=sh.getBoundingClientRect(),c=b.getBoundingClientRect();sh.scrollTop+=c.top-r.top-40} // la cella si evidenzia in verde e si porta in alto, lontana dal riquadro delle domande
     const fine=()=>b.classList.remove('sel');
     if(!(await mChiedi({t:att?`"${p[2]}" è già stato modificato in "${att}".`:`Vuoi modificare la descrizione di "${p[2]}"?`,s:att?'Vuoi modificarla di nuovo?':'Vale solo per questo ordine; il catalogo non cambia.',ok:att?'Sì, modifica':'Sì, modifica'})))return fine();
@@ -600,14 +620,14 @@ function renderMod(v){document.body.classList.add('wide');
     if(!v||v===p[2]){if(att&&await mChiedi({t:'Tornare alla descrizione originale?',s:'"'+p[2]+'"',ok:'Sì, ripristina'})){delete st.d[id];save();render()}return fine()}
     if(!(await mChiedi({t:'Salvare la nuova descrizione?',s:'"'+v+'" comparirà sul foglio di carico in blu su giallo al posto di "'+p[2]+'".',ok:'Sì, salva'})))return fine();
     st.d[id]=v;save();render()});
-  inp.oninput=()=>{const e=MC.by[mSel];if(!e)return;inp.value=inp.value.replace(/\D/g,'').slice(0,3);setQ(e.id,e.vi,inp.value);mAgg(e.id)};
+  inp.oninput=()=>{const e=MC.by[mSel];if(!e)return;inp.value=inp.value.replace(/\D/g,'').slice(0,3);MM.set(e.id,e.vi,inp.value);mAgg(e.id)};
   inp.onfocus=()=>{inp.select();if(mTouch()&&!document.body.classList.contains('medit')){document.body.classList.add('medit');mVV();setTimeout(()=>mVedi(),60)}};
   inp.onblur=()=>setTimeout(()=>{if(document.activeElement!==inp)mEsci()},250);
   inp.onkeydown=ev=>{const k=ev.key;
     if(k==='Enter'||k==='Tab'||k==='ArrowDown'||k==='ArrowUp'){ev.preventDefault();mSposta(k==='ArrowUp'||(k!=='ArrowDown'&&ev.shiftKey)?-1:1)}
     else if(k==='ArrowLeft'||k==='ArrowRight'){ev.preventDefault();mLato(k==='ArrowLeft'?-1:1)}
     else if(k==='Escape'){inp.blur()}};
-  info.querySelectorAll('[data-ma]').forEach(b=>b.onclick=()=>{const e=MC.by[mSel];if(!e)return;setQ(e.id,e.vi,qOf(e.id,e.vi)+(+b.dataset.ma));inp.value=qOf(e.id,e.vi)||'';mAgg(e.id)});
+  info.querySelectorAll('[data-ma]').forEach(b=>b.onclick=()=>{const e=MC.by[mSel];if(!e)return;MM.set(e.id,e.vi,MM.get(e.id,e.vi)+(+b.dataset.ma));inp.value=MM.get(e.id,e.vi)||'';mAgg(e.id)});
   info.querySelectorAll('[data-mn]').forEach(b=>b.onclick=()=>mSposta(+b.dataset.mn));
   info.querySelectorAll('[data-mu]').forEach(b=>b.onclick=()=>{const e=MC.by[mSel];if(!e)return;setU(e.id,b.dataset.mu);mAgg(e.id);mInfo()});
   const us=$('#mus');if(us)us.onchange=()=>{const e=MC.by[mSel];if(!e)return;setU(e.id,us.value);mAgg(e.id);mInfo()};
@@ -635,13 +655,13 @@ function mZoom(sc,ax,ay){const s=$('#msheet');if(!s)return;sc=Math.min(4,Math.ma
   const old=mScala||sc;ax=ax??s.clientWidth/2;ay=ay??s.clientHeight/2;const px=(s.scrollLeft+ax)/old,py=(s.scrollTop+ay)/old;
   mScala=sc;s.style.setProperty('--s',sc);s.querySelectorAll('.mpage').forEach(p=>p.style.width=(MW*sc)+'px');
   s.scrollLeft=px*sc-ax;s.scrollTop=py*sc-ay;store.set('mc_mzoom',sc)}
-function mAgg(id){if(!MC)return;document.querySelectorAll('#msheet .mc').forEach(b=>{const e=MC.by[b.dataset.mk];if(e&&e.id===id){b.className=mCls(e);b.innerHTML=mTesto(e)}})}
+function mAgg(id){if(!MC)return;document.querySelectorAll('#msheet .mc').forEach(b=>{const e=MC.by[b.dataset.mk];if(e&&e.id===id){b.className=MM.cls(e);b.innerHTML=MM.testo(e)}})}
 function mInfo(){const box=$('#minfo');if(!box)return;const e=mSel&&MC.by[mSel];const inp=$('#mqty');
-  if(!e){box.setAttribute('data-vuoto','');$('#mnome').textContent='Tocca una casella del modulo';$('#mdett').textContent='Poi scrivi la quantità: CT cartoni, PZ pezzi';inp.value='';return}
+  if(!e){box.setAttribute('data-vuoto','');$('#mnome').textContent=MM.vuoto[0];$('#mdett').textContent=MM.vuoto[1];inp.value='';return}
   box.removeAttribute('data-vuoto');const p=byId[e.id],v=p[6][e.vi],u=uOf(e.id);
   $('#mnome').textContent=p[2]+(p[6].length>1?' · '+vLab(v):'');
-  $('#mdett').textContent=[S[p[1]],v[2],v[4]?'':'su ordinazione',(u==='st'||u==='pl')?(convCt(p,e.vi,u,1)?'1 '+UM[u][1]+convTxt(convCt(p,e.vi,u,1)):'conversione a cura dell\'ufficio'):''].filter(Boolean).join(' · ');
-  if(document.activeElement!==inp||String(qOf(e.id,e.vi)||'')!==inp.value)inp.value=qOf(e.id,e.vi)||'';
+  $('#mdett').textContent=MM.dett?MM.dett(e,p,v):[S[p[1]],v[2],v[4]?'':'su ordinazione',(u==='st'||u==='pl')?(convCt(p,e.vi,u,1)?'1 '+UM[u][1]+convTxt(convCt(p,e.vi,u,1)):'conversione a cura dell\'ufficio'):''].filter(Boolean).join(' · ');
+  if(document.activeElement!==inp||String(MM.get(e.id,e.vi)||'')!==inp.value)inp.value=MM.get(e.id,e.vi)||'';
   box.querySelectorAll('[data-mu]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mu===u));const us=$('#mus');if(us)us.value=u}
 function mSeleziona(k,fuoco){const old=mSel&&document.querySelector(`#msheet [data-mk="${mSel}"]`);if(old)old.classList.remove('sel');
   mSel=k;const b=document.querySelector(`#msheet [data-mk="${k}"]`);if(b)b.classList.add('sel');mInfo();mVedi();
@@ -659,7 +679,138 @@ function mAltezza(){const s=$('#msheet');if(!s||document.body.classList.contains
 function mVV(){const vv=window.visualViewport;document.documentElement.style.setProperty('--vvt',(vv?vv.offsetTop:0)+'px');document.documentElement.style.setProperty('--vvh',(vv?vv.height:innerHeight)+'px')}
 function mEsci(){if(!document.body.classList.contains('medit'))return;document.body.classList.remove('medit');mAltezza();requestAnimationFrame(()=>mVedi())}
 if(window.visualViewport){visualViewport.addEventListener('resize',()=>{if(document.body.classList.contains('medit')){mVV();mVedi()}});visualViewport.addEventListener('scroll',()=>{if(document.body.classList.contains('medit'))mVV()})}
-addEventListener('resize',()=>{if(view==='mod')mAltezza()});
+addEventListener('resize',()=>{if(view==='mod'||(view==='mag'&&MAG.tab==='mod'))mAltezza()});
+
+
+/* ================= MAGAZZINO ================= */
+// magazzino personale (in cartoni): giacenze G, variazioni in sospeso d (delta) e rettifiche set, carico da ordine
+let MAG={tab:'giac',G:{},d:{},set:{},ord:null,car:null,q:'',carQ:'',mov:null,ordini:null,aperto:null};
+const MKEY=()=>'mc_mag_'+ME.id;
+function magSave(){store.set(MKEY(),{d:MAG.d,set:MAG.set,ord:MAG.ord,car:MAG.car})}
+function magLoad(){const m=store.get(MKEY(),null);if(m){MAG.d=m.d||{};MAG.set=m.set||{};MAG.ord=m.ord||null;MAG.car=m.car||null}}
+const gk=(id,vi)=>id+':'+(vi||0);
+const giac=(id,vi)=>MAG.G[gk(id,vi)]||0;
+const nomeV=(p,vi)=>p[2]+(p[6].length>1?' · '+vLab(p[6][vi]||p[6][0]):'');
+function magDelta(id,vi,v){const k=gk(id,vi);v=Math.max(-999,Math.min(999,Math.round(+v||0)));if(v)MAG.d[k]=v;else delete MAG.d[k];magSave();bar()}
+async function magCarica(){const {data,error}=await sb.from('magazzino').select('prodotto_id,variante,quantita').eq('utente_id',ME.id);
+  if(error)throw error;MAG.G={};(data||[]).forEach(r=>{if(r.quantita)MAG.G[gk(r.prodotto_id,r.variante)]=r.quantita})}
+// variazioni in sospeso: quante righe e quanti cartoni
+function magRiep(){let pos=0,neg=0,n=0;Object.entries(MAG.d).forEach(([k,v])=>{if(!byId[k.split(':')[0]])return;n++;if(v>0)pos+=v;else neg-=v});const ns=Object.keys(MAG.set).filter(k=>byId[k.split(':')[0]]).length;return {pos,neg,n,ns}}
+// elenco delle giacenze per famiglia: solo le referenze con giacenza o con una variazione in sospeso
+function magRighe(filtro){
+  const keys=new Set([...Object.keys(MAG.G),...Object.keys(MAG.d),...Object.keys(MAG.set)]);
+  let list;
+  if(filtro&&filtro.trim().length>1)list=search(filtro).slice(0,40).flatMap(p=>p[6].map((v,vi)=>[p,vi]).filter(([v,vi],i)=>p[6].length===1||v[4]||keys.has(gk(p[0],vi))));
+  else list=[...keys].map(k=>{const [id,vi]=k.split(':').map(Number);return byId[id]?[byId[id],vi]:null}).filter(Boolean).sort((a,b)=>P.indexOf(a[0])-P.indexOf(b[0])||a[1]-b[1]);
+  return list;
+}
+function magRiga([p,vi]){const k=gk(p[0],vi),g=giac(p[0],vi),d=MAG.d[k]||0,st_=MAG.set[k];const dopo=st_!=null?st_:Math.max(0,g+d);
+  return `<div class="mr" data-k="${k}"><button class="mn" data-rett="${k}"><b>${esc(nomeV(p,vi))}</b><small>${esc(S[p[1]])}${p[6][vi]&&p[6][vi][2]?' · '+esc(p[6][vi][2]):''}</small></button>
+   <div class="mg">${st_!=null?`<b class="gset">→ ${st_} ct</b><small>rettifica (era ${g})</small>`:`<b>${g}<i>ct</i></b>${d?`<small class="${d>0?'dpos':'dneg'}">${d>0?'+':''}${d} → ${dopo}</small>`:''}`}</div>
+   <div class="step"><button data-md="-1" data-k="${k}" aria-label="Scarica 1">−</button><input inputmode="numeric" pattern="-?[0-9]*" value="${d||''}" placeholder="0" data-mdi="${k}" aria-label="Variazione"><button class="plus" data-md="1" data-k="${k}" aria-label="Carica 1">+</button></div></div>`}
+function magBind(root){
+  root.querySelectorAll('[data-md]').forEach(b=>b.onclick=()=>{const k=b.dataset.k,[id,vi]=k.split(':').map(Number);magDelta(id,vi,(MAG.d[k]||0)+(+b.dataset.md));magAggRiga(k)});
+  root.querySelectorAll('[data-mdi]').forEach(i=>{i.onfocus=()=>i.select();i.onchange=()=>{const k=i.dataset.mdi,[id,vi]=k.split(':').map(Number);magDelta(id,vi,i.value);magAggRiga(k)}});
+  root.querySelectorAll('[data-rett]').forEach(b=>b.onclick=async()=>{const k=b.dataset.rett,[id,vi]=k.split(':').map(Number),p=byId[id];const g=giac(id,vi);
+    const n=await mChiedi({t:'Giacenza reale di "'+nomeV(p,vi)+'"',s:'Oggi risulta '+g+' ct. Scrivi quanti cartoni hai davvero (rettifica da inventario). Lascia vuoto per annullare la rettifica.',input:MAG.set[k]!=null?String(MAG.set[k]):String(g),ok:'Imposta'});
+    if(n===null)return;const v=n.trim();if(v===''){delete MAG.set[k]}else{MAG.set[k]=Math.max(0,Math.min(9999,parseInt(v)||0));delete MAG.d[k]}magSave();bar();magAggRiga(k)});
+}
+function magAggRiga(k){document.querySelectorAll(`.mr[data-k="${k}"]`).forEach(r=>{const [id,vi]=k.split(':').map(Number);const t=document.createElement('div');t.innerHTML=magRiga([byId[id],vi]);const n=t.firstElementChild;r.replaceWith(n);magBind(n)})}
+// modalita' magazzino del Modulo: giacenza in blu, da scaricare in rosso di fianco
+const MM_MAG={get:(id,vi)=>Math.max(0,-(MAG.d[gk(id,vi)]||0)),set:(id,vi,v)=>magDelta(id,vi,-Math.max(0,parseInt(v)||0)),
+  testo:e=>{const g=giac(e.id,e.vi),sc=Math.max(0,-(MAG.d[gk(e.id,e.vi)]||0));return (g?`<span class="gb">${g}</span>`:'')+(sc?`<span class="gr">−${sc}</span>`:'')},
+  cls:e=>'mc'+(giac(e.id,e.vi)||MAG.d[gk(e.id,e.vi)]?' on':'')+(mSel===e.k?' sel':''),um:false,nomi:false,
+  hint:'In blu la giacenza, in rosso quanto stai scaricando. Tocca la casella e scrivi i cartoni da scaricare; poi Conferma in basso.',
+  vuoto:['Tocca una casella del modulo','In blu la giacenza, scrivi i cartoni da scaricare'],
+  dett:(e,p,v)=>{const g=giac(e.id,e.vi);return 'Giacenza '+g+' ct'+(g?'':' (non in magazzino)')+(v[2]?' · '+v[2]:'')}};
+async function renderMag(v){
+  if(!ME.magazzino){v.innerHTML='<div class="empty">Il magazzino non è abilitato per questo account: chiedi all\'ufficio.</div>';return}
+  if(!MAG.G._ok){try{await magCarica();MAG.G._ok=1}catch(e){v.innerHTML='<div class="empty">Non riesco a leggere il magazzino. Riprova tra poco.</div>';return}}
+  if(!MAG._loaded){magLoad();MAG._loaded=1}
+  const T=[['giac','Giacenza'],['mod','Modulo'],['car','Carico da ordine'],['mov','Movimenti']];
+  v.innerHTML=`<div class="seg">${T.map(([k,l])=>`<button data-mt="${k}" aria-pressed="${MAG.tab===k}">${l}</button>`).join('')}</div><div id="mv"></div>`;
+  v.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{MAG.tab=b.dataset.mt;nav();render();window.scrollTo(0,0)});
+  const mv=$('#mv');document.body.classList.toggle('wide',MAG.tab==='mod');
+  if(MAG.tab==='giac')renderGiac(mv);else if(MAG.tab==='mod')renderMod(mv);else if(MAG.tab==='car')await renderCar(mv);else await renderMov(mv);
+}
+function renderGiac(v){
+  const list=magRighe(MAG.q);const tot=Object.values(MAG.G).reduce((a,b)=>a+(+b||0),0),nref=Object.keys(MAG.G).filter(k=>k!=='_ok').length;
+  v.innerHTML=`<p class="note" style="margin:0 0 10px">In magazzino: <b>${tot} cartoni</b> su ${nref} referenze. Con <b>+</b> e <b>−</b> segni carichi e scarichi, poi <b>Conferma</b> in basso. Tocca il nome per impostare la giacenza reale dopo un inventario.</p>
+   <input class="search" id="mcerca" type="search" placeholder="Cerca una referenza da caricare o scaricare…" value="${esc(MAG.q)}" autocomplete="off"><div id="mres"></div>`;
+  const draw=()=>{const list=magRighe(MAG.q);const r=$('#mres');
+    if(!list.length){r.innerHTML=`<div class="empty">${MAG.q.trim().length>1?'Nessuna referenza trovata.':'Magazzino vuoto. Cerca una referenza e usa +, oppure carica un ordine da "Carico da ordine".'}</div>`;return}
+    const groups=[];list.forEach(x=>{let g=groups.find(y=>y[0]===x[0][1]);if(!g){g=[x[0][1],[]];groups.push(g)}g[1].push(x)});
+    r.innerHTML=groups.map(([fi,xs])=>`<div class="lbl">${esc(S[fi])}</div><div class="list">${xs.map(magRiga).join('')}</div>`).join('');magBind(r)};
+  $('#mcerca').oninput=e=>{MAG.q=e.target.value;draw()};draw();
+}
+// carico da ordine: elenco degli ordini inviati, poi le righe da sistemare prima di confermare
+async function renderCar(v){
+  if(MAG.ord){return renderCarOrd(v)}
+  v.innerHTML='<div class="empty">Carico gli ordini…</div>';
+  const {data,error}=await sb.from('ordini').select('id,numero,data,inviato_il,righe,extra,caricato_il,versione,stato').eq('utente_id',ME.id).neq('stato','bozza').order('id',{ascending:false}).limit(40);
+  if(error){v.innerHTML='<div class="empty">Non riesco a leggere gli ordini.</div>';return}
+  MAG.ordini=data||[];
+  v.innerHTML=`<p class="note" style="margin:0 0 10px">Scegli l'ordine che hai ritirato: potrai togliere quello che non è arrivato e aggiungere quello preso a voce, poi confermi il carico.</p>`+(MAG.ordini.length?`<div class="list">${MAG.ordini.map(o=>`<button class="oi" data-co="${o.id}" ${o.caricato_il?'disabled':''}><div class="n"><b>N. ${NUM(o)} · carico del ${dataIt(o.data)}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · inviato ${new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</small></div>${o.caricato_il?`<span class="st ok">caricato ${new Date(o.caricato_il).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</span>`:'<span class="st">Carica</span>'}</button>`).join('')}</div>`:'<div class="empty">Nessun ordine inviato.</div>');
+  v.querySelectorAll('[data-co]').forEach(b=>b.onclick=()=>{const o=MAG.ordini.find(x=>x.id===+b.dataset.co);if(!o)return;MAG.ord=o.id;MAG.car=righeDaOrdine(o);magSave();render()});
+}
+// righe dell'ordine convertite in cartoni (pezzi: con i pezzi per cartone del listino, arrotondando per eccesso)
+function righeDaOrdine(o){const out=[];(o.righe||[]).forEach(r=>{const p=byId[r.p];if(!p)return;const v=p[6][r.v]||p[6][0];let q=r.q,nota='';
+    if(r.u==='st'||r.u==='pl'){q=r.ct||0;nota=r.ct?r.q+' '+ULAB(r.u)+' = '+r.ct+' ct':r.q+' '+ULAB(r.u)+': conversione mancante, scrivi i cartoni'}
+    else if(r.u==='pz'){const pz=v[7]&&v[7].pzct;q=pz?Math.ceil(r.q/pz):0;nota=pz?r.q+' pz ≈ '+q+' ct ('+pz+' pz/ct)':r.q+' pz: scrivi i cartoni'}
+    out.push({p:r.p,v:r.v,q,nota,d:r.d||''})});
+  (o.extra||[]).forEach(e=>out.push({x:1,d:e.d,q:e.q,u:e.u}));return out}
+function renderCarOrd(v){
+  const o=(MAG.ordini||[]).find(x=>x.id===MAG.ord);const car=MAG.car||[];
+  const righe=car.map((r,i)=>r.x?`<div class="sr"><span class="q">${r.q}<i>${ULAB(r.u)}</i></span><div class="n" style="opacity:.6">${esc(r.d)}<small>prodotto fuori catalogo: non entra in magazzino</small></div></div>`
+    :`<div class="sr"><div class="n"><b>${esc(r.d||nomeV(byId[r.p],r.v))}</b><small>${esc(r.nota||'')}${giac(r.p,r.v)?(r.nota?' · ':'')+'in magazzino '+giac(r.p,r.v)+' ct':''}</small></div><div class="step"><button data-ca="-1" data-i="${i}">−</button><input inputmode="numeric" pattern="[0-9]*" value="${r.q||''}" placeholder="0" data-ci="${i}"><button class="plus" data-ca="1" data-i="${i}">+</button></div><button data-cx="${i}" aria-label="Togli">Togli</button></div>`).join('');
+  v.innerHTML=`<div class="back"><button id="bk">‹ Ordini</button><h2>${o?'Ordine N. '+NUM(o)+' · carico del '+dataIt(o.data):'Ordine'}</h2></div>
+   <p class="note" style="margin:0 0 10px">Sistema le quantità ritirate in <b>cartoni</b>: togli ciò che non è arrivato, aggiungi ciò che hai preso a voce. Poi <b>Conferma carico</b> in basso.</p>
+   <div class="list">${righe||'<div class="empty">Nessuna riga.</div>'}</div>
+   <div class="lbl">Aggiungi una referenza</div><input class="search" id="ccerca" type="search" placeholder="Cerca prodotto…" value="${esc(MAG.carQ)}" autocomplete="off"><div id="cres"></div>`;
+  $('#bk').onclick=async()=>{if(!(await mChiedi({t:'Annullare il carico di questo ordine?',s:'Le quantità sistemate andranno perse; l\'ordine resta disponibile per un altro momento.',ok:'Sì, annulla'})))return;MAG.ord=null;MAG.car=null;magSave();render()};
+  v.querySelectorAll('[data-ca]').forEach(b=>b.onclick=()=>{const r=car[+b.dataset.i];r.q=Math.max(0,(r.q||0)+(+b.dataset.ca));magSave();render()});
+  v.querySelectorAll('[data-ci]').forEach(i=>{i.onfocus=()=>i.select();i.onchange=()=>{car[+i.dataset.ci].q=Math.max(0,parseInt(i.value)||0);magSave();bar()}});
+  v.querySelectorAll('[data-cx]').forEach(b=>b.onclick=()=>{car.splice(+b.dataset.cx,1);magSave();render()});
+  const inp=$('#ccerca');inp.oninput=()=>{MAG.carQ=inp.value;const r=$('#cres');if(inp.value.trim().length<2){r.innerHTML='';return}
+    const hits=search(inp.value).slice(0,20).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv])=>p[6].length===1||vv[4]));
+    r.innerHTML=`<div class="list">${hits.map(([p,vi])=>`<button class="oi" data-cadd="${p[0]}:${vi}"><div class="n"><b>${esc(nomeV(p,vi))}</b><small>${esc(S[p[1]])}</small></div><span class="st">+1 ct</span></button>`).join('')}</div>`;
+    r.querySelectorAll('[data-cadd]').forEach(b=>b.onclick=()=>{const [id,vi]=b.dataset.cadd.split(':').map(Number);const ex=car.find(x=>!x.x&&x.p===id&&x.v===vi);if(ex)ex.q=(ex.q||0)+1;else car.push({p:id,v:vi,q:1,nota:'aggiunto a mano'});MAG.carQ='';magSave();render()})};
+  if(MAG.carQ)inp.oninput();
+}
+async function renderMov(v){
+  v.innerHTML='<div class="empty">Carico i movimenti…</div>';
+  const {data,error}=await sb.from('movimenti').select('*').eq('utente_id',ME.id).order('creato_il',{ascending:false}).limit(100);
+  if(error){v.innerHTML='<div class="empty">Non riesco a leggere i movimenti.</div>';return}
+  const TL={carico:'Carico',scarico:'Scarico',rettifica:'Rettifica',manuale:'Carico e scarico'};
+  const nome=r=>{const p=byId[r.p];return p?nomeV(p,r.v):'Prodotto '+r.p};
+  v.innerHTML=(data||[]).length?`<div class="list">${data.map(m=>{const n=(m.righe||[]).length,manc=(m.mancanti||[]).length;return `<div class="oi" style="flex-direction:column;align-items:stretch"><button class="n" data-mx="${m.id}" style="text-align:left"><b>${TL[m.tipo]||m.tipo}${m.ordine_id?' da ordine':''} · ${new Date(m.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</b><small>${n} ${n===1?'riga':'righe'}${manc?` · <b style="color:var(--accent)">${manc} senza giacenza</b>`:''}${m.note?' · '+esc(m.note):''}</small></button><div class="mdet" hidden>${(m.righe||[]).map(r=>`<div class="sr"><span class="q" style="color:${r.delta>=0?'#0d38b3':'var(--accent)'}">${r.delta>0?'+':''}${r.delta}<i>ct</i></span><div class="n">${esc(nome(r))}<small>da ${r.prima} a ${r.dopo} ct</small></div></div>`).join('')}${(m.mancanti||[]).map(r=>`<div class="sr"><span class="q" style="color:var(--accent)">−${r.mancanti}<i>ct</i></span><div class="n">${esc(nome(r))}<small>scaricati senza giacenza (non contati)</small></div></div>`).join('')}</div></div>`}).join('')}</div>`:'<div class="empty">Nessun movimento ancora.</div>';
+  v.querySelectorAll('[data-mx]').forEach(b=>b.onclick=()=>{const d=b.nextElementSibling;d.hidden=!d.hidden});
+}
+// conferma: carico da ordine, oppure variazioni e rettifiche in sospeso
+async function magConferma(){
+  const go_=$('#go');go_.disabled=true;
+  try{
+    if(MAG.tab==='car'&&MAG.ord){
+      const righe=(MAG.car||[]).filter(r=>!r.x&&r.q>0).map(r=>({p:r.p,v:r.v,delta:r.q}));const o=(MAG.ordini||[]).find(x=>x.id===MAG.ord);
+      if(!righe.length){alert('Nessuna quantità da caricare.');return}
+      if(!(await mChiedi({t:'Confermare il carico dell\'ordine N. '+(o?NUM(o):'')+'?',s:righe.length+' referenze, '+righe.reduce((a,r)=>a+r.delta,0)+' cartoni in più nel tuo magazzino.',ok:'Sì, carica'})))return;
+      const {data,error}=await sb.rpc('applica_movimento',{p_righe:righe,p_ordine:MAG.ord,p_note:'Ordine N. '+(o?NUM(o):'')});
+      if(error)throw error;MAG.ord=null;MAG.car=null;MAG.carQ='';magSave();await magCarica();MAG.tab='giac';render();
+      $('#view').prepend(Object.assign(document.createElement('div'),{className:'card',innerHTML:`<h3 style="color:var(--ok)">Carico registrato</h3><p class="note" style="margin:4px 0 0">${righe.length} referenze aggiunte al magazzino.</p>`}));return}
+    const righe=Object.entries(MAG.d).filter(([k])=>byId[k.split(':')[0]]).map(([k,v])=>{const [p,vi]=k.split(':').map(Number);return {p,v:vi,delta:v}})
+      .concat(Object.entries(MAG.set).filter(([k])=>byId[k.split(':')[0]]).map(([k,v])=>{const [p,vi]=k.split(':').map(Number);return {p,v:vi,set:v}}));
+    if(!righe.length)return;
+    // scarichi oltre la giacenza: avviso, poi si scarica fino a zero
+    const oltre=righe.filter(r=>r.delta<0&&-r.delta>giac(r.p,r.v)).map(r=>nomeV(byId[r.p],r.v)+': scarichi '+(-r.delta)+', in magazzino '+giac(r.p,r.v));
+    const R=magRiep();
+    if(oltre.length){if(!(await mChiedi({t:'Attenzione: scarichi più di quanto risulta in magazzino',s:oltre.slice(0,6).join(' · ')+(oltre.length>6?' · …':'')+'. Forse manca un carico. Se confermi, la giacenza va a zero e la parte in più resta segnata nei movimenti.',ok:'Confermo lo stesso'})))return}
+    else if(!(await mChiedi({t:'Confermare le variazioni?',s:[R.pos?'+'+R.pos+' ct in carico':'',R.neg?'−'+R.neg+' ct in scarico':'',R.ns?R.ns+' rettifiche':''].filter(Boolean).join(' · '),ok:'Sì, conferma'})))return;
+    const {data,error}=await sb.rpc('applica_movimento',{p_righe:righe,p_ordine:null,p_note:null});
+    if(error)throw error;MAG.d={};MAG.set={};magSave();await magCarica();render();
+    $('#view').prepend(Object.assign(document.createElement('div'),{className:'card',innerHTML:`<h3 style="color:var(--ok)">Magazzino aggiornato</h3><p class="note" style="margin:4px 0 0">${(data&&data.righe||[]).length} referenze aggiornate${data&&data.mancanti&&data.mancanti.length?`, <b style="color:var(--accent)">${data.mancanti.length} scaricate oltre la giacenza</b>`:''}.</p>`}));
+  }catch(e){alert('Operazione non riuscita: '+(e.message||e))}
+  finally{go_.disabled=false;bar()}
+}
 
 /* ================= RICERCA ================= */
 const STOP=new Set('e ed di da del della dei delle degli il lo la i gli le un una uno con per al alla x'.split(' '));
@@ -980,11 +1131,12 @@ async function uffUtenti(v){
     const [{data:us},{data:ac}]=await Promise.all([sb.from('utenti').select('*').order('nome'),sb.from('accessi').select('utente_id,il').eq('azione','accesso').order('il',{ascending:false}).limit(500)]);
     const last={};(ac||[]).forEach(a=>{if(!last[a.utente_id])last[a.utente_id]=a.il});
     $('#ulist').innerHTML=`<div class="list">${(us||[]).map(u=>`<div class="oi" style="flex-wrap:wrap"><div class="n"><b>${esc(u.nome_stampa||u.nome)}</b><small>${esc(u.username)} · ${esc(u.ruolo)}${u.cambio_password?' · password provvisoria':''} · ultimo accesso: ${last[u.id]?new Date(last[u.id]).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):'mai'}</small></div>
-      <span class="pill ${u.attivo?'caricato':'off'}">${u.attivo?'Attivo':'Disattivato'}</span>
-      ${u.id===ME.id?'':`<div class="btns" style="width:100%;margin-top:6px"><button class="btn" data-r="${u.id}" data-un="${esc(u.username)}">Reimposta password</button><button class="btn" data-e="${u.id}">Nome in stampa</button><button class="btn" data-a="${u.id}" data-on="${u.attivo?0:1}">${u.attivo?'Disattiva':'Riattiva'}</button></div><div id="ue${u.id}"></div>`}</div>`).join('')}</div>`;
+      <span class="pill ${u.attivo?'caricato':'off'}">${u.attivo?'Attivo':'Disattivato'}</span>${u.magazzino?'<span class="pill caricato" style="margin-left:6px">Magazzino</span>':''}
+      ${u.id===ME.id?'':`<div class="btns" style="width:100%;margin-top:6px"><button class="btn" data-r="${u.id}" data-un="${esc(u.username)}">Reimposta password</button><button class="btn" data-e="${u.id}">Nome in stampa</button><button class="btn" data-a="${u.id}" data-on="${u.attivo?0:1}">${u.attivo?'Disattiva':'Riattiva'}</button><button class="btn" data-mg="${u.id}" data-on="${u.magazzino?0:1}">${u.magazzino?'Togli magazzino':'Abilita magazzino'}</button></div><div id="ue${u.id}"></div>`}</div>`).join('')}</div>`;
     $('#ulist').querySelectorAll('[data-r]').forEach(b=>b.onclick=async()=>{if(b.dataset.c!=='1'){b.dataset.c='1';b.textContent='Conferma reimposta';return}
       try{const r=await fn({azione:'reimposta',id:b.dataset.r});mostraPassword($('#pwbox'),'Password reimpostata',b.dataset.un,r.password);$('#pwbox').scrollIntoView({behavior:'smooth'});lista()}catch(err){alert(err.message)}});
     $('#ulist').querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{try{await fn({azione:'stato',id:b.dataset.a,attivo:b.dataset.on==='1'});lista()}catch(err){alert(err.message)}});
+    $('#ulist').querySelectorAll('[data-mg]').forEach(b=>b.onclick=async()=>{const {error}=await sb.from('utenti').update({magazzino:b.dataset.on==='1'}).eq('id',b.dataset.mg);if(error)alert(error.message.includes('magazzino')?'Prima esegui il file SQL 15 del magazzino.':error.message);else lista()});
     $('#ulist').querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>{const u=us.find(x=>x.id===b.dataset.e);const box=$('#ue'+u.id);
       box.innerHTML=`<div class="mrow" style="margin-top:8px"><input id="es${u.id}" value="${esc(u.nome_stampa)}" style="flex:1;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"><button class="btn main" id="esb${u.id}">Salva</button></div>`;
       $('#esb'+u.id).onclick=async()=>{const {error}=await sb.from('utenti').update({nome_stampa:$('#es'+u.id).value.trim().toUpperCase()}).eq('id',u.id);if(error)alert(error.message);else lista()}});
@@ -1309,6 +1461,7 @@ async function renderHome(v){
    <div class="home">
     <button class="tile big" data-go="fam"><b>Effettua un ordine</b><span>${righe?`Hai un carico in corso: ${righe} ${righe===1?'riga':'righe'}`:'Foglio di carico / presa ordini'}</span></button>
     <button class="tile" data-go="ord"><b>I miei ordini</b><span>Ultimi 31 giorni, con PDF da condividere</span></button>
+    ${ME.magazzino?`<button class="tile" data-go="mag"><b>Magazzino</b> <span class="nov">novità</span><span>Giacenze, carico da ordine, scarico</span></button>`:''}
     <button class="tile" data-go="foto"><b>Foto prodotti</b><span>Per famiglia, da scaricare o condividere</span></button>
     <div id="hdoc" style="display:contents"></div>
     ${['ufficio','admin'].includes(ME.ruolo)?'<button class="tile uff" data-go="uff"><b>Ufficio</b><span>Ordini ricevuti, account, documenti</span></button>':''}
@@ -1343,8 +1496,8 @@ window.addEventListener('scroll',()=>{const y=window.scrollY,d=y-prevY;prevY=y;i
   if(d>0){giu+=d;su=0;if(giu>15)setMini(true)}else if(d<0){su-=d;giu=0;if(su>50)setMini(false)}},{passive:true});
 
 /* ================= AVVIO ================= */
-async function render(){const v=$('#view');
-  if(view==='fam'){renderFam(v);bannerModifica(v)}else if(view==='mod'){renderMod(v);bannerModifica(v)}else if(view==='sum'){renderSum(v);bannerModifica(v)}else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);testata();bar();if(view==='mod')mAltezza()}
+async function render(){const v=$('#view');MM=view==='mag'?MM_MAG:MM_ORD;
+  if(view==='fam'){renderFam(v);bannerModifica(v)}else if(view==='mod'){renderMod(v);bannerModifica(v)}else if(view==='sum'){renderSum(v);bannerModifica(v)}else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);else if(view==='mag')await renderMag(v);testata();bar();if(view==='mod'||(view==='mag'&&MAG.tab==='mod'))mAltezza()}
 sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')show('s-login')});
 avvia();
 </script>
