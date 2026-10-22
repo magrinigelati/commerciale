@@ -229,7 +229,7 @@ body{overflow-anchor:none}
 .mr .mg b{font-family:var(--f-display);font-weight:700;font-size:19px;color:#0d38b3;font-variant-numeric:tabular-nums}.mr .mg b i{font-style:normal;font-size:11px;margin-left:2px;color:var(--muted)}
 .mr .mg small{font-size:12px;font-weight:700}.mr .mg .dpos{color:var(--ok)}.mr .mg .dneg{color:var(--accent)}.mr .mg .gset{color:var(--warn);font-size:15px}
 .mr .step input{width:52px}
-.mc .gb{color:#0d38b3}.mc .gr{color:#b00a20;margin-left:.25em}.mc .gg{color:#0a7d3b;margin-left:.25em}.mc .go{color:#c25a00;margin-left:.1em}
+.mc .gb{color:#0d38b3}.mc .gr{color:#b00a20;margin-left:.25em}.mc .gg{color:#0a7d3b;margin-left:.25em}.mc .go{color:#c25a00;margin-left:.1em}.mc .gi{color:#0d38b3;background:#ffe640;padding:0 .25em}
 .st.ok{background:var(--ok)}
 /* quando carichi: scelte a pulsante, in un riquadro rosso su fondo giallo chiaro per farlo notare */
 .qbox{margin-top:18px;padding:12px 14px;border:2px solid var(--accent);border-radius:12px;background:#fff8d6}
@@ -747,9 +747,9 @@ const MM_MAG={get:(id,vi)=>{const d=MAG.d[gk(id,vi)]||0;return d*magSegno()>0?Ma
   dett:(e,p,v)=>{const g=giac(e.id,e.vi);return 'Giacenza '+g+' ct'+(g?'':' (non in magazzino)')+(v[2]?' · '+v[2]:'')}};
 // Modulo della scorta ideale: giacenza in blu, scorta ideale in arancio; si scrive la scorta
 const MM_SC={get:(id,vi)=>scorta(id,vi),set:(id,vi,v)=>scSet(gk(id,vi),v),
-  testo:e=>{const sc=scorta(e.id,e.vi);return sc?`<span class="go">${sc}</span>`:''},
+  testo:e=>{const sc=scorta(e.id,e.vi);return sc?`<span class="gi">${sc}</span>`:''},
   cls:e=>'mc'+(scorta(e.id,e.vi)?' on':'')+(mSel===e.k?' sel':''),um:false,nomi:false,
-  hint:'Scrivi in ogni casella la scorta ideale: quanti cartoni vorresti avere sempre di quella referenza, a prescindere da cosa hai ora. Poi Salva scorte in basso.',
+  hint:'Scrivi in ogni casella la scorta ideale (in blu su giallo): quanti cartoni vorresti avere sempre sull\'automezzo, a prescindere da cosa hai ora. Non è un ordine. Poi Salva scorte in basso.',
   vuoto:['Tocca una casella del modulo','Scrivi la scorta ideale in cartoni'],
   dett:(e,p,v)=>'Giacenza '+giac(e.id,e.vi)+' ct · scorta ideale '+scorta(e.id,e.vi)+' ct'+(v[2]?' · '+v[2]:'')};
 async function renderMag(v){
