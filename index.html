@@ -743,7 +743,7 @@ const MM_MAG={get:(id,vi)=>{const d=MAG.d[gk(id,vi)]||0;return d*magSegno()>0?Ma
   cls:e=>'mc'+(giac(e.id,e.vi)||MAG.d[gk(e.id,e.vi)]?' on':'')+(mSel===e.k?' sel':''),um:false,nomi:false,
   get hint(){return MAG.modo==='carico'?'Stai CARICANDO: in blu la giacenza, in verde quanto aggiungi. Tocca la casella e scrivi i cartoni; poi Conferma in basso.':'Stai SCARICANDO: in blu la giacenza, in rosso quanto togli. Tocca la casella e scrivi i cartoni; poi Conferma in basso.'},
   get vuoto(){return ['Tocca una casella del modulo',MAG.modo==='carico'?'In blu la giacenza, scrivi i cartoni da caricare':'In blu la giacenza, scrivi i cartoni da scaricare']},
-  strumenti:()=>`<div class="seg" style="margin:0"><button data-mm="scarico" aria-pressed="${MAG.modo!=='carico'}">Scarico</button><button data-mm="carico" aria-pressed="${MAG.modo==='carico'}">Carico</button></div>`,
+  strumenti:()=>`<div class="seg" style="margin:0"><button data-mm="carico" aria-pressed="${MAG.modo==='carico'}">Carico</button><button data-mm="scarico" aria-pressed="${MAG.modo!=='carico'}">Scarico</button></div>`,
   dett:(e,p,v)=>{const g=giac(e.id,e.vi);return 'Giacenza '+g+' ct'+(g?'':' (non in magazzino)')+(v[2]?' · '+v[2]:'')}};
 // Modulo della scorta ideale: giacenza in blu, scorta ideale in arancio; si scrive la scorta
 const MM_SC={get:(id,vi)=>scorta(id,vi),set:(id,vi,v)=>scSet(gk(id,vi),v),
