@@ -457,6 +457,7 @@ const vLab=v=>v[6]||v[0];
 
 function bar(){
   if(view==='mag'){$('#bar').hidden=false;const R=magRiep();
+    if(MAG.tab==='inv'){if(!MAG.inv){$('#bar').hidden=true;return}const n=Object.keys(MAG.inv).length,tot=Object.values(MAG.inv).reduce((a,b)=>a+b,0);$('#tot').textContent=tot+(tot===1?' cartone contato':' cartoni contati');$('#tot2').textContent=n+(n===1?' referenza':' referenze')+' · sostituisce la giacenza';$('#go').textContent='Conferma inventario';$('#go').disabled=!n;return}
     if(MAG.tab==='sc'){const n=Object.keys(MAG.sc).length;$('#tot').textContent=n?n+(n===1?' scorta modificata':' scorte modificate'):'scorta ideale';$('#tot2').textContent=n?'da salvare':'quanti cartoni vorresti avere sempre';$('#go').textContent='Salva scorte';$('#go').disabled=!n;return}
     if(MAG.tab==='car'&&MAG.ord){const n=(MAG.car||[]).filter(r=>!r.x&&r.q>0);const ct=n.reduce((a,r)=>a+r.q,0);$('#tot').textContent=uTxt(ct,'ct');$('#tot2').textContent=n.length+(n.length===1?' referenza':' referenze')+' da caricare';$('#go').textContent='Conferma carico';$('#go').disabled=!n.length;return}
     $('#tot').textContent=[R.pos?'+'+R.pos+' ct':'',R.neg?'−'+R.neg+' ct':'',R.ns?R.ns+(R.ns===1?' rettifica':' rettifiche'):''].filter(Boolean).join(' · ')||'nessuna variazione';
@@ -690,10 +691,10 @@ addEventListener('resize',()=>{if(view==='mod'||(view==='mag'&&magInMod()))mAlte
 
 /* ================= MAGAZZINO ================= */
 // magazzino personale (in cartoni): giacenze G, variazioni in sospeso d (delta) e rettifiche set, carico da ordine
-let MAG={tab:'giac',modo:'scarico',scv:'el',gv:'mov',carv:'el',G:{},S:{},sc:{},d:{},set:{},ord:null,car:null,q:'',carQ:'',scQ:'',mov:null,ordini:null,aperto:null};
+let MAG={tab:'giac',modo:'scarico',scv:'el',gv:'mov',carv:'el',invv:'el',inv:null,invQ:'',G:{},S:{},sc:{},d:{},set:{},ord:null,car:null,q:'',carQ:'',scQ:'',mov:null,ordini:null,aperto:null};
 const MKEY=()=>'mc_mag_'+ME.id;
-function magSave(){store.set(MKEY(),{d:MAG.d,set:MAG.set,ord:MAG.ord,car:MAG.car,sc:MAG.sc})}
-function magLoad(){const m=store.get(MKEY(),null);if(m){MAG.d=m.d||{};MAG.set=m.set||{};MAG.ord=m.ord||null;MAG.car=m.car||null;MAG.sc=m.sc||{}}}
+function magSave(){store.set(MKEY(),{d:MAG.d,set:MAG.set,ord:MAG.ord,car:MAG.car,sc:MAG.sc,inv:MAG.inv})}
+function magLoad(){const m=store.get(MKEY(),null);if(m){MAG.d=m.d||{};MAG.set=m.set||{};MAG.ord=m.ord||null;MAG.car=m.car||null;MAG.sc=m.sc||{};MAG.inv=m.inv||null}}
 const gk=(id,vi)=>id+':'+(vi||0);
 const giac=(id,vi)=>MAG.G[gk(id,vi)]||0;
 const nomeV=(p,vi)=>p[2]+(p[6].length>1?' · '+vLab(p[6][vi]||p[6][0]):'');
@@ -764,27 +765,27 @@ const MM_CAR={get:(id,vi)=>{const r=carRiga(id,vi);return r?r.q||0:0},
   vuoto:['Tocca una casella del modulo','Scrivi i cartoni ritirati'],
   dett:(e,p,v)=>'In magazzino '+giac(e.id,e.vi)+' ct'+(v[2]?' · '+v[2]:'')};
 // stampa della giacenza a bordo: PDF semplice con agente, targa (facoltativa), data e ora, elenco per famiglia, totale e firma
-async function pdfGiacenza(targa){
+async function pdfGiacenza(targa,opz){opz=opz||{};
   const {PDFDocument,StandardFonts,rgb}=PDFLib;const doc=await PDFDocument.create();const f=await doc.embedFont(StandardFonts.HelveticaBold),fr=await doc.embedFont(StandardFonts.Helvetica);
   const blue=rgb(.05,.22,.7),grey=rgb(.4,.4,.4);let pg=doc.addPage([595.32,841.92]),y=800;
   const nuova=()=>{pg=doc.addPage([595.32,841.92]);y=800};
-  const nome=(ME.nome_stampa||ME.nome||ME.username||'').toUpperCase(),ora=new Date();
+  const nome=(ME.nome_stampa||ME.nome||ME.username||'').toUpperCase(),ora=opz.data?new Date(opz.data):new Date();
   pg.drawText('MAGRINI R. & CECI G. snc',{x:40,y,size:16,font:f});pg.drawText('Via Norvegia 5, Roseto degli Abruzzi (TE)',{x:40,y:y-14,size:9,font:fr,color:grey});y-=40;
-  pg.drawText('GIACENZA DI MAGAZZINO A BORDO',{x:40,y,size:14,font:f,color:blue});y-=22;
-  [['Agente / autista',nome+(ME.nome&&ME.nome_stampa&&ME.nome!==ME.nome_stampa?' ('+ME.nome+')':'')],['Targa automezzo',targa||'-'],['Data e ora di stampa',ora.toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})]].forEach(([k,v])=>{pg.drawText(k+':',{x:40,y,size:10,font:fr,color:grey});pg.drawText(String(v),{x:160,y,size:11,font:f});y-=16});
+  pg.drawText(opz.titolo||'GIACENZA DI MAGAZZINO A BORDO',{x:40,y,size:14,font:f,color:blue});y-=22;
+  [['Agente / autista',nome+(ME.nome&&ME.nome_stampa&&ME.nome!==ME.nome_stampa?' ('+ME.nome+')':'')],['Targa automezzo',targa||'-'],[opz.data?'Data inventario':'Data e ora di stampa',ora.toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})]].forEach(([k,v])=>{pg.drawText(k+':',{x:40,y,size:10,font:fr,color:grey});pg.drawText(String(v),{x:160,y,size:11,font:f});y-=16});
   y-=8;pg.drawLine({start:{x:40,y},end:{x:555,y},thickness:1,color:blue});y-=20;
-  const righe=magRighe('').filter(([p,vi])=>giac(p[0],vi)>0);let fam=null,tot=0;
+  const righe=opz.righe?opz.righe.filter(r=>r[2]>0):magRighe('').filter(([p,vi])=>giac(p[0],vi)>0).map(([p,vi])=>[p,vi,giac(p[0],vi)]);let fam=null,tot=0;
   const testa=()=>{pg.drawText('Cartoni',{x:40,y,size:9,font:f,color:grey});pg.drawText('Referenza',{x:110,y,size:9,font:f,color:grey});pg.drawText('Codice',{x:480,y,size:9,font:f,color:grey});y-=4;pg.drawLine({start:{x:40,y},end:{x:555,y},thickness:.5});y-=14};
   testa();
-  for(const [p,vi] of righe){if(y<70){nuova();testa();fam=null}
+  for(const [p,vi,rq] of righe){if(y<70){nuova();testa();fam=null}
     if(p[1]!==fam){fam=p[1];y-=4;pg.drawText(S[fam].toUpperCase(),{x:110,y,size:9,font:f,color:blue});y-=14;if(y<70){nuova();testa();fam=p[1]}}
-    const q=giac(p[0],vi);tot+=q;const t=String(q);pg.drawText(t,{x:70-f.widthOfTextAtSize(t,11),y,size:11,font:f,color:blue});
+    const q=rq;tot+=q;const t=String(q);pg.drawText(t,{x:70-f.widthOfTextAtSize(t,11),y,size:11,font:f,color:blue});
     pg.drawText(nomeV(p,vi).slice(0,70),{x:110,y,size:10,font:fr});pg.drawText(String((p[6][vi]&&p[6][vi][2])||''),{x:480,y,size:9,font:fr,color:grey});y-=14}
   if(!righe.length){pg.drawText('Nessuna merce a bordo.',{x:110,y,size:11,font:fr});y-=14}
   y-=6;pg.drawLine({start:{x:40,y},end:{x:555,y},thickness:1});y-=18;pg.drawText('Totale: '+tot+' cartoni su '+righe.length+' referenze',{x:40,y,size:12,font:f});
   if(y<120){nuova()}y-=50;pg.drawText('Firma',{x:360,y,size:9,font:fr,color:grey});pg.drawLine({start:{x:360,y:y-14},end:{x:555,y:y-14},thickness:.6});
   pg.drawText('Documento interno generato dal portale commerciale Magrini il '+ora.toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})+'. Giacenza dichiarata dall\'agente, in cartoni.',{x:40,y:30,size:7.5,font:fr,color:grey});
-  return new File([await doc.save()],'Giacenza_'+nome.replace(/[^A-Za-z0-9]+/g,'_')+'_'+ora.toISOString().slice(0,10)+'.pdf',{type:'application/pdf'});
+  return new File([await doc.save()],(opz.data?'Inventario_':'Giacenza_')+nome.replace(/[^A-Za-z0-9]+/g,'_')+'_'+ora.toISOString().slice(0,10)+'.pdf',{type:'application/pdf'});
 }
 async function pdfGiacenzaModulo(targa){
   const {PDFDocument,StandardFonts,rgb,pushGraphicsState,popGraphicsState,setCharacterSqueeze}=PDFLib;
@@ -828,22 +829,66 @@ async function stampaGiacenza(azione,btn){
   else{try{if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:'Giacenza a bordo'});else{const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();alert('Da questo dispositivo non posso condividere direttamente: ho scaricato il PDF.')}}catch(e){if(e&&e.name==='NotAllowedError'){btn.textContent='Tocca per condividere';return}if(!(e&&e.name==='AbortError'))alert('Condivisione non riuscita: '+(e.message||e))}}
   btn.textContent=btn.dataset.t;log('stampa_giacenza');
 }
-const magInMod=()=>MAG.tab==='mod'||(MAG.tab==='sc'&&MAG.scv==='mod')||(MAG.tab==='car'&&!!MAG.ord&&MAG.carv==='mod');
+const magInMod=()=>MAG.tab==='mod'||(MAG.tab==='sc'&&MAG.scv==='mod')||(MAG.tab==='car'&&!!MAG.ord&&MAG.carv==='mod')||(MAG.tab==='inv'&&!!MAG.inv&&MAG.invv==='mod');
+// Inventario: conta da zero; MAG.inv = {chiave: cartoni contati}; alla conferma sostituisce tutta la giacenza
+const invQ=(id,vi)=>(MAG.inv&&MAG.inv[gk(id,vi)])||0;
+function invSet(id,vi,v){if(!MAG.inv)MAG.inv={};v=Math.max(0,Math.min(9999,parseInt(v)||0));const k=gk(id,vi);if(v)MAG.inv[k]=v;else delete MAG.inv[k];magSave();bar()}
+const MM_INV={get:(id,vi)=>invQ(id,vi),set:(id,vi,v)=>invSet(id,vi,v),
+  testo:e=>{const q=invQ(e.id,e.vi);return q?`<span class="gb">${q}</span>`:''},
+  cls:e=>'mc'+(invQ(e.id,e.vi)?' on':'')+(mSel===e.k?' sel':''),um:false,nomi:false,
+  hint:'Inventario da zero: scrivi in ogni casella i cartoni contati. Le referenze lasciate vuote andranno a zero. Poi Conferma inventario in basso.',
+  vuoto:['Tocca una casella del modulo','Scrivi i cartoni contati'],
+  dett:(e,p,v)=>'Prima dell\'inventario: '+giac(e.id,e.vi)+' ct'+(v[2]?' · '+v[2]:'')};
+function invRiga([p,vi]){const k=gk(p[0],vi),q=invQ(p[0],vi),g=giac(p[0],vi);
+  return `<div class="mr" data-ik="${k}"><div class="mn"><b>${esc(nomeV(p,vi))}</b><small>${esc(S[p[1]])}${p[6][vi]&&p[6][vi][2]?' · '+esc(p[6][vi][2]):''} · prima ${g} ct</small></div>
+   <div class="step"><button data-id1="-1" data-k="${k}" aria-label="Meno">−</button><input inputmode="numeric" pattern="[0-9]*" value="${q||''}" placeholder="0" data-idi="${k}" aria-label="Contati"><button class="plus" data-id1="1" data-k="${k}" aria-label="Più">+</button></div></div>`}
+function invBind(root){root.querySelectorAll('[data-id1]').forEach(b=>b.onclick=()=>{const k=b.dataset.k,[id,vi]=k.split(':').map(Number);invSet(id,vi,invQ(id,vi)+(+b.dataset.id1));invAgg(k)});
+  root.querySelectorAll('[data-idi]').forEach(i=>{i.onfocus=()=>i.select();i.onchange=()=>{const [id,vi]=i.dataset.idi.split(':').map(Number);invSet(id,vi,i.value);invAgg(i.dataset.idi)}})}
+function invAgg(k){document.querySelectorAll(`.mr[data-ik="${k}"]`).forEach(r=>{const [id,vi]=k.split(':').map(Number);const t=document.createElement('div');t.innerHTML=invRiga([byId[id],vi]);const n=t.firstElementChild;r.replaceWith(n);invBind(n)})}
+function renderInv(v){
+  if(!MAG.inv){v.innerHTML=`<div class="card"><b>Inventario da zero</b><p class="note" style="margin:6px 0 10px">Serve quando vuoi rifare la conta di tutto il mezzo. Si parte da zero: inserisci i cartoni contati per ogni referenza (dall'elenco con la ricerca, oppure dal Modulo). Alla conferma la giacenza viene <b>sostituita</b> con quello che hai contato: le referenze non inserite vanno a zero.</p><div class="btns"><button class="btn main" id="invstart">Inizia inventario</button></div></div>`;
+    $('#invstart').onclick=()=>{MAG.inv={};MAG.d={};MAG.set={};magSave();render()};
+    v.insertAdjacentHTML('beforeend','<div class="lbl" style="margin-top:22px">Storico inventari</div><div id="invst" class="empty">Carico lo storico…</div>');
+    sb.from('movimenti').select('id,creato_il,righe,note').eq('utente_id',ME.id).eq('tipo','rettifica').order('creato_il',{ascending:false}).limit(50).then(({data,error})=>{const b=$('#invst');if(!b)return;
+      if(error){b.textContent='Non riesco a leggere lo storico.';return}
+      const L=(data||[]).filter(m=>(m.note||'')==='Inventario');if(!L.length){b.textContent='Nessun inventario ancora.';return}
+      b.className='list';b.innerHTML=L.map(m=>{const righe=(m.righe||[]).filter(r=>r.dopo>0),tot=righe.reduce((a,r)=>a+r.dopo,0);return `<div class="oi" style="flex-wrap:wrap"><div class="n"><b>${new Date(m.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</b><small>${righe.length} referenze · ${tot} cartoni</small></div><div class="btns" style="width:100%;margin-top:6px"><button class="btn sm" data-ip="apri" data-im="${m.id}">Apri PDF</button><button class="btn sm" data-ip="sh" data-im="${m.id}">Condividi</button><button class="btn sm" data-ip="dl" data-im="${m.id}">Scarica e stampa</button></div></div>`}).join('');
+      b.querySelectorAll('[data-ip]').forEach(bt=>bt.onclick=async()=>{const m=L.find(x=>x.id===+bt.dataset.im);const t=bt.textContent;bt.disabled=true;bt.textContent='Preparo…';
+        try{const righe=(m.righe||[]).map(r=>[byId[r.p],r.v,r.dopo]).filter(r=>r[0]);const file=await pdfGiacenza(store.get('mc_targa_'+ME.id,''),{righe,data:m.creato_il,titolo:'INVENTARIO DI MAGAZZINO'});
+          if(bt.dataset.ip==='apri'){const u=URL.createObjectURL(file);window.open(u,'_blank')||(location.href=u)}
+          else if(bt.dataset.ip==='dl'){const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),2000)}
+          else if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:'Inventario'});else{const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click()}}
+        catch(e){if(!(e&&e.name==='AbortError'))alert('Non riesco: '+(e.message||e))}finally{bt.disabled=false;bt.textContent=t}})});
+    return}
+  const n=Object.keys(MAG.inv).length,tot=Object.values(MAG.inv).reduce((a,b)=>a+b,0);
+  const testa=`<div class="seg sub" style="margin-bottom:8px"><button data-iv="el" aria-pressed="${MAG.invv!=='mod'}">Elenco</button><button data-iv="mod" aria-pressed="${MAG.invv==='mod'}">Modulo</button></div>
+   <p class="note" style="margin:0 0 10px"><b>Inventario in corso</b>: ${n} referenze, ${tot} cartoni contati. Alla conferma sostituisce tutta la giacenza. <button class="btn sm" id="invann">Annulla inventario</button></p>`;
+  if(MAG.invv==='mod'){v.innerHTML=testa+`<div id="invmod"></div>`;renderMod($('#invmod'))}
+  else{v.innerHTML=testa+`<input class="search" id="icerca" type="search" placeholder="Cerca una referenza da contare…" value="${esc(MAG.invQ)}" autocomplete="off"><div id="ires"></div>`;
+    const draw=()=>{const keys=new Set(Object.keys(MAG.inv));let list;const q=MAG.invQ;
+      if(q.trim().length>1)list=search(q).slice(0,40).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv,vi])=>p[6].length===1||vv[4]||keys.has(gk(p[0],vi))));
+      else list=[...keys].map(k=>{const [id,vi]=k.split(':').map(Number);return byId[id]?[byId[id],vi]:null}).filter(Boolean).sort((a,b)=>P.indexOf(a[0])-P.indexOf(b[0])||a[1]-b[1]);
+      const r=$('#ires');if(!list.length){r.innerHTML=`<div class="empty">${q.trim().length>1?'Nessuna referenza trovata.':'Cerca le referenze e scrivi i cartoni contati, oppure usa il Modulo.'}</div>`;return}
+      const groups=[];list.forEach(x=>{let g=groups.find(y=>y[0]===x[0][1]);if(!g){g=[x[0][1],[]];groups.push(g)}g[1].push(x)});
+      r.innerHTML=groups.map(([fi,xs])=>`<div class="lbl">${esc(S[fi])}</div><div class="list">${xs.map(invRiga).join('')}</div>`).join('');invBind(r)};
+    $('#icerca').oninput=e=>{MAG.invQ=e.target.value;draw()};draw()}
+  v.querySelectorAll('[data-iv]').forEach(b=>b.onclick=()=>{MAG.invv=b.dataset.iv;render()});
+  $('#invann').onclick=async()=>{if(!(await mChiedi({t:'Annullare l\'inventario?',s:'I conteggi inseriti andranno persi; la giacenza resta com\'è.',ok:'Sì, annulla'})))return;MAG.inv=null;magSave();render()};
+}
 async function renderMag(v){
   if(!ME.magazzino){v.innerHTML='<div class="empty">Il magazzino non è abilitato per questo account: chiedi all\'ufficio.</div>';return}
   if(!MAG.G._ok){try{await magCarica();MAG.G._ok=1}catch(e){v.innerHTML='<div class="empty">Non riesco a leggere il magazzino. Riprova tra poco.</div>';return}}
   if(!MAG._loaded){magLoad();MAG._loaded=1}
-  const T=[['giac','Giacenza'],['mod','Modulo'],['car','Carico da ordine'],['sc','Scorta ideale'],['mov','Movimenti']];
+  const T=[['giac','Giacenza'],['mod','Modulo'],['car','Carico da ordine'],['inv','Inventario'],['sc','Scorta ideale'],['mov','Movimenti']];
   v.innerHTML=`<div class="seg">${T.map(([k,l])=>`<button data-mt="${k}" aria-pressed="${MAG.tab===k}">${l}</button>`).join('')}</div><div id="mv"></div>`;
   v.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{MAG.tab=b.dataset.mt;nav();render();window.scrollTo(0,0)});
   const mv=$('#mv');document.body.classList.toggle('wide',magInMod());
-  if(MAG.tab==='giac')renderGiac(mv);else if(MAG.tab==='mod')renderMod(mv);else if(MAG.tab==='car')await renderCar(mv);else if(MAG.tab==='sc')renderScorta(mv);else await renderMov(mv);
+  if(MAG.tab==='giac')renderGiac(mv);else if(MAG.tab==='mod')renderMod(mv);else if(MAG.tab==='car')await renderCar(mv);else if(MAG.tab==='sc')renderScorta(mv);else if(MAG.tab==='inv')renderInv(mv);else await renderMov(mv);
 }
 function renderGiac(v){
   const list=magRighe(MAG.q);const tot=Object.entries(MAG.G).filter(([k])=>k!=='_ok').reduce((a,[,b])=>a+(+b||0),0),nref=Object.keys(MAG.G).filter(k=>k!=='_ok'&&MAG.G[k]>0).length;
-  const inv=MAG.gv==='inv';
-  v.innerHTML=`<div class="seg sub" style="margin-bottom:8px"><button data-gv="mov" aria-pressed="${!inv}">Carico / Scarico</button><button data-gv="inv" aria-pressed="${inv}">Inventario (rettifica)</button></div>
-   <p class="note" style="margin:0 0 10px">In magazzino: <b>${tot} cartoni</b> su ${nref} referenze. ${inv?'<b>Inventario</b>: scrivi per ogni referenza quanti cartoni hai contato davvero; la giacenza viene corretta a quel numero. Poi <b>Conferma</b> in basso.':'Con <b>+</b> e <b>−</b> segni carichi e scarichi, poi <b>Conferma</b> in basso. Dopo una conta usa <b>Inventario</b> per correggere le giacenze.'}</p>
+  const inv=false;MAG.gv='mov';
+  v.innerHTML=`<p class="note" style="margin:0 0 10px">In magazzino: <b>${tot} cartoni</b> su ${nref} referenze. Con <b>+</b> e <b>−</b> segni carichi e scarichi, poi <b>Conferma</b> in basso. Per rifare la conta da zero usa la scheda <b>Inventario</b>.</p>
    <input class="search" id="mcerca" type="search" placeholder="${inv?'Cerca una referenza da contare…':'Cerca una referenza da caricare o scaricare…'}" value="${esc(MAG.q)}" autocomplete="off"><div id="mres"></div>
    ${inv?'':`<div class="card" style="margin-top:18px"><b>Stampa giacenza a bordo</b><p class="note" style="margin:4px 0 8px">Elenco: una lista semplice per famiglia, con data, ora e targa. Modulo: il foglio di carico con le giacenze in blu e i dati in terza pagina.</p><div class="seg sub" style="margin-bottom:8px"><button data-gt="el" aria-pressed="${giacTipo!=='mod'}">Elenco</button><button data-gt="mod" aria-pressed="${giacTipo==='mod'}">Modulo</button></div><div class="btns"><button class="btn main" data-gp="apri" data-t="Apri PDF">Apri PDF</button><button class="btn" data-gp="sh" data-t="Condividi PDF">Condividi PDF</button><button class="btn" data-gp="dl" data-t="Scarica e stampa">Scarica e stampa</button></div></div>`}`;
   v.querySelectorAll('[data-gv]').forEach(b=>b.onclick=()=>{MAG.gv=b.dataset.gv;render()});
@@ -922,7 +967,7 @@ async function renderMov(v){
   v.innerHTML='<div class="empty">Carico i movimenti…</div>';
   const {data,error}=await sb.from('movimenti').select('*').eq('utente_id',ME.id).order('creato_il',{ascending:false}).limit(100);
   if(error){v.innerHTML='<div class="empty">Non riesco a leggere i movimenti.</div>';return}
-  const TL={carico:'Carico',scarico:'Scarico',rettifica:'Rettifica',manuale:'Carico e scarico'};
+  const TL={carico:'Carico',scarico:'Scarico',rettifica:'Inventario / rettifica',manuale:'Carico e scarico'};
   const nome=r=>{const p=byId[r.p];return p?nomeV(p,r.v):'Prodotto '+r.p};
   v.innerHTML=(data||[]).length?`<div class="list">${data.map(m=>{const n=(m.righe||[]).length,manc=(m.mancanti||[]).length;return `<div class="oi" style="flex-direction:column;align-items:stretch"><button class="n" data-mx="${m.id}" style="text-align:left"><b>${TL[m.tipo]||m.tipo}${m.ordine_id?' da ordine':''} · ${new Date(m.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</b><small>${n} ${n===1?'riga':'righe'}${manc?` · <b style="color:var(--accent)">${manc} senza giacenza</b>`:''}${m.note?' · '+esc(m.note):''}</small></button><div class="mdet" hidden>${(m.righe||[]).map(r=>`<div class="sr"><span class="q" style="color:${r.delta>=0?'#0d38b3':'var(--accent)'}">${r.delta>0?'+':''}${r.delta}<i>ct</i></span><div class="n">${esc(nome(r))}<small>da ${r.prima} a ${r.dopo} ct</small></div></div>`).join('')}${(m.mancanti||[]).map(r=>`<div class="sr"><span class="q" style="color:var(--accent)">−${r.mancanti}<i>ct</i></span><div class="n">${esc(nome(r))}<small>scaricati senza giacenza (non contati)</small></div></div>`).join('')}</div></div>`}).join('')}</div>`:'<div class="empty">Nessun movimento ancora.</div>';
   v.querySelectorAll('[data-mx]').forEach(b=>b.onclick=()=>{const d=b.nextElementSibling;d.hidden=!d.hidden});
@@ -931,6 +976,12 @@ async function renderMov(v){
 async function magConferma(){
   const go_=$('#go');go_.disabled=true;
   try{
+    if(MAG.tab==='inv'&&MAG.inv){const cont=MAG.inv;const righe=Object.entries(cont).filter(([k])=>byId[k.split(':')[0]]).map(([k,v])=>{const [p,vi]=k.split(':').map(Number);return {p,v:vi,set:v}});
+      Object.keys(MAG.G).forEach(k=>{if(k==='_ok'||cont[k]||!byId[k.split(':')[0]])return;const [p,vi]=k.split(':').map(Number);righe.push({p,v:vi,set:0})}); // tutto il resto a zero
+      const n=Object.keys(cont).length,tot=Object.values(cont).reduce((a,b)=>a+b,0),azz=righe.length-n;
+      if(!(await mChiedi({t:'Confermare l\'inventario?',s:n+' referenze, '+tot+' cartoni contati.'+(azz?' '+azz+' referenze non contate andranno a zero.':'')+' La giacenza attuale viene sostituita.',ok:'Sì, conferma'})))return;
+      const {error}=await sb.rpc('applica_movimento',{p_righe:righe,p_ordine:null,p_note:'Inventario'});if(error)throw error;MAG.inv=null;MAG.invQ='';magSave();await magCarica();MAG.tab='giac';render();
+      $('#view').prepend(Object.assign(document.createElement('div'),{className:'card',innerHTML:`<h3 style="color:var(--ok)">Inventario registrato</h3><p class="note" style="margin:4px 0 0">Giacenza sostituita: ${n} referenze, ${tot} cartoni.</p></div>`}));return}
     if(MAG.tab==='sc'){const righe=Object.entries(MAG.sc).map(([k,v])=>{const [p,vi]=k.split(':').map(Number);return {p,v:vi,scorta:v}});if(!righe.length)return;
       const {error}=await sb.rpc('imposta_scorte',{p_righe:righe});if(error)throw error;MAG.sc={};magSave();await magCarica();render();return}
     if(MAG.tab==='car'&&MAG.ord){
@@ -1639,7 +1690,7 @@ window.addEventListener('scroll',()=>{const y=window.scrollY,d=y-prevY;prevY=y;i
   if(d>0){giu+=d;su=0;if(giu>15)setMini(true)}else if(d<0){su-=d;giu=0;if(su>50)setMini(false)}},{passive:true});
 
 /* ================= AVVIO ================= */
-async function render(){const v=$('#view');MM=view==='mag'?(MAG.tab==='sc'&&MAG.scv==='mod'?MM_SC:MAG.tab==='car'&&MAG.ord&&MAG.carv==='mod'?MM_CAR:MM_MAG):MM_ORD;
+async function render(){const v=$('#view');MM=view==='mag'?(MAG.tab==='sc'&&MAG.scv==='mod'?MM_SC:MAG.tab==='car'&&MAG.ord&&MAG.carv==='mod'?MM_CAR:MAG.tab==='inv'&&MAG.inv&&MAG.invv==='mod'?MM_INV:MM_MAG):MM_ORD;
   if(view==='fam'){renderFam(v);bannerModifica(v)}else if(view==='mod'){renderMod(v);bannerModifica(v)}else if(view==='sum'){renderSum(v);bannerModifica(v)}else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);else if(view==='mag')await renderMag(v);testata();bar();if(view==='mod'||(view==='mag'&&magInMod()))mAltezza()}
 sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')show('s-login')});
 avvia();
