@@ -638,7 +638,6 @@ function renderMod(v){document.body.classList.add('wide');
   info.querySelectorAll('[data-mu]').forEach(b=>b.onclick=()=>{const e=MC.by[mSel];if(!e)return;setU(e.id,b.dataset.mu);mAgg(e.id);mInfo()});
   const us=$('#mus');if(us)us.onchange=()=>{const e=MC.by[mSel];if(!e)return;setU(e.id,us.value);mAgg(e.id);mInfo()};
   $('#mfatto').onclick=()=>{inp.blur();mEsci()};
-  v.querySelectorAll('[data-mm]').forEach(b=>b.onclick=()=>{MAG.modo=b.dataset.mm;render()});
   v.querySelectorAll('[data-mp]').forEach(b=>b.onclick=()=>{const pg=sh.querySelectorAll('.mpage')[+b.dataset.mp];sh.scrollTo({top:pg.offsetTop-8,left:0,behavior:'smooth'})});
   $('#mzm').onclick=()=>mZoom(mScala/1.25);$('#mzp').onclick=()=>mZoom(mScala*1.25);$('#mzf').onclick=()=>{sh.scrollLeft=0;mZoom(mFit())};
   // zoom con due dita (telefono) e con Ctrl + rotellina o pinch del touchpad (PC)
@@ -740,15 +739,14 @@ function magBind(root){
 }
 function magAggRiga(k){document.querySelectorAll(`.mr[data-k="${k}"]`).forEach(r=>{const [id,vi]=k.split(':').map(Number);const t=document.createElement('div');t.innerHTML=magRiga([byId[id],vi]);const n=t.firstElementChild;r.replaceWith(n);magBind(n)})}
 // modalita' magazzino del Modulo: giacenza in blu, da scaricare in rosso di fianco
-// nel Modulo del magazzino si sceglie se si sta scaricando (rosso) o caricando (verde); il numero scritto e' sempre positivo
-const magSegno=()=>MAG.modo==='carico'?1:-1;
-const MM_MAG={get:(id,vi)=>{const d=MAG.d[gk(id,vi)]||0;return d*magSegno()>0?Math.abs(d):0},set:(id,vi,v)=>magDelta(id,vi,magSegno()*Math.max(0,parseInt(v)||0)),
-  testo:e=>{const g=giac(e.id,e.vi),d=MAG.d[gk(e.id,e.vi)]||0;return (g?`<span class="gb">${g}</span>`:'')+(d<0?`<span class="gr">−${-d}</span>`:d>0?`<span class="gg">+${d}</span>`:'')},
+// nel Modulo del magazzino la casella mostra la giacenza che avrai dopo la conferma: con + carichi, con - scarichi, oppure scrivi il numero finale.
+// Di fianco, piccola, la variazione (+ verde / - rosso)
+const MM_MAG={get:(id,vi)=>Math.max(0,giac(id,vi)+(MAG.d[gk(id,vi)]||0)),set:(id,vi,v)=>magDelta(id,vi,Math.max(0,parseInt(v)||0)-giac(id,vi)),
+  testo:e=>{const g=giac(e.id,e.vi),d=MAG.d[gk(e.id,e.vi)]||0,n=Math.max(0,g+d);return (g||d?`<span class="gb">${n}</span>`:'')+(d<0?`<span class="gr">−${-d}</span>`:d>0?`<span class="gg">+${d}</span>`:'')},
   cls:e=>'mc'+(giac(e.id,e.vi)||MAG.d[gk(e.id,e.vi)]?' on':'')+(mSel===e.k?' sel':''),um:false,nomi:false,
-  get hint(){return MAG.modo==='carico'?'Stai CARICANDO: in blu la giacenza, in verde quanto aggiungi. Tocca la casella e scrivi i cartoni; poi Conferma in basso.':'Stai SCARICANDO: in blu la giacenza, in rosso quanto togli. Tocca la casella e scrivi i cartoni; poi Conferma in basso.'},
-  get vuoto(){return ['Tocca una casella del modulo',MAG.modo==='carico'?'In blu la giacenza, scrivi i cartoni da caricare':'In blu la giacenza, scrivi i cartoni da scaricare']},
-  strumenti:()=>`<div class="seg sub" style="margin:0"><button data-mm="carico" aria-pressed="${MAG.modo==='carico'}">Carico</button><button data-mm="scarico" aria-pressed="${MAG.modo!=='carico'}">Scarico</button></div>`,
-  dett:(e,p,v)=>{const g=giac(e.id,e.vi);return 'Giacenza '+g+' ct'+(g?'':' (non in magazzino)')+(v[2]?' · '+v[2]:'')}};
+  hint:'Ogni casella mostra la giacenza. Toccala: con + carichi, con − scarichi, oppure scrivi direttamente la quantità finale. Di fianco vedi la variazione (+ verde, − rossa). Poi Conferma in basso.',
+  vuoto:['Tocca una casella del modulo','Poi + per caricare o − per scaricare'],
+  dett:(e,p,v)=>{const g=giac(e.id,e.vi),d=MAG.d[gk(e.id,e.vi)]||0;return 'Giacenza '+g+' ct'+(d?' · '+(d>0?'carichi +'+d:'scarichi −'+(-d))+' → '+Math.max(0,g+d)+' ct':'')+(v[2]?' · '+v[2]:'')}};
 // Modulo della scorta ideale: giacenza in blu, scorta ideale in arancio; si scrive la scorta
 const MM_SC={get:(id,vi)=>scorta(id,vi),set:(id,vi,v)=>scSet(gk(id,vi),v),
   testo:e=>{const sc=scorta(e.id,e.vi);return sc?`<span class="gi">${sc}</span>`:''},
@@ -765,7 +763,6 @@ const MM_CAR={get:(id,vi)=>{const r=carRiga(id,vi);return r?r.q||0:0},
   hint:'In verde i cartoni che stai caricando da questo ordine. Correggi le quantità o aggiungine di nuove toccando le caselle; poi Conferma carico in basso.',
   vuoto:['Tocca una casella del modulo','Scrivi i cartoni ritirati'],
   dett:(e,p,v)=>'In magazzino '+giac(e.id,e.vi)+' ct'+(v[2]?' · '+v[2]:'')};
-const magInMod=()=>MAG.tab==='mod'||(MAG.tab==='sc'&&MAG.scv==='mod')||(MAG.tab==='car'&&!!MAG.ord&&MAG.carv==='mod');
 // stampa della giacenza a bordo: PDF semplice con agente, targa (facoltativa), data e ora, elenco per famiglia, totale e firma
 async function pdfGiacenza(targa){
   const {PDFDocument,StandardFonts,rgb}=PDFLib;const doc=await PDFDocument.create();const f=await doc.embedFont(StandardFonts.HelveticaBold),fr=await doc.embedFont(StandardFonts.Helvetica);
@@ -831,6 +828,7 @@ async function stampaGiacenza(azione,btn){
   else{try{if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:'Giacenza a bordo'});else{const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();alert('Da questo dispositivo non posso condividere direttamente: ho scaricato il PDF.')}}catch(e){if(e&&e.name==='NotAllowedError'){btn.textContent='Tocca per condividere';return}if(!(e&&e.name==='AbortError'))alert('Condivisione non riuscita: '+(e.message||e))}}
   btn.textContent=btn.dataset.t;log('stampa_giacenza');
 }
+const magInMod=()=>MAG.tab==='mod'||(MAG.tab==='sc'&&MAG.scv==='mod')||(MAG.tab==='car'&&!!MAG.ord&&MAG.carv==='mod');
 async function renderMag(v){
   if(!ME.magazzino){v.innerHTML='<div class="empty">Il magazzino non è abilitato per questo account: chiedi all\'ufficio.</div>';return}
   if(!MAG.G._ok){try{await magCarica();MAG.G._ok=1}catch(e){v.innerHTML='<div class="empty">Non riesco a leggere il magazzino. Riprova tra poco.</div>';return}}
