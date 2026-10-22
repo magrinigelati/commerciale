@@ -703,7 +703,7 @@ addEventListener('resize',()=>{if(view==='mod'||(view==='mag'&&magInMod()))mAlte
 
 /* ================= MAGAZZINO ================= */
 // magazzino personale (in cartoni): giacenze G, variazioni in sospeso d (delta) e rettifiche set, carico da ordine
-let MAG={tab:'giac',modo:'scarico',scv:'el',gv:'mov',carv:'el',invv:'el',inv:null,invQ:'',invFam:null,scFam:null,csv:'el',csFam:null,csQ:'',gsv:'el',G:{},S:{},sc:{},d:{},set:{},ord:null,car:null,q:'',carQ:'',scQ:'',mov:null,ordini:null,aperto:null};
+let MAG={tab:'giac',modo:'scarico',scv:'el',gv:'mov',carv:'el',invv:'el',inv:null,invQ:'',invFam:null,scFam:null,csv:'el',csFam:null,carFam:null,csQ:'',gsv:'el',G:{},S:{},sc:{},d:{},set:{},ord:null,car:null,q:'',carQ:'',scQ:'',mov:null,ordini:null,aperto:null};
 const MKEY=()=>'mc_mag_'+ME.id;
 function magSave(){store.set(MKEY(),{d:MAG.d,set:MAG.set,ord:MAG.ord,car:MAG.car,sc:MAG.sc,inv:MAG.inv})}
 function magLoad(){const m=store.get(MKEY(),null);if(m){MAG.d=m.d||{};MAG.set=m.set||{};MAG.ord=m.ord||null;MAG.car=m.car||null;MAG.sc=m.sc||{};MAG.inv=m.inv||null}}
@@ -978,16 +978,25 @@ function renderCarOrd(v){
   if(MAG.carv==='mod'){v.innerHTML=testa+`<div id="carmod"></div>`;v.querySelectorAll('[data-cv]').forEach(b=>b.onclick=()=>{MAG.carv=b.dataset.cv;render()});$('#bk').onclick=annullaCar;renderMod($('#carmod'));return}
   v.innerHTML=testa+`<p class="note" style="margin:0 0 10px">Sistema le quantità ritirate in <b>cartoni</b>: togli ciò che non è arrivato, aggiungi ciò che hai preso a voce. Poi <b>Conferma carico</b> in basso.</p>
    <div class="list">${righe||'<div class="empty">Nessuna riga.</div>'}</div>
-   <div class="lbl">Aggiungi una referenza</div><input class="search" id="ccerca" type="search" placeholder="Cerca prodotto…" value="${esc(MAG.carQ)}" autocomplete="off"><div id="cres"></div>`;
+   <div class="lbl">Aggiungi referenze</div><input class="search" id="ccerca" type="search" placeholder="Cerca prodotto oppure scegli la famiglia qui sotto…" value="${esc(MAG.carQ)}" autocomplete="off"><div id="cres"></div>`;
   $('#bk').onclick=annullaCar;v.querySelectorAll('[data-cv]').forEach(b=>b.onclick=()=>{MAG.carv=b.dataset.cv;render()});
   v.querySelectorAll('[data-ca]').forEach(b=>b.onclick=()=>{const r=car[+b.dataset.i];r.q=Math.max(0,(r.q||0)+(+b.dataset.ca));magSave();render()});
   v.querySelectorAll('[data-ci]').forEach(i=>{i.onfocus=()=>i.select();i.onchange=()=>{car[+i.dataset.ci].q=Math.max(0,parseInt(i.value)||0);magSave();bar()}});
   v.querySelectorAll('[data-cx]').forEach(b=>b.onclick=()=>{car.splice(+b.dataset.cx,1);magSave();render()});
-  const inp=$('#ccerca');inp.oninput=()=>{MAG.carQ=inp.value;const r=$('#cres');if(inp.value.trim().length<2){r.innerHTML='';return}
-    const hits=search(inp.value).slice(0,20).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv])=>p[6].length===1||vv[4]));
-    r.innerHTML=`<div class="list">${hits.map(([p,vi])=>`<button class="oi" data-cadd="${p[0]}:${vi}"><div class="n"><b>${esc(nomeV(p,vi))}</b><small>${esc(S[p[1]])}</small></div><span class="st">+1 ct</span></button>`).join('')}</div>`;
-    r.querySelectorAll('[data-cadd]').forEach(b=>b.onclick=()=>{const [id,vi]=b.dataset.cadd.split(':').map(Number);const ex=car.find(x=>!x.x&&x.p===id&&x.v===vi);if(ex)ex.q=(ex.q||0)+1;else car.push({p:id,v:vi,q:1,nota:'aggiunto a mano'});MAG.carQ='';magSave();render()})};
-  if(MAG.carQ)inp.oninput();
+  // aggiunta di referenze: ricerca oppure famiglie; dentro una famiglia ogni referenza con - quantita' +
+  const cRiga=([p,vi])=>{const q=MM_CAR.get(p[0],vi);return `<div class="mr"><div class="mn"><b>${esc(nomeV(p,vi))}</b><small>${esc(S[p[1]])}${giac(p[0],vi)?' · in magazzino '+giac(p[0],vi)+' ct':''}</small></div>
+    <div class="step"><button data-cf="-1" data-k="${p[0]}:${vi}" aria-label="Meno">−</button><input inputmode="numeric" pattern="[0-9]*" value="${q||''}" placeholder="0" data-cfi="${p[0]}:${vi}" aria-label="Cartoni"><button class="plus" data-cf="1" data-k="${p[0]}:${vi}" aria-label="Più">+</button></div></div>`};
+  const cBind=r=>{r.querySelectorAll('[data-cf]').forEach(bt=>bt.onclick=()=>{const [id,vi]=bt.dataset.k.split(':').map(Number);MM_CAR.set(id,vi,MM_CAR.get(id,vi)+(+bt.dataset.cf));const i=r.querySelector(`[data-cfi="${bt.dataset.k}"]`);if(i)i.value=MM_CAR.get(id,vi)||''});
+    r.querySelectorAll('[data-cfi]').forEach(i=>{i.onfocus=()=>i.select();i.onchange=()=>{const [id,vi]=i.dataset.cfi.split(':').map(Number);MM_CAR.set(id,vi,i.value)}})};
+  const inp=$('#ccerca');const drawC=()=>{MAG.carQ=inp.value;const r=$('#cres');const q=inp.value.trim();
+    if(q.length>1){const hits=search(q).slice(0,20).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv])=>p[6].length===1||vv[4]));
+      r.innerHTML=hits.length?`<div class="list">${hits.map(cRiga).join('')}</div>`:'<div class="empty">Nessuna referenza trovata.</div>';cBind(r);return}
+    if(MAG.carFam!=null){const fi=MAG.carFam,list=P.filter(p=>p[1]===fi).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv])=>p[6].length===1||vv[4]));
+      r.innerHTML=`<div class="back"><button id="cfbk">‹ Famiglie</button><h2>${esc(S[fi])}</h2></div><div class="list">${list.map(cRiga).join('')}</div>`;
+      $('#cfbk').onclick=()=>{MAG.carFam=null;render()};cBind(r);return}
+    r.innerHTML=`<div class="fams">${S.map((nm,i)=>{const c=car.filter(x=>!x.x&&x.q>0&&byId[x.p]&&byId[x.p][1]===i).length,n=P.filter(p=>p[1]===i).length;return `<button class="fam${c?' has':''}" data-cff="${i}"><b>${esc(nm)}</b><span>${c?c+' nel carico · ':''}${n} prodotti</span></button>`}).join('')}</div>`;
+    r.querySelectorAll('[data-cff]').forEach(bt=>bt.onclick=()=>{MAG.carFam=+bt.dataset.cff;drawC();r.scrollIntoView({block:'start'})})};
+  inp.oninput=drawC;drawC();
 }
 // scorta desiderata per referenza
 function scRiga([p,vi]){const k=gk(p[0],vi),g=giac(p[0],vi),sc=scorta(p[0],vi),m=sc-g;
@@ -1048,7 +1057,7 @@ async function magConferma(){
       if(!righe.length){alert('Nessuna quantità da caricare.');return}
       if(!(await mChiedi({t:'Confermare il carico dell\'ordine N. '+(o?NUM(o):'')+'?',s:righe.length+' referenze, '+righe.reduce((a,r)=>a+r.delta,0)+' cartoni in più nel tuo magazzino.',ok:'Sì, carica'})))return;
       const {data,error}=await sb.rpc('applica_movimento',{p_righe:righe,p_ordine:MAG.ord,p_note:'Ordine N. '+(o?NUM(o):'')});
-      if(error)throw error;MAG.ord=null;MAG.car=null;MAG.carQ='';magSave();await magCarica();MAG.tab='giac';render();
+      if(error)throw error;MAG.ord=null;MAG.car=null;MAG.carQ='';MAG.carFam=null;magSave();await magCarica();MAG.tab='giac';render();
       $('#view').prepend(Object.assign(document.createElement('div'),{className:'card',innerHTML:`<h3 style="color:var(--ok)">Carico registrato</h3><p class="note" style="margin:4px 0 0">${righe.length} referenze aggiunte al magazzino.</p>`}));return}
     const righe=Object.entries(MAG.d).filter(([k])=>byId[k.split(':')[0]]).map(([k,v])=>{const [p,vi]=k.split(':').map(Number);return {p,v:vi,delta:v}})
       .concat(Object.entries(MAG.set).filter(([k])=>byId[k.split(':')[0]]).map(([k,v])=>{const [p,vi]=k.split(':').map(Number);return {p,v:vi,set:v}}));
