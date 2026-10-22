@@ -789,11 +789,41 @@ async function pdfGiacenza(targa){
   pg.drawText('Documento interno generato dal portale commerciale Magrini il '+ora.toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})+'. Giacenza dichiarata dall\'agente, in cartoni.',{x:40,y:30,size:7.5,font:fr,color:grey});
   return new File([await doc.save()],'Giacenza_'+nome.replace(/[^A-Za-z0-9]+/g,'_')+'_'+ora.toISOString().slice(0,10)+'.pdf',{type:'application/pdf'});
 }
-let giacFile=null;
+async function pdfGiacenzaModulo(targa){
+  const {PDFDocument,StandardFonts,rgb,pushGraphicsState,popGraphicsState,setCharacterSqueeze}=PDFLib;
+  if(!MODULO)MODULO=await fetch('modulo-presa-ordini.pdf?v=2').then(r=>{if(!r.ok)throw new Error('modulo non trovato');return r.arrayBuffer()});
+  const doc=await PDFDocument.load(MODULO.slice(0));const f=await doc.embedFont(StandardFonts.HelveticaBold),fr=await doc.embedFont(StandardFonts.Helvetica);
+  const pages=doc.getPages(),H=pages[0].getHeight(),blue=rgb(.05,.22,.7),grey=rgb(.4,.4,.4),ora=new Date();
+  const nome=(ME.nome_stampa||ME.nome||ME.username||'').toUpperCase();
+  const righe=magRighe('').filter(([p,vi])=>giac(p[0],vi)>0);let tot=0;const fuori=[];
+  for(const [p,vi] of righe){const q=giac(p[0],vi);tot+=q;const v=p[6][vi]||p[6][0];if(p[4]==null||v[1]==null){fuori.push([p,vi,q]);continue}
+    const t=String(q),sz=8,w=f.widthOfTextAtSize(t,sz)*1.12,x0=v[1]-w/2;
+    pages[p[4]].pushOperators(pushGraphicsState(),setCharacterSqueeze(112));pages[p[4]].drawText(t,{x:x0,y:p[5],size:sz,font:f,color:blue});pages[p[4]].pushOperators(popGraphicsState())}
+  // intestazione nei margini: titolo a sinistra, data a destra; nome nel riquadro CLIENTE come negli ordini
+  pages[0].drawText('GIACENZA A BORDO',{x:14,y:H-12.5,size:9,font:f,color:blue});
+  { const t=ora.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'2-digit'}),sz=14,k=Math.min(1,46/f.widthOfTextAtSize(t,sz)),w=f.widthOfTextAtSize(t,sz)*k;
+    pages[0].pushOperators(pushGraphicsState(),setCharacterSqueeze(k*100));pages[0].drawText(t,{x:548.5-w/2,y:H-40.5,size:sz,font:f,color:blue});pages[0].pushOperators(popGraphicsState()); }
+  { const top=H-80,bot=H-256,boxH=top-bot,x0=524,W=49;const fit=cols=>{const k=cols.length,cw=W/k,L=Math.max(...cols.map(c=>c.length));const mw=Math.max(...cols.join('').split('').map(ch=>f.widthOfTextAtSize(ch,1)));return Math.min(30,boxH/(L*1.08),(cw-2)/mw)};
+    let cols=[nome.replace(/\s+/g,' ')],sz=fit(cols);const words=nome.split(/\s+/).filter(Boolean);if(words.length>1&&sz<14){const c2=words.slice(0,3),s2=fit(c2);if(s2>sz){cols=c2;sz=s2}}
+    const lh=sz*1.08,cw=W/cols.length;cols.forEach((c,ci)=>{const h=c.length*lh;let y=top-(boxH-h)/2-sz*0.8;c.split('').forEach(ch=>{if(ch!==' '){const w=f.widthOfTextAtSize(ch,sz);pages[0].drawText(ch,{x:x0+ci*cw+(cw-w)/2,y,size:sz,font:f,color:blue})}y-=lh})}) }
+  if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)});
+  // terza pagina: dati del documento, prodotti fuori foglio, totale e firma
+  const pg=doc.addPage([595.32,841.92]);let y=790;
+  pg.drawText('MAGRINI R. & CECI G. snc',{x:40,y,size:16,font:f});pg.drawText('Via Norvegia 5, Roseto degli Abruzzi (TE)',{x:40,y:y-14,size:9,font:fr,color:grey});y-=40;
+  pg.drawText('GIACENZA DI MAGAZZINO A BORDO',{x:40,y,size:14,font:f,color:blue});y-=22;
+  [['Agente / autista',nome+(ME.nome&&ME.nome_stampa&&ME.nome!==ME.nome_stampa?' ('+ME.nome+')':'')],['Targa automezzo',targa||'-'],['Data e ora di stampa',ora.toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})],['Totale a bordo',tot+' cartoni su '+righe.length+' referenze']].forEach(([k,v])=>{pg.drawText(k+':',{x:40,y,size:10,font:fr,color:grey});pg.drawText(String(v),{x:160,y,size:11,font:f});y-=16});
+  y-=8;pg.drawLine({start:{x:40,y},end:{x:555,y},thickness:1,color:blue});y-=20;
+  pg.drawText('Le quantità in blu sulle pagine 1 e 2 sono i cartoni presenti a bordo per ogni referenza.',{x:40,y,size:10,font:fr});y-=24;
+  if(fuori.length){pg.drawText('Referenze non presenti nel modulo',{x:40,y,size:10,font:f,color:blue});y-=16;fuori.forEach(([p,vi,q])=>{pg.drawText(String(q),{x:70-f.widthOfTextAtSize(String(q),11),y,size:11,font:f,color:blue});pg.drawText(nomeV(p,vi).slice(0,70),{x:110,y,size:10,font:fr});y-=14})}
+  y-=40;pg.drawText('Firma',{x:360,y,size:9,font:fr,color:grey});pg.drawLine({start:{x:360,y:y-14},end:{x:555,y:y-14},thickness:.6});
+  pg.drawText('Documento interno generato dal portale commerciale Magrini il '+ora.toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})+'. Giacenza dichiarata dall\'agente, in cartoni.',{x:40,y:30,size:7.5,font:fr,color:grey});
+  return new File([await doc.save()],'Giacenza_modulo_'+nome.replace(/[^A-Za-z0-9]+/g,'_')+'_'+ora.toISOString().slice(0,10)+'.pdf',{type:'application/pdf'});
+}
+let giacFile=null,giacTipo='el';
 async function stampaGiacenza(azione,btn){
   const kt='mc_targa_'+ME.id;let targa=store.get(kt,'');
   if(!giacFile){const t=await mChiedi({t:'Targa dell\'automezzo (facoltativa)',s:'Comparirà sulla stampa insieme a nome, data e ora. Lascia vuoto se non serve.',input:targa,ok:'Avanti'});if(t===null)return;targa=t.trim().toUpperCase().slice(0,12);store.set(kt,targa);
-    btn.disabled=true;btn.textContent='Preparo…';try{giacFile=await pdfGiacenza(targa)}catch(e){alert('Non riesco a creare il PDF: '+(e.message||e));btn.disabled=false;btn.textContent=btn.dataset.t;return}
+    btn.disabled=true;btn.textContent='Preparo…';try{giacFile=await (giacTipo==='mod'?pdfGiacenzaModulo(targa):pdfGiacenza(targa))}catch(e){alert('Non riesco a creare il PDF: '+(e.message||e));btn.disabled=false;btn.textContent=btn.dataset.t;return}
     btn.disabled=false;if(azione==='sh'){btn.textContent='Tocca per condividere';return}}
   const file=giacFile;
   if(azione==='apri'){const u=URL.createObjectURL(file);window.open(u,'_blank')||(location.href=u);setTimeout(()=>URL.revokeObjectURL(u),60000)}
@@ -816,10 +846,11 @@ function renderGiac(v){
   const inv=MAG.gv==='inv';
   v.innerHTML=`<div class="seg sub" style="margin-bottom:8px"><button data-gv="mov" aria-pressed="${!inv}">Carico / Scarico</button><button data-gv="inv" aria-pressed="${inv}">Inventario (rettifica)</button></div>
    <p class="note" style="margin:0 0 10px">In magazzino: <b>${tot} cartoni</b> su ${nref} referenze. ${inv?'<b>Inventario</b>: scrivi per ogni referenza quanti cartoni hai contato davvero; la giacenza viene corretta a quel numero. Poi <b>Conferma</b> in basso.':'Con <b>+</b> e <b>−</b> segni carichi e scarichi, poi <b>Conferma</b> in basso. Dopo una conta usa <b>Inventario</b> per correggere le giacenze.'}</p>
-   ${inv?'':`<div class="btns" style="margin-bottom:12px"><button class="btn" data-gp="apri" data-t="Stampa giacenza a bordo">Stampa giacenza a bordo</button><button class="btn" data-gp="sh" data-t="Condividi PDF">Condividi PDF</button><button class="btn" data-gp="dl" data-t="Scarica PDF">Scarica PDF</button></div>`}
+   ${inv?'':`<div class="card" style="margin-bottom:12px"><b>Stampa giacenza a bordo</b><p class="note" style="margin:4px 0 8px">Elenco: una lista semplice per famiglia, con data, ora e targa. Modulo: il foglio di carico con le giacenze in blu e i dati in terza pagina.</p><div class="seg sub" style="margin-bottom:8px"><button data-gt="el" aria-pressed="${giacTipo!=='mod'}">Elenco</button><button data-gt="mod" aria-pressed="${giacTipo==='mod'}">Modulo</button></div><div class="btns"><button class="btn main" data-gp="apri" data-t="Apri PDF">Apri PDF</button><button class="btn" data-gp="sh" data-t="Condividi PDF">Condividi PDF</button><button class="btn" data-gp="dl" data-t="Scarica PDF">Scarica PDF</button></div></div>`}
    <input class="search" id="mcerca" type="search" placeholder="${inv?'Cerca una referenza da contare…':'Cerca una referenza da caricare o scaricare…'}" value="${esc(MAG.q)}" autocomplete="off"><div id="mres"></div>`;
   v.querySelectorAll('[data-gv]').forEach(b=>b.onclick=()=>{MAG.gv=b.dataset.gv;render()});
   giacFile=null;v.querySelectorAll('[data-gp]').forEach(b=>b.onclick=()=>stampaGiacenza(b.dataset.gp,b));
+  v.querySelectorAll('[data-gt]').forEach(b=>b.onclick=()=>{giacTipo=b.dataset.gt;giacFile=null;v.querySelectorAll('[data-gt]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.gt===giacTipo));v.querySelectorAll('[data-gp]').forEach(x=>x.textContent=x.dataset.t)});
   const draw=()=>{const list=magRighe(MAG.q);const r=$('#mres');
     if(!list.length){r.innerHTML=`<div class="empty">${MAG.q.trim().length>1?'Nessuna referenza trovata.':'Magazzino vuoto. Cerca una referenza e usa +, oppure carica un ordine da "Carico da ordine".'}</div>`;return}
     const groups=[];list.forEach(x=>{let g=groups.find(y=>y[0]===x[0][1]);if(!g){g=[x[0][1],[]];groups.push(g)}g[1].push(x)});
