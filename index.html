@@ -157,6 +157,10 @@ html,body{margin:0}
 .tabs{grid-template-columns:repeat(var(--ntab,3),1fr)}
 .tabs button{font-size:15px;letter-spacing:.03em;padding:10px 2px;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .tabs.t5 button{font-size:13px;letter-spacing:0}
+.tabs.mtabs{grid-template-columns:repeat(3,1fr);margin-top:6px}
+.tabs.mtabs button{font-size:12.5px;letter-spacing:0;padding:8px 0;white-space:nowrap;text-overflow:clip}
+@media (max-width:370px){.tabs.mtabs button{font-size:11.5px}}
+@media (min-width:600px){.tabs.mtabs{grid-template-columns:repeat(6,1fr)}.tabs.mtabs button{font-size:14px}}
 a.btn{text-decoration:none}
 .oi.cart .n{flex:1 1 160px}
 .oi.cart .btn{padding:10px 14px}
@@ -336,6 +340,7 @@ body.medit #bar{display:none}
     <input id="data" type="date" aria-label="Data del carico">
   </div>
   <nav class="tabs" role="tablist" id="tabs"></nav>
+  <nav class="tabs mtabs" role="tablist" id="mtabs" hidden></nav>
 </header>
 <main id="view"></main>
 <div class="bar" id="bar">
@@ -481,7 +486,7 @@ function bar(){
 }
 $('#go').onclick=()=>{if(view==='mag')magConferma();else if(view==='sum')confermaInvio();else go('sum')};
 const TITOLI={home:'Area commerciale',fam:'Foglio di carico',mod:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio',foto:'Foto prodotti',mag:'Magazzino'};
-function testata(){const car=view==='fam'||view==='mod'||view==='sum';schermoAcceso(car);const h=view==='home';$('#home').hidden=h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!car;$('#data').hidden=!car;const magMod=view==='mag'&&magInMod();document.body.classList.toggle('wide',view==='mod'||magMod);if(view!=='mod'&&!magMod)mEsci()}
+function testata(){const mt=$('#mtabs');if(mt){mt.hidden=view!=='mag';if(view==='mag')magTabs(mt)}const car=view==='fam'||view==='mod'||view==='sum';schermoAcceso(car);const h=view==='home';$('#home').hidden=h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!car;$('#data').hidden=!car;const magMod=view==='mag'&&magInMod();document.body.classList.toggle('wide',view==='mod'||magMod);if(view!=='mod'&&!magMod)mEsci()}
 $('#home').onclick=()=>{docCart=null;go('home')};
 // navigazione: ogni passaggio entra nella cronologia del telefono, cosi' lo swipe indietro torna alla schermata precedente
 function snap(){return {mc:1,view,fam,sub,docCart,docDaHome,uffTab,catFam,fotoFam,magTab:MAG.tab}}
@@ -889,13 +894,16 @@ function renderInv(v){
   v.querySelectorAll('[data-iv]').forEach(b=>b.onclick=()=>{MAG.invv=b.dataset.iv;render()});
   $('#invann').onclick=async()=>{if(!(await mChiedi({t:'Annullare l\'inventario?',s:'I conteggi inseriti andranno persi; la giacenza resta com\'è.',ok:'Sì, annulla'})))return;MAG.inv=null;MAG.invFam=null;magSave();render()};
 }
+const MTABS=[['giac','Giacenza'],['mod','Carico/Scarico'],['car','Carico ordine'],['sc','Scorta ideale'],['mov','Movimenti'],['inv','Inventario']];
+function magTabs(mt){if(!ME||!ME.magazzino){mt.hidden=true;return}
+  mt.innerHTML=MTABS.map(([k,l])=>`<button role="tab" data-mt="${k}" aria-selected="${MAG.tab===k}">${l}</button>`).join('');
+  mt.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{MAG.tab=b.dataset.mt;nav();render();window.scrollTo(0,0)})}
 async function renderMag(v){
   if(!ME.magazzino){v.innerHTML='<div class="empty">Il magazzino non è abilitato per questo account: chiedi all\'ufficio.</div>';return}
   if(!MAG.G._ok){try{await magCarica();MAG.G._ok=1}catch(e){v.innerHTML='<div class="empty">Non riesco a leggere il magazzino. Riprova tra poco.</div>';return}}
   if(!MAG._loaded){magLoad();MAG._loaded=1}
   const T=[['giac','Giacenza'],['mod','Carico/Scarico'],['car','Carico ordine'],['sc','Scorta ideale'],['mov','Movimenti'],['inv','Inventario']];
-  v.innerHTML=`<div class="seg main">${T.map(([k,l])=>`<button data-mt="${k}" aria-pressed="${MAG.tab===k}">${l}</button>`).join('')}</div><div id="mv"></div>`;
-  v.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{MAG.tab=b.dataset.mt;nav();render();window.scrollTo(0,0)});
+  v.innerHTML=`<div id="mv"></div>`;
   const mv=$('#mv');document.body.classList.toggle('wide',magInMod());
   if(MAG.tab==='giac')renderGiac(mv);else if(MAG.tab==='mod')renderCS(mv);else if(MAG.tab==='car')await renderCar(mv);else if(MAG.tab==='sc')renderScorta(mv);else if(MAG.tab==='inv')renderInv(mv);else await renderMov(mv);
 }
