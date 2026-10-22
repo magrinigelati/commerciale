@@ -691,7 +691,7 @@ addEventListener('resize',()=>{if(view==='mod'||(view==='mag'&&magInMod()))mAlte
 
 /* ================= MAGAZZINO ================= */
 // magazzino personale (in cartoni): giacenze G, variazioni in sospeso d (delta) e rettifiche set, carico da ordine
-let MAG={tab:'giac',modo:'scarico',scv:'el',gv:'mov',carv:'el',invv:'el',inv:null,invQ:'',invFam:null,G:{},S:{},sc:{},d:{},set:{},ord:null,car:null,q:'',carQ:'',scQ:'',mov:null,ordini:null,aperto:null};
+let MAG={tab:'giac',modo:'scarico',scv:'el',gv:'mov',carv:'el',invv:'el',inv:null,invQ:'',invFam:null,scFam:null,G:{},S:{},sc:{},d:{},set:{},ord:null,car:null,q:'',carQ:'',scQ:'',mov:null,ordini:null,aperto:null};
 const MKEY=()=>'mc_mag_'+ME.id;
 function magSave(){store.set(MKEY(),{d:MAG.d,set:MAG.set,ord:MAG.ord,car:MAG.car,sc:MAG.sc,inv:MAG.inv})}
 function magLoad(){const m=store.get(MKEY(),null);if(m){MAG.d=m.d||{};MAG.set=m.set||{};MAG.ord=m.ord||null;MAG.car=m.car||null;MAG.sc=m.sc||{};MAG.inv=m.inv||null}}
@@ -960,14 +960,21 @@ function renderScorta(v){
     v.querySelectorAll('[data-scv]').forEach(b=>b.onclick=()=>{MAG.scv=b.dataset.scv;render()});$('#scbozza').onclick=bozzaDaScorte;renderMod($('#scmod'));return}
   v.innerHTML=testa+`<p class="note" style="margin:0 0 10px"><b>Scorta ideale</b>: scegli le referenze e scrivi quanti <b>cartoni vorresti avere sempre</b>, a prescindere da cosa hai ora in magazzino. Quando crei la <b>bozza d'ordine</b>, il portale sottrae la giacenza attuale e ordina solo la differenza; la bozza si rivede e si invia come un ordine normale. La trovi anche in Effettua un ordine → "Ottimizza dal magazzino".</p>
    <div class="btns" style="margin-bottom:12px"><button class="btn main" id="scbozza" ${m.length?'':'disabled'}>Crea bozza d'ordine${m.length?' ('+m.length+' ref. · '+tot+' ct)':''}</button></div>
-   <input class="search" id="sccerca" type="search" placeholder="Cerca una referenza da aggiungere alle scorte…" value="${esc(MAG.scQ)}" autocomplete="off"><div id="scres"></div>`;
+   <input class="search" id="sccerca" type="search" placeholder="Cerca una referenza oppure scegli la famiglia qui sotto…" value="${esc(MAG.scQ)}" autocomplete="off"><div id="scres"></div>`;
   $('#scbozza').onclick=bozzaDaScorte;v.querySelectorAll('[data-scv]').forEach(b=>b.onclick=()=>{MAG.scv=b.dataset.scv;render()});
-  const draw=()=>{const keys=new Set([...Object.keys(MAG.S),...Object.keys(MAG.sc)]);let list;const q=MAG.scQ;
-    if(q.trim().length>1)list=search(q).slice(0,40).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv,vi])=>p[6].length===1||vv[4]||keys.has(gk(p[0],vi))));
-    else list=[...keys].map(k=>{const [id,vi]=k.split(':').map(Number);return byId[id]?[byId[id],vi]:null}).filter(Boolean).sort((a,b)=>P.indexOf(a[0])-P.indexOf(b[0])||a[1]-b[1]);
-    const r=$('#scres');if(!list.length){r.innerHTML=`<div class="empty">${q.trim().length>1?'Nessuna referenza trovata.':'Nessuna scorta impostata. Cerca le referenze qui sopra, oppure usa il Modulo, e scrivi la scorta ideale.'}</div>`;return}
-    const groups=[];list.forEach(x=>{let g=groups.find(y=>y[0]===x[0][1]);if(!g){g=[x[0][1],[]];groups.push(g)}g[1].push(x)});
-    r.innerHTML=groups.map(([fi,xs])=>`<div class="lbl">${esc(S[fi])}</div><div class="list">${xs.map(scRiga).join('')}</div>`).join('');scBind(r)};
+  // senza ricerca: referenze con scorta impostata + famiglie; dentro una famiglia tutte le referenze con + e -
+  const gruppi=list=>{const groups=[];list.forEach(x=>{let g=groups.find(y=>y[0]===x[0][7]);if(!g){g=[x[0][7],[]];groups.push(g)}g[1].push(x)});return groups};
+  const draw=()=>{const keys=new Set([...Object.keys(MAG.S),...Object.keys(MAG.sc)].filter(k=>scorta(...k.split(':').map(Number))>0));const q=MAG.scQ;const r=$('#scres');
+    if(q.trim().length>1){const list=search(q).slice(0,40).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv,vi])=>p[6].length===1||vv[4]||keys.has(gk(p[0],vi))));
+      r.innerHTML=list.length?`<div class="list">${list.map(scRiga).join('')}</div>`:'<div class="empty">Nessuna referenza trovata.</div>';scBind(r);return}
+    if(MAG.scFam!=null){const fi=MAG.scFam,ps=P.filter(p=>p[1]===fi);const list=ps.flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv,vi])=>p[6].length===1||vv[4]||keys.has(gk(p[0],vi))));
+      r.innerHTML=`<div class="back"><button id="sfbk">‹ Famiglie</button><h2>${esc(S[fi])}</h2></div>`+gruppi(list).map(([sez,xs])=>`${sez&&sez.toLowerCase()!==S[fi].toLowerCase()?`<div class="lbl sub">${esc(sez)}</div>`:''}<div class="list">${xs.map(scRiga).join('')}</div>`).join('');
+      $('#sfbk').onclick=()=>{MAG.scFam=null;draw();window.scrollTo(0,0)};scBind(r);return}
+    const imp=[...keys].map(k=>{const [id,vi]=k.split(':').map(Number);return byId[id]?[byId[id],vi]:null}).filter(Boolean).sort((a,b)=>P.indexOf(a[0])-P.indexOf(b[0])||a[1]-b[1]);
+    const nFam=i=>[...keys].filter(k=>byId[k.split(':')[0]]&&byId[k.split(':')[0]][1]===i).length;
+    r.innerHTML=(imp.length?`<div class="lbl">Scorte impostate</div><div class="list">${imp.map(scRiga).join('')}</div>`:'')+
+      `<div class="lbl">Famiglie</div><div class="fams">${S.map((nm,i)=>{const c=nFam(i),n=P.filter(p=>p[1]===i).length;return `<button class="fam${c?' has':''}" data-sf="${i}"><b>${esc(nm)}</b><span>${c?c+' con scorta · ':''}${n} prodotti</span></button>`}).join('')}</div>`;
+    scBind(r);r.querySelectorAll('[data-sf]').forEach(b=>b.onclick=()=>{MAG.scFam=+b.dataset.sf;draw();window.scrollTo(0,0)})};
   $('#sccerca').oninput=e=>{MAG.scQ=e.target.value;draw()};draw();
 }
 async function renderMov(v){
