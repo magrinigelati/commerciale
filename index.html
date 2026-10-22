@@ -253,10 +253,10 @@ body.wide main{max-width:none}
 .mpage{position:relative;margin:0 auto 10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .mpage:last-child{margin-bottom:0}
 .mpage img{display:block;width:100%;height:auto;user-select:none;-webkit-user-select:none;pointer-events:none}
-.mc{position:absolute;display:flex;align-items:center;justify-content:center;gap:.2em;padding:0;border:0;border-radius:0;background:transparent;cursor:pointer;color:#b00a20;-webkit-text-stroke:.35px currentColor;letter-spacing:.03em;font:700 calc(var(--s) * 7px)/1 Helvetica,Arial,sans-serif;white-space:nowrap;overflow:hidden}
+.mc{position:absolute;display:flex;align-items:center;justify-content:center;gap:.2em;padding:0;border:0;border-radius:0;background:transparent;cursor:pointer;color:#0d38b3;-webkit-text-stroke:.35px currentColor;letter-spacing:.03em;font:700 calc(var(--s) * 7px)/1 Helvetica,Arial,sans-serif;white-space:nowrap;overflow:hidden}
 .mc:hover{background:rgba(13,56,179,.08)}
 .mc.on{background:transparent}
-.mc.pz{color:#0d38b3}
+.mc.pz{color:#b00a20}
 .mc em{font-style:normal;background:#ffe640;padding:0 .2em}
 .mc small{font-weight:400;font-size:.8em}
 .mc.sel{outline:3px solid #0a7d3b;outline-offset:-2px;background:#fff;z-index:2}
@@ -571,7 +571,7 @@ function mCelle(){if(MC&&MC.P===P)return MC;
   cols.sort((a,b)=>a.pg-b.pg||a.x-b.x);c.sort((a,b)=>cols.indexOf(a.col)-cols.indexOf(b.col)||a.top-b.top);c.forEach((e,i)=>e.i=i);
   MC={P,c,by:Object.fromEntries(c.map(e=>[e.k,e]))};return MC}
 function mTesto(e){const q=qOf(e.id,e.vi);if(!q)return '';const u=uOf(e.id),ev=u!=='ct',c=u==='st'||u==='pl'?convCt(byId[e.id],e.vi,u,q):null;
-  const t=q+(u!=='ct'?' <small>'+ULAB(u)+'</small>':'');return (ev?'<em>'+t+'</em>':t)+(c?'<small>('+c+')</small>':'')}
+  const t=q+(u!=='ct'?' <small>'+ULAB(u)+'</small>':'');return (ev?'<em>'+t+'</em>':t)+(c?'<small>('+c+' ct)</small>':'')}
 const mCls=e=>{const q=qOf(e.id,e.vi);return 'mc'+(q?' on':'')+(q&&uOf(e.id)==='pz'?' pz':'')+(mSel===e.k?' sel':'')};
 const pc=n=>(n*100).toFixed(3)+'%';
 function renderMod(v){document.body.classList.add('wide');
@@ -846,24 +846,24 @@ async function pdfOrdine(o,utente){
     if(p[4]==null||v[1]==null)continue; // finisce nelle celle in fondo a pagina 2 (pianoAggiunti)
     if(r.d&&!rin.has(r.p)){rin.add(r.p);const c=cellaNome(p,r.v);if(c){cop(c.pg,c);scriviNome(c.pg,c,String(r.d).slice(0,60))}} // descrizione modificata dall'agente: blu su giallo
     const isPz=r.u==='pz',ev=r.u==='st'||r.u==='pl',t=r.q+(r.u&&r.u!=='ct'?' '+ULAB(r.u):'');let sz=ev||isPz?7:8;const room=(v[3]||28)-3;
-    const par=ev&&r.ct?'('+r.ct+')':'',tot=z=>(f.widthOfTextAtSize(t,z)+(par?2+fr.widthOfTextAtSize(par,z-1.5):0))*LARGO; // cartoni convertiti tra parentesi, piu' piccoli e non evidenziati
+    const par=ev&&r.ct?'('+r.ct+' ct)':'',tot=z=>(f.widthOfTextAtSize(t,z)+(par?2+fr.widthOfTextAtSize(par,z-1.5):0))*LARGO; // cartoni convertiti tra parentesi, piu' piccoli e non evidenziati
     while(sz>5&&tot(sz)>room)sz-=.25;
     const sp=sfal[p[4]+'|'+v[1]+'|'+p[5]]||0,tw=f.widthOfTextAtSize(t,sz)*LARGO,x0=v[1]-tot(sz)/2+sp*Math.min(SFAL,Math.max(0,(room-tot(sz))/2));
     if(ev||isPz)pages[p[4]].drawRectangle({x:x0-1.2,y:p[5]-1.1,width:tw+2.4,height:sz+0.3,color:EVID}); // pezzi, strati e pallet evidenziati in giallo, dentro la riga
     // quantita' un po' piu' grassetta (contorno sottile) e piu' larga (12%), stessa altezza: non tocca la riga sopra
-    const col=isPz?blue:red; // cartoni (anche strati e pallet) in rosso, pezzi in blu
+    const col=isPz?red:blue; // cartoni (anche strati e pallet) in blu, pezzi in rosso (il blu in magazzino si vede meglio)
     pages[p[4]].pushOperators(pushGraphicsState(),setCharacterSqueeze(LARGO*100),setTextRenderingMode(TextRenderingMode.FillAndOutline),setLineWidth(.25),setStrokingColor(col));
     pages[p[4]].drawText(t,{x:x0,y:p[5],size:sz,font:f,color:col});
     pages[p[4]].pushOperators(setTextRenderingMode(TextRenderingMode.Fill));
-    if(par)pages[p[4]].drawText(par,{x:x0+tw+2*LARGO,y:p[5]+0.3,size:sz-1.5,font:fr,color:red});
+    if(par)pages[p[4]].drawText(par,{x:x0+tw+2*LARGO,y:p[5]+0.3,size:sz-1.5,font:fr,color:blue});
     pages[p[4]].pushOperators(popGraphicsState())}
   // prodotti aggiunti e fuori foglio: celle in fondo a pagina 2, blu su giallo, quantita' nella casella Q.ta'
   const piano=pianoAggiunti(o.righe,o.extra);
   piano.celle.forEach(c=>{if(!c.vuota)cop(c.pg,c);scriviNome(c.pg,c,String(c.e.d).slice(0,60));
     const isPz=c.e.u==='pz',ev=c.e.u==='st'||c.e.u==='pl',t=c.e.q+(c.e.u&&c.e.u!=='ct'?' '+ULAB(c.e.u):'');let sz=ev||isPz?7:8;while(sz>5&&f.widthOfTextAtSize(t,sz)*LARGO>c.qw-3)sz-=.25;const tw=f.widthOfTextAtSize(t,sz)*LARGO,x0=c.qx-tw/2;
     if(ev||isPz)pages[c.pg].drawRectangle({x:x0-1.2,y:c.y-1.1,width:tw+2.4,height:sz+0.3,color:EVID});
-    pages[c.pg].pushOperators(pushGraphicsState(),setCharacterSqueeze(LARGO*100),setTextRenderingMode(TextRenderingMode.FillAndOutline),setLineWidth(.25),setStrokingColor(isPz?blue:red));
-    pages[c.pg].drawText(t,{x:x0,y:c.y,size:sz,font:f,color:isPz?blue:red});pages[c.pg].pushOperators(popGraphicsState())});
+    pages[c.pg].pushOperators(pushGraphicsState(),setCharacterSqueeze(LARGO*100),setTextRenderingMode(TextRenderingMode.FillAndOutline),setLineWidth(.25),setStrokingColor(isPz?red:blue));
+    pages[c.pg].drawText(t,{x:x0,y:c.y,size:sz,font:f,color:isPz?red:blue});pages[c.pg].pushOperators(popGraphicsState())});
   fuori.push(...piano.resto);
   if(o.versione>1){const t='MODIFICATO il '+new Date(o.modificato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})+(o.versione>2?' ('+o.versione+'ª versione)':'')+': sostituisce le stampe precedenti';let sz=9;while(sz>6&&f.widthOfTextAtSize(t,sz)>235)sz-=.25;pages[0].drawText(t,{x:14,y:H-12.5,size:sz,font:f,color:red})} // margine in alto a sinistra
   if(o.quando){const t='CARICO: '+String(o.quando).toUpperCase().slice(0,40),k=1.2;let sz=12.5;while(sz>8&&f.widthOfTextAtSize(t,sz)*k>330)sz-=.5;const w=f.widthOfTextAtSize(t,sz)*k;
@@ -888,7 +888,7 @@ async function pdfOrdine(o,utente){
     if(false){yy-=4;pg.drawText('ORDINE MODIFICATO il '+new Date(o.modificato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})+(o.versione>2?'  ('+o.versione+'ª versione)':'')+': sostituisce le stampe precedenti',{x:40,y:yy-8,size:11,font:f,color:red});yy-=16}
     pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:1.2,color:blue});yy-=28;
     if(agg.length){pg.drawText('Q.tà',{x:40,y:yy,size:10,font:f});pg.drawText('Descrizione',{x:100,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
-      agg.forEach(e=>{const tq=e.q+' '+ULAB(e.u),pzz=e.u==='pz';if(pzz||e.u==='st'||e.u==='pl')pg.drawRectangle({x:38,y:yy-3,width:f.widthOfTextAtSize(tq,11)+4,height:13,color:EVID});pg.drawText(tq,{x:40,y:yy,size:11,font:f,color:pzz?blue:red});pg.drawText(String(e.d).slice(0,80),{x:100,y:yy,size:11,font:fr});yy-=18})}
+      agg.forEach(e=>{const tq=e.q+' '+ULAB(e.u),pzz=e.u==='pz';if(pzz||e.u==='st'||e.u==='pl')pg.drawRectangle({x:38,y:yy-3,width:f.widthOfTextAtSize(tq,11)+4,height:13,color:EVID});pg.drawText(tq,{x:40,y:yy,size:11,font:f,color:pzz?red:blue});pg.drawText(String(e.d).slice(0,80),{x:100,y:yy,size:11,font:fr});yy-=18})}
     if(false){yy-=10;pg.drawText('STRATI E PALLET CONVERTITI IN CARTONI',{x:40,y:yy,size:10,font:f});yy-=6;pg.drawLine({start:{x:40,y:yy},end:{x:555,y:yy},thickness:.8});yy-=16;
       conv.forEach(e=>{pg.drawRectangle({x:36,y:yy-4,width:519,height:16,color:EVID});pg.drawText(e.q+' '+ULAB(e.u),{x:40,y:yy,size:11,font:f,color:red});pg.drawText(String(e.d).slice(0,85),{x:100,y:yy,size:11,font:fr});yy-=18})}
     if(false){yy-=12;pg.drawText('Note: '+String(o.note).slice(0,90),{x:40,y:yy,size:11,font:fr})}}
