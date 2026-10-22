@@ -742,9 +742,9 @@ function magAggRiga(k){document.querySelectorAll(`.mr[data-k="${k}"]`).forEach(r
 // nel Modulo del magazzino la casella mostra la giacenza che avrai dopo la conferma: con + carichi, con - scarichi, oppure scrivi il numero finale.
 // Di fianco, piccola, la variazione (+ verde / - rosso)
 const MM_MAG={get:(id,vi)=>Math.max(0,giac(id,vi)+(MAG.d[gk(id,vi)]||0)),set:(id,vi,v)=>magDelta(id,vi,Math.max(0,parseInt(v)||0)-giac(id,vi)),
-  testo:e=>{const g=giac(e.id,e.vi),d=MAG.d[gk(e.id,e.vi)]||0,n=Math.max(0,g+d);return (g||d?`<span class="gb">${n}</span>`:'')+(d<0?`<span class="gr">−${-d}</span>`:d>0?`<span class="gg">+${d}</span>`:'')},
+  testo:e=>{const g=giac(e.id,e.vi),d=MAG.d[gk(e.id,e.vi)]||0;return (g?`<span class="gb">${g}</span>`:'')+(d<0?`<span class="gr">−${-d}</span>`:d>0?`<span class="gg">+${d}</span>`:'')}, // blu = giacenza salvata; verde/rosso = variazione da confermare
   cls:e=>'mc'+(giac(e.id,e.vi)||MAG.d[gk(e.id,e.vi)]?' on':'')+(mSel===e.k?' sel':''),um:false,nomi:false,
-  hint:'Ogni casella mostra la giacenza. Toccala: con + carichi, con − scarichi, oppure scrivi direttamente la quantità finale. Di fianco vedi la variazione (+ verde, − rossa). Poi Conferma in basso.',
+  hint:'In blu la giacenza attuale. Tocca la casella: con + carichi, con − scarichi, oppure scrivi la quantità finale. La variazione compare di fianco (+ verde, − rossa) finché non premi Conferma in basso.',
   vuoto:['Tocca una casella del modulo','Poi + per caricare o − per scaricare'],
   dett:(e,p,v)=>{const g=giac(e.id,e.vi),d=MAG.d[gk(e.id,e.vi)]||0;return 'Giacenza '+g+' ct'+(d?' · '+(d>0?'carichi +'+d:'scarichi −'+(-d))+' → '+Math.max(0,g+d)+' ct':'')+(v[2]?' · '+v[2]:'')}};
 // Modulo della scorta ideale: giacenza in blu, scorta ideale in arancio; si scrive la scorta
