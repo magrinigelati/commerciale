@@ -879,7 +879,7 @@ async function renderMag(v){
   if(!ME.magazzino){v.innerHTML='<div class="empty">Il magazzino non è abilitato per questo account: chiedi all\'ufficio.</div>';return}
   if(!MAG.G._ok){try{await magCarica();MAG.G._ok=1}catch(e){v.innerHTML='<div class="empty">Non riesco a leggere il magazzino. Riprova tra poco.</div>';return}}
   if(!MAG._loaded){magLoad();MAG._loaded=1}
-  const T=[['giac','Giacenza'],['mod','Modulo'],['car','Carico da ordine'],['inv','Inventario'],['sc','Scorta ideale'],['mov','Movimenti']];
+  const T=[['giac','Giacenza'],['mod','Modulo'],['car','Carico da ordine'],['sc','Scorta ideale'],['mov','Movimenti'],['inv','Inventario']];
   v.innerHTML=`<div class="seg">${T.map(([k,l])=>`<button data-mt="${k}" aria-pressed="${MAG.tab===k}">${l}</button>`).join('')}</div><div id="mv"></div>`;
   v.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{MAG.tab=b.dataset.mt;nav();render();window.scrollTo(0,0)});
   const mv=$('#mv');document.body.classList.toggle('wide',magInMod());
