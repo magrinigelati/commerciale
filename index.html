@@ -619,7 +619,7 @@ function renderMod(v){document.body.classList.add('wide');
   if(MM.nomi)P.forEach(p=>{const cn=cellaNome(p,0);if(!cn)return;nomi.push({k:p[0],pg:cn.pg,y:cn.y,x0:cn.x0,x1:cn.x1,t:st.d[p[0]]||'',cls:st.d[p[0]]?'ren':''})});
   piano.celle.forEach(cc=>nomi.push({k:'',pg:cc.pg,y:cc.y,x0:cc.x0,x1:cc.x1,t:cc.e.d,cls:'add',q:cc.e.q+(cc.e.u&&cc.e.u!=='ct'?' '+ULAB(cc.e.u):''),qx:cc.qx,qw:cc.qw,pz:cc.e.u==='pz'}));
   const nomeHtml=n=>`<button class="mnm ${n.cls}" ${n.k!==''?`data-mnm="${n.k}"`:'tabindex="-1"'} style="left:${pc(n.x0/MW)};top:${pc((MH-n.y-6.2)/MH)};width:${pc((n.x1-n.x0)/MW)};height:${pc(MRH/MH)}" aria-label="${esc(n.k!==''?'Modifica descrizione di '+byId[n.k][2]:n.t)}">${esc(n.t)}</button>`+(n.q?`<span class="mc on${n.pz?' pz':''}" style="left:${pc((n.qx-n.qw/2)/MW)};top:${pc((MH-n.y-6.2)/MH)};width:${pc(n.qw/MW)};height:${pc(MRH/MH)}">${esc(n.q)}</span>`:'');
-  const pages=[0,1].map(pg=>`<div class="mpage"><img src="img/modulo-${pg+1}.webp?v=1" width="1786" height="2526" alt="Modulo, pagina ${pg+1}" draggable="false">${nomi.filter(n=>n.pg===pg).map(nomeHtml).join('')}${c.filter(e=>e.pg===pg).map(e=>`<button class="${MM.cls(e)}" data-mk="${e.k}" tabindex="-1" style="left:${pc(e.x0/MW)};top:${pc(e.top/MH)};width:${pc(e.w/MW)};height:${pc(MRH/MH)}" aria-label="${esc(byId[e.id][2]+(byId[e.id][6].length>1?' '+vLab(byId[e.id][6][e.vi]):''))}">${MM.testo(e)}</button>`).join('')}</div>`).join('');
+  const pages=[0,1].map(pg=>`<div class="mpage"><img src="img/modulo-${pg+1}.webp?v=2" width="1786" height="2526" alt="Modulo, pagina ${pg+1}" draggable="false">${nomi.filter(n=>n.pg===pg).map(nomeHtml).join('')}${c.filter(e=>e.pg===pg).map(e=>`<button class="${MM.cls(e)}" data-mk="${e.k}" tabindex="-1" style="left:${pc(e.x0/MW)};top:${pc(e.top/MH)};width:${pc(e.w/MW)};height:${pc(MRH/MH)}" aria-label="${esc(byId[e.id][2]+(byId[e.id][6].length>1?' '+vLab(byId[e.id][6][e.vi]):''))}">${MM.testo(e)}</button>`).join('')}</div>`).join('');
   const um=UMS().length>2?`<select class="umsel" id="mus" aria-label="Unità di misura">${UMS().map(u=>`<option value="${u}">${UM[u][0]}</option>`).join('')}</select>`:`<div class="um" role="group" aria-label="Unità di misura">${UMS().map(u=>`<button data-mu="${u}" aria-pressed="false">${UM[u][0]}</button>`).join('')}</div>`;
   v.innerHTML=`${MM.strumenti?`<div style="margin:2px 0 8px">${MM.strumenti()}</div>`:''}<div class="mtool"><div class="zoom"><button class="btn sm" id="mzm" aria-label="Rimpicciolisci">−</button><button class="btn sm" id="mzf">Adatta</button><button class="btn sm" id="mzp" aria-label="Ingrandisci">+</button></div><div class="zoom"><button class="btn sm" data-mp="0">Pag. 1</button><button class="btn sm" data-mp="1">Pag. 2</button></div><p class="note">${esc(MM.hint)}</p></div>
   <div class="mwrap"><div class="msheet" id="msheet">${pages}</div>
@@ -801,7 +801,7 @@ async function pdfGiacenza(targa,opz){opz=opz||{};
 }
 async function pdfGiacenzaModulo(targa){
   const {PDFDocument,StandardFonts,rgb,pushGraphicsState,popGraphicsState,setCharacterSqueeze}=PDFLib;
-  if(!MODULO)MODULO=await fetch('modulo-presa-ordini.pdf?v=2').then(r=>{if(!r.ok)throw new Error('modulo non trovato');return r.arrayBuffer()});
+  if(!MODULO)MODULO=await fetch('modulo-presa-ordini.pdf?v=3').then(r=>{if(!r.ok)throw new Error('modulo non trovato');return r.arrayBuffer()});
   const doc=await PDFDocument.load(MODULO.slice(0));const f=await doc.embedFont(StandardFonts.HelveticaBold),fr=await doc.embedFont(StandardFonts.Helvetica);
   const pages=doc.getPages(),H=pages[0].getHeight(),blue=rgb(.05,.22,.7),grey=rgb(.4,.4,.4),ora=new Date();
   const nome=(ME.nome_stampa||ME.nome||ME.username||'').toUpperCase();
@@ -1245,7 +1245,7 @@ function pianoAggiunti(righe,extra){
 let MODULO=null;
 async function pdfOrdine(o,utente){
   const {PDFDocument,StandardFonts,rgb,degrees,pushGraphicsState,popGraphicsState,setCharacterSqueeze,setTextRenderingMode,TextRenderingMode,setLineWidth,setStrokingColor}=PDFLib,LARGO=1.12;
-  if(!MODULO)MODULO=await fetch('modulo-presa-ordini.pdf?v=2').then(r=>{if(!r.ok)throw new Error('modulo non trovato');return r.arrayBuffer()});
+  if(!MODULO)MODULO=await fetch('modulo-presa-ordini.pdf?v=3').then(r=>{if(!r.ok)throw new Error('modulo non trovato');return r.arrayBuffer()});
   const doc=await PDFDocument.load(MODULO.slice(0));
   const f=await doc.embedFont(StandardFonts.HelveticaBold),fr=await doc.embedFont(StandardFonts.Helvetica);
   const pages=doc.getPages(),H=pages[0].getHeight(),blue=rgb(.05,.22,.7),red=rgb(.75,.05,.15),EVID=rgb(1,.9,.25);
