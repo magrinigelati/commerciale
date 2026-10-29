@@ -1766,7 +1766,7 @@ async function renderHome(v){
     ${ME.magazzino?`<button class="tile" data-go="mag"><b>Magazzino</b> <span class="nov">novità</span><span>Giacenze, carico da ordine, scarico</span></button>`:''}
     <button class="tile" data-go="foto"><b>Foto prodotti</b><span>Per famiglia, da scaricare o condividere</span></button>
     <div id="hdoc" style="display:contents"></div>
-    ${catAbilitato()?`<button class="tile cat" data-go="cat"><b>Crea il catalogo per il tuo cliente</b> <span class="nov">novità</span><span>Inserisci il logo del cliente, i prodotti scelti e i prezzi al pubblico: crea il tuo PDF da stampare o le immagini da condividere su WhatsApp</span></button>`:''}
+    ${catAbilitato()?`<button class="tile cat" data-go="cat"><b>Crea il catalogo per il tuo cliente</b> <span class="nov">novità</span><span>Inserisci il logo del cliente, i prodotti scelti e i prezzi al pubblico: crea il tuo PDF da stampare o le immagini da condividere</span></button>`:''}
     ${['ufficio','admin'].includes(ME.ruolo)?'<button class="tile uff" data-go="uff"><b>Ufficio</b><span>Ordini ricevuti, account, documenti</span></button>':''}
    </div>`;
   v.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
