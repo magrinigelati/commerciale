@@ -82,8 +82,8 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .cprev span{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:600;padding:3px 0;text-align:center}
 .cprev.car{opacity:.55}
 .cpbig{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;gap:8px}
-.cpbig img{max-width:100%;max-height:calc(100% - 40px);border-radius:6px}
-.cpbig p{color:#fff;margin:0;font-size:14px}
+.cpbig img{max-width:100%;max-height:calc(100% - 80px);border-radius:6px}
+.cpbig .btn{flex:none}
 .back.fissa{position:sticky;top:var(--toph,0px);z-index:4;background:var(--bg);padding:8px 0;margin:-8px 0 8px}
 .back button{background:var(--ice);border:0;border-radius:8px;padding:8px 12px;font-weight:600}
 .back h2{font-family:var(--f-display);font-size:22px;text-transform:uppercase;margin:0;letter-spacing:.03em}
@@ -1879,7 +1879,7 @@ function catEditor(v){const c=CAT.c,d=c.dati;
     el.querySelectorAll('[data-vd]').forEach(x=>x.onclick=()=>{const i=+x.dataset.vd;[d.voci[i+1],d.voci[i]]=[d.voci[i],d.voci[i+1]];catTocca();voci()});
     el.querySelectorAll('[data-vx]').forEach(x=>x.onclick=()=>{d.voci.splice(+x.dataset.vx,1);catTocca();voci()})}
   voci();catMini();
-  $('#cprev').onclick=()=>{if(!CAT.grande)return;const o=document.createElement('div');o.className='cpbig';o.innerHTML=`<img src="${CAT.grande.toDataURL('image/jpeg',.85)}" alt="Anteprima della prima pagina"><p>Tocca per chiudere</p>`;o.onclick=()=>o.remove();document.body.appendChild(o)};
+  $('#cprev').onclick=()=>{if(!CAT.grande)return;const o=document.createElement('div');o.className='cpbig';o.innerHTML=`<img src="${CAT.grande.toDataURL('image/jpeg',.85)}" alt="Anteprima della prima pagina"><button type="button" class="btn main">‹ Torna indietro e continua a creare</button>`;o.onclick=e=>{if(e.target===o||e.target.tagName==='BUTTON')o.remove()};document.body.appendChild(o)};
 }
 // logo: ridotto a max 700 px; se ha trasparenza resta PNG, altrimenti JPEG
 async function catLogo(file){const bm=await createImageBitmap(file);const k=Math.min(1,700/Math.max(bm.width,bm.height));
