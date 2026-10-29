@@ -1420,11 +1420,12 @@ async function uffUtenti(v){
     const [{data:us},{data:ac}]=await Promise.all([sb.from('utenti').select('*').order('nome'),sb.from('accessi').select('utente_id,il').eq('azione','accesso').order('il',{ascending:false}).limit(500)]);
     const last={};(ac||[]).forEach(a=>{if(!last[a.utente_id])last[a.utente_id]=a.il});
     $('#ulist').innerHTML=`<div class="list">${(us||[]).map(u=>`<div class="oi" style="flex-wrap:wrap"><div class="n"><b>${esc(u.nome_stampa||u.nome)}</b><small>${esc(u.username)} · ${esc(u.ruolo)}${u.cambio_password?' · password provvisoria':''} · ultimo accesso: ${last[u.id]?new Date(last[u.id]).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):'mai'}</small></div>
-      <span class="pill ${u.attivo?'caricato':'off'}">${u.attivo?'Attivo':'Disattivato'}</span>${u.magazzino?'<span class="pill caricato" style="margin-left:6px">Magazzino</span>':''}
-      ${u.id===ME.id?'':`<div class="btns" style="width:100%;margin-top:6px"><button class="btn" data-r="${u.id}" data-un="${esc(u.username)}">Reimposta password</button><button class="btn" data-e="${u.id}">Nome in stampa</button><button class="btn" data-a="${u.id}" data-on="${u.attivo?0:1}">${u.attivo?'Disattiva':'Riattiva'}</button><button class="btn" data-mg="${u.id}" data-on="${u.magazzino?0:1}">${u.magazzino?'Togli magazzino':'Abilita magazzino'}</button></div><div id="ue${u.id}"></div>`}</div>`).join('')}</div>`;
+      <span class="pill ${u.attivo?'caricato':'off'}">${u.attivo?'Attivo':'Disattivato'}</span>${u.magazzino?'<span class="pill caricato" style="margin-left:6px">Magazzino</span>':''}${u.cataloghi?'<span class="pill caricato" style="margin-left:6px">Catalogo</span>':''}
+      ${u.id===ME.id?'':`<div class="btns" style="width:100%;margin-top:6px"><button class="btn" data-r="${u.id}" data-un="${esc(u.username)}">Reimposta password</button><button class="btn" data-e="${u.id}">Nome in stampa</button><button class="btn" data-a="${u.id}" data-on="${u.attivo?0:1}">${u.attivo?'Disattiva':'Riattiva'}</button><button class="btn" data-mg="${u.id}" data-on="${u.magazzino?0:1}">${u.magazzino?'Togli magazzino':'Abilita magazzino'}</button><button class="btn" data-ct="${u.id}" data-on="${u.cataloghi?0:1}">${u.cataloghi?'Togli catalogo cliente':'Abilita catalogo cliente'}</button></div><div id="ue${u.id}"></div>`}</div>`).join('')}</div>`;
     $('#ulist').querySelectorAll('[data-r]').forEach(b=>b.onclick=async()=>{if(b.dataset.c!=='1'){b.dataset.c='1';b.textContent='Conferma reimposta';return}
       try{const r=await fn({azione:'reimposta',id:b.dataset.r});mostraPassword($('#pwbox'),'Password reimpostata',b.dataset.un,r.password);$('#pwbox').scrollIntoView({behavior:'smooth'});lista()}catch(err){alert(err.message)}});
     $('#ulist').querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{try{await fn({azione:'stato',id:b.dataset.a,attivo:b.dataset.on==='1'});lista()}catch(err){alert(err.message)}});
+    $('#ulist').querySelectorAll('[data-ct]').forEach(b=>b.onclick=async()=>{const {error}=await sb.from('utenti').update({cataloghi:b.dataset.on==='1'}).eq('id',b.dataset.ct);if(error)alert(error.message.includes('cataloghi')?'Prima esegui il file SQL 20 del catalogo cliente.':error.message);else lista()});
     $('#ulist').querySelectorAll('[data-mg]').forEach(b=>b.onclick=async()=>{const {error}=await sb.from('utenti').update({magazzino:b.dataset.on==='1'}).eq('id',b.dataset.mg);if(error)alert(error.message.includes('magazzino')?'Prima esegui il file SQL 15 del magazzino.':error.message);else lista()});
     $('#ulist').querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>{const u=us.find(x=>x.id===b.dataset.e);const box=$('#ue'+u.id);
       box.innerHTML=`<div class="mrow" style="margin-top:8px"><input id="es${u.id}" value="${esc(u.nome_stampa)}" style="flex:1;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"><button class="btn main" id="esb${u.id}">Salva</button></div>`;
@@ -1752,7 +1753,7 @@ async function renderHome(v){
     <button class="tile" data-go="ord"><b>I miei ordini</b><span>Ultimi 31 giorni, con PDF da condividere</span></button>
     ${ME.magazzino?`<button class="tile" data-go="mag"><b>Magazzino</b> <span class="nov">novità</span><span>Giacenze, carico da ordine, scarico</span></button>`:''}
     <button class="tile" data-go="foto"><b>Foto prodotti</b><span>Per famiglia, da scaricare o condividere</span></button>
-    <button class="tile" data-go="cat"><b>Catalogo cliente</b> <span class="nov">novità</span><span>Depliant con prodotti, prezzi e logo del cliente</span></button>
+    ${catAbilitato()?`<button class="tile" data-go="cat"><b>Catalogo cliente</b> <span class="nov">novità</span><span>Depliant con prodotti, prezzi e logo del cliente</span></button>`:''}
     <div id="hdoc" style="display:contents"></div>
     ${['ufficio','admin'].includes(ME.ruolo)?'<button class="tile uff" data-go="uff"><b>Ufficio</b><span>Ordini ricevuti, account, documenti</span></button>':''}
    </div>`;
@@ -1773,9 +1774,11 @@ const CAT={passo:'lista',lista:null,c:null,q:'',fam:null,uscite:null,sporco:fals
 const catNuovo=()=>({id:null,cliente:'',logo:null,dati:{titolo:'I nostri gelati',sotto:'',col:3,colore:CAT_COLORI[0][0],forma:'smussato',stile:'onde',prezzi:true,gruppi:true,nota:CAT_NOTA,voci:[]}});
 const catNome=p=>{const f=FOTO&&fotoDi(p);const n=(f&&!f.propria&&f.nome)||p[2];return n.charAt(0).toUpperCase()+n.slice(1)};
 const catPrezzo=s=>{s=String(s||'').trim().replace(/^€\s*/,'');if(!s)return '';const n=parseFloat(s.replace(',','.'));return isNaN(n)?s:'€ '+n.toFixed(2).replace('.',',')};
+const catAbilitato=()=>!!ME&&(ME.cataloghi===true||['ufficio','admin'].includes(ME.ruolo));
 const catBozzaK=()=>'mc_catbozza_'+ME.id;
 
 async function renderCat(v){
+  if(!catAbilitato()){v.innerHTML='<div class="empty">Il catalogo cliente non è abilitato per questo account: chiedi all\'ufficio.</div>';return}
   await caricaFoto();
   if(CAT.passo==='ed'&&CAT.c)return catEditor(v);
   if(CAT.passo==='prod'&&CAT.c)return catScegli(v);
