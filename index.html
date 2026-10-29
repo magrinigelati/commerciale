@@ -487,17 +487,17 @@ function bar(){
   $('#go').disabled=view==='sum'&&!righe;
 }
 $('#go').onclick=()=>{if(view==='mag')magConferma();else if(view==='sum')confermaInvio();else go('sum')};
-const TITOLI={home:'Area commerciale',fam:'Foglio di carico',mod:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio',foto:'Foto prodotti',mag:'Magazzino'};
+const TITOLI={home:'Area commerciale',fam:'Foglio di carico',mod:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio',foto:'Foto prodotti',cat:'Catalogo cliente',mag:'Magazzino'};
 function testata(){const mt=$('#mtabs');if(mt){mt.hidden=view!=='mag';if(view==='mag')magTabs(mt)}const car=view==='fam'||view==='mod'||view==='sum';schermoAcceso(car);const h=view==='home';$('#home').hidden=h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!car;$('#data').hidden=!car;const magMod=view==='mag'&&magInMod();document.body.classList.toggle('wide',view==='mod'||magMod);if(view!=='mod'&&!magMod)mEsci()}
 $('#home').onclick=()=>{docCart=null;go('home')};
 // navigazione: ogni passaggio entra nella cronologia del telefono, cosi' lo swipe indietro torna alla schermata precedente
-function snap(){return {mc:1,view,fam,sub,docCart,docDaHome,uffTab,catFam,fotoFam,magTab:MAG.tab}}
+function snap(){return {mc:1,view,fam,sub,docCart,docDaHome,uffTab,catFam,fotoFam,magTab:MAG.tab,catPasso:CAT.passo}}
 function nav(){try{history.pushState(snap(),'')}catch(e){}}
 function indietro(){if(history.state&&history.state.mc&&history.length>1)history.back();else go('home')}
 window.addEventListener('popstate',e=>{const s=e.state;if(!s||!s.mc||!ME||$('#s-app').hidden)return;
-  view=s.view;fam=s.fam;sub=s.sub;docCart=s.docCart;docDaHome=s.docDaHome;uffTab=s.uffTab;catFam=s.catFam??null;fotoFam=s.fotoFam??null;if(s.magTab)MAG.tab=s.magTab;
+  view=s.view;fam=s.fam;sub=s.sub;docCart=s.docCart;docDaHome=s.docDaHome;uffTab=s.uffTab;catFam=s.catFam??null;fotoFam=s.fotoFam??null;if(s.magTab)MAG.tab=s.magTab;if(s.view==='cat'){CAT.passo=CAT.c?(s.catPasso||'lista'):'lista';if(CAT.passo==='lista')CAT.c=null}
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===view));render();window.scrollTo(0,0)});
-function go(v){view=v;if(v!=='fam'){fam=null;sub=null}if(v!=='foto')fotoFam=null;document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));nav();render();window.scrollTo(0,0)}
+function go(v){view=v;if(v==='cat'){CAT.passo='lista';CAT.c=null}if(v!=='fam'){fam=null;sub=null}if(v!=='foto')fotoFam=null;document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));nav();render();window.scrollTo(0,0)}
 
 /* ================= RIGHE PRODOTTO ================= */
 function rowHtml(p,showSec,o){
@@ -1752,6 +1752,7 @@ async function renderHome(v){
     <button class="tile" data-go="ord"><b>I miei ordini</b><span>Ultimi 31 giorni, con PDF da condividere</span></button>
     ${ME.magazzino?`<button class="tile" data-go="mag"><b>Magazzino</b> <span class="nov">novità</span><span>Giacenze, carico da ordine, scarico</span></button>`:''}
     <button class="tile" data-go="foto"><b>Foto prodotti</b><span>Per famiglia, da scaricare o condividere</span></button>
+    <button class="tile" data-go="cat"><b>Catalogo cliente</b> <span class="nov">novità</span><span>Depliant con prodotti, prezzi e logo del cliente</span></button>
     <div id="hdoc" style="display:contents"></div>
     ${['ufficio','admin'].includes(ME.ruolo)?'<button class="tile uff" data-go="uff"><b>Ufficio</b><span>Ordini ricevuti, account, documenti</span></button>':''}
    </div>`;
@@ -1761,6 +1762,230 @@ async function renderHome(v){
     h.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{docCart=b.dataset.c;docDaHome=true;go('doc')})}catch(e){}
 }
 
+
+/* ================= CATALOGO CLIENTE ================= */
+// Depliant personalizzato per un cliente: prodotti scelti con foto, prezzo facoltativo, logo del cliente.
+// Si salva nel portale (tabella cataloghi) e si esporta in PDF A4 o in immagini JPG/PNG da condividere o stampare.
+const CAT_NOTA='Gli ingredienti e gli allergeni sono riportati sulle confezioni dei prodotti. In caso di allergie o intolleranze chiedi al personale prima di ordinare. Le immagini hanno valore indicativo.';
+const CAT_COLORI=[['#1d3f9e','Blu'],['#c8102e','Rosso'],['#0a7d3b','Verde'],['#6a2c91','Viola'],['#d9480f','Arancio'],['#1b1b1b','Nero']];
+const CAT_FORME=[['nessuna','Nessuna cornice'],['cerchio','Cerchio'],['quadrato','Quadrato'],['smussato','Rettangolo smussato']];
+const CAT={passo:'lista',lista:null,c:null,q:'',fam:null,uscite:null,sporco:false};
+const catNuovo=()=>({id:null,cliente:'',logo:null,dati:{titolo:'I nostri gelati',sotto:'',col:3,colore:CAT_COLORI[0][0],forma:'smussato',prezzi:true,gruppi:true,nota:CAT_NOTA,voci:[]}});
+const catNome=p=>{const f=FOTO&&fotoDi(p);const n=(f&&!f.propria&&f.nome)||p[2];return n.charAt(0).toUpperCase()+n.slice(1)};
+const catPrezzo=s=>{s=String(s||'').trim().replace(/^€\s*/,'');if(!s)return '';const n=parseFloat(s.replace(',','.'));return isNaN(n)?s:'€ '+n.toFixed(2).replace('.',',')};
+const catBozzaK=()=>'mc_catbozza_'+ME.id;
+
+async function renderCat(v){
+  await caricaFoto();
+  if(CAT.passo==='ed'&&CAT.c)return catEditor(v);
+  if(CAT.passo==='prod'&&CAT.c)return catScegli(v);
+  if(CAT.passo==='ant'&&CAT.c)return catAnteprima(v);
+  CAT.passo='lista';v.innerHTML='<div class="empty">Carico i cataloghi…</div>';
+  const {data,error}=await sb.from('cataloghi').select('id,cliente,dati,aggiornato_il').eq('utente_id',ME.id).order('aggiornato_il',{ascending:false});
+  const bozza=store.get(catBozzaK(),null);
+  if(error){v.innerHTML=`<div class="empty">${/cataloghi/.test(error.message||'')?'Funzione non ancora attiva: avvisa l\'ufficio.':'Non riesco a leggere i cataloghi. Riprova tra poco.'}</div>`;return}
+  CAT.lista=data;
+  v.innerHTML=`<p class="note" style="margin:0 0 12px">Crea un depliant per un cliente: scegli i prodotti, metti i prezzi se vuoi e il suo logo. Lo scarichi in PDF da stampare o in immagine da mandare su WhatsApp.</p>
+   <div class="btns" style="margin:0 0 14px"><button class="btn main" id="cnew">+ Nuovo catalogo</button>${bozza?'<button class="btn" id="cbz">Riprendi la bozza non salvata</button>':''}</div>
+   ${data.length?`<div class="lbl">I miei cataloghi</div><div class="list">${data.map(c=>`<div class="oi"><div class="n"><b>${esc(c.cliente)}</b><small>${esc(c.dati.titolo||'')} · ${(c.dati.voci||[]).length} prodotti · ${c.dati.prezzi?'con prezzi':'senza prezzi'} · aggiornato ${new Date(c.aggiornato_il).toLocaleDateString('it-IT')}</small></div><button class="btn" data-ca="${c.id}">Apri</button><button class="btn del" data-cd="${c.id}">Elimina</button></div>`).join('')}</div>`:'<div class="empty">Nessun catalogo ancora.</div>'}`;
+  $('#cnew').onclick=()=>{CAT.c=catNuovo();CAT.sporco=false;catVai('ed')};
+  if(bozza)$('#cbz').onclick=()=>{CAT.c=bozza;CAT.sporco=true;catVai('ed')};
+  v.querySelectorAll('[data-ca]').forEach(b=>b.onclick=async()=>{b.disabled=true;const {data:c,error}=await sb.from('cataloghi').select('*').eq('id',b.dataset.ca).single();b.disabled=false;
+    if(error)return alert('Non riesco ad aprirlo: '+error.message);c.dati={...catNuovo().dati,...c.dati};CAT.c=c;CAT.sporco=false;catVai('ed')});
+  v.querySelectorAll('[data-cd]').forEach(b=>{let pronto=false;b.onclick=async()=>{
+    if(!pronto){pronto=true;b.textContent='Tocca di nuovo';setTimeout(()=>{pronto=false;if(b.isConnected)b.textContent='Elimina'},4000);return}
+    const c=data.find(x=>x.id==b.dataset.cd);if(!(await mChiedi({t:'Eliminare il catalogo di '+c.cliente+'?',s:'Non si può recuperare.',ok:'Sì, elimina'})))return;
+    const {error}=await sb.from('cataloghi').delete().eq('id',c.id);if(error)return alert(error.message);renderCat(v)}});
+}
+function catVai(p){CAT.passo=p;CAT.uscite=null;nav();render();window.scrollTo(0,0)}
+function catTocca(){CAT.sporco=true;CAT.uscite=null;store.set(catBozzaK(),CAT.c)}
+async function catSalva(msg){const c=CAT.c;
+  if(!c.cliente.trim()){msg.className='msg err';msg.textContent='Scrivi il nome del cliente.';return false}
+  msg.className='msg';msg.textContent='Salvo…';
+  const riga={cliente:c.cliente.trim(),dati:c.dati,logo:c.logo,aggiornato_il:new Date().toISOString()};
+  const r=c.id?await sb.from('cataloghi').update(riga).eq('id',c.id).select('id').single():await sb.from('cataloghi').insert(riga).select('id').single();
+  if(r.error){msg.className='msg err';msg.textContent='Salvataggio non riuscito: '+r.error.message;return false}
+  c.id=r.data.id;CAT.sporco=false;try{localStorage.removeItem(catBozzaK())}catch(e){}
+  msg.className='msg ok';msg.textContent='Catalogo salvato.';return true}
+
+function catEditor(v){const c=CAT.c,d=c.dati;
+  const chip=(k,val,lab,on)=>`<button type="button" data-ch="${k}" data-val="${esc(String(val))}" aria-pressed="${on}">${esc(lab)}</button>`;
+  v.innerHTML=`<div class="back"><button id="bk">‹ Cataloghi</button><h2>${c.id?'Modifica catalogo':'Nuovo catalogo'}</h2></div>
+   <div class="field"><label for="ccl">Cliente</label><input id="ccl" value="${esc(c.cliente)}" placeholder="es. Bar Centrale" maxlength="60"></div>
+   <div class="field"><label for="ctt">Titolo del depliant</label><input id="ctt" value="${esc(d.titolo)}" maxlength="50"></div>
+   <div class="field"><label for="cst">Sottotitolo (facoltativo)</label><input id="cst" value="${esc(d.sotto)}" placeholder="es. indirizzo o telefono del locale" maxlength="80"></div>
+   <div class="lbl">Logo del cliente</div>
+   <div class="card" style="padding:12px"><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+     <div id="clp" style="width:110px;height:110px;display:grid;place-items:center;background:var(--ice);border-radius:12px;overflow:hidden">${c.logo?`<img src="${c.logo}" alt="Logo" style="max-width:100%;max-height:100%">`:'<span class="note">nessun logo</span>'}</div>
+     <div style="flex:1;min-width:180px"><input type="file" id="clf" accept="image/png,image/jpeg,image/webp"><p class="note" id="clm" style="margin:6px 0 0">Meglio un PNG trasparente. Se ha lo sfondo, scegli una cornice.</p>${c.logo?'<button class="btn" id="clx" style="margin-top:6px">Togli logo</button>':''}</div></div>
+     <div class="chips" style="margin-top:10px">${CAT_FORME.map(([k,l])=>chip('forma',k,l,d.forma===k)).join('')}</div></div>
+   <div class="lbl">Aspetto</div>
+   <div class="field"><label>Colonne</label><div class="chips">${chip('col',2,'2 per riga (foto grandi)',d.col==2)}${chip('col',3,'3 per riga',d.col==3)}</div></div>
+   <div class="field"><label>Colore</label><div class="chips">${CAT_COLORI.map(([k,l])=>`<button type="button" data-ch="colore" data-val="${k}" aria-pressed="${d.colore===k}"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${k};margin-right:6px;vertical-align:-1px"></span>${l}</button>`).join('')}</div></div>
+   <div class="field"><label>Prezzi</label><div class="chips">${chip('prezzi',1,'Con prezzi',!!d.prezzi)}${chip('prezzi',0,'Senza prezzi',!d.prezzi)}</div></div>
+   <div class="field"><label>Raggruppa per famiglia</label><div class="chips">${chip('gruppi',1,'Sì, con titoli',!!d.gruppi)}${chip('gruppi',0,'No, tutto di seguito',!d.gruppi)}</div></div>
+   <div class="lbl" id="cvn">Prodotti (${d.voci.length})</div>
+   <div id="cvl"></div>
+   <div class="btns" style="margin-top:8px"><button class="btn main" id="cadd">+ Aggiungi prodotti</button></div>
+   <div class="field" style="margin-top:16px"><label for="cnt">Nota in fondo a ogni pagina</label><textarea id="cnt" rows="4" style="padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:15px">${esc(d.nota)}</textarea><button type="button" class="btn" id="cnr" style="align-self:flex-start">Rimetti la nota standard</button></div>
+   <div class="btns"><button class="btn main" id="cant">Anteprima e stampa</button><button class="btn" id="csv">Salva</button></div><div id="cmsg" class="msg"></div>`;
+  $('#bk').onclick=async()=>{if(CAT.sporco&&!(await mChiedi({t:'Uscire senza salvare?',s:'La bozza resta su questo telefono e la puoi riprendere.',ok:'Esci'})))return;CAT.passo='lista';CAT.c=null;render()};
+  $('#ccl').oninput=e=>{c.cliente=e.target.value;catTocca()};
+  $('#ctt').oninput=e=>{d.titolo=e.target.value;catTocca()};
+  $('#cst').oninput=e=>{d.sotto=e.target.value;catTocca()};
+  $('#cnt').oninput=e=>{d.nota=e.target.value;catTocca()};
+  $('#cnr').onclick=()=>{d.nota=CAT_NOTA;$('#cnt').value=CAT_NOTA;catTocca()};
+  v.querySelectorAll('[data-ch]').forEach(b=>b.onclick=()=>{const k=b.dataset.ch,val=b.dataset.val;d[k]=k==='col'?+val:(k==='prezzi'||k==='gruppi')?val==='1':val;catTocca();
+    v.querySelectorAll(`[data-ch="${k}"]`).forEach(x=>x.setAttribute('aria-pressed',x===b));if(k==='prezzi')voci()});
+  $('#clf').onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$('#clm');m.textContent='Preparo il logo…';
+    try{const r=await catLogo(f);c.logo=r.url;d.forma=r.trasp?'nessuna':(d.forma==='nessuna'?'smussato':d.forma);catTocca();catEditor(v);
+      $('#clm').textContent=r.trasp?'Logo trasparente: va bene senza cornice.':'Il logo ha uno sfondo: l\'ho messo in un rettangolo smussato, puoi cambiare forma.'}
+    catch(err){m.textContent='Logo non leggibile: '+(err.message||err)}};
+  if($('#clx'))$('#clx').onclick=()=>{c.logo=null;catTocca();catEditor(v)};
+  $('#cadd').onclick=()=>catVai('prod');
+  $('#csv').onclick=()=>catSalva($('#cmsg'));
+  $('#cant').onclick=async()=>{if(!d.voci.length){$('#cmsg').className='msg err';$('#cmsg').textContent='Aggiungi almeno un prodotto.';return}
+    if(CAT.sporco&&!(await catSalva($('#cmsg'))))return;catVai('ant')};
+  function voci(){const el=$('#cvl');if(!el)return;$('#cvn').textContent='Prodotti ('+d.voci.length+')';
+    if(!d.voci.length){el.innerHTML='<div class="empty" style="padding:14px">Nessun prodotto: premi Aggiungi prodotti.</div>';return}
+    el.innerHTML=`<div class="list">${d.voci.map((x,i)=>{const p=byId[x.p];const f=p&&fotoDi(p);return `<div class="sr" style="align-items:center;gap:8px">
+      ${f?`<img src="${esc(f.thumb||f.img)}" alt="" style="width:46px;height:46px;object-fit:contain;flex:none">`:'<span style="width:46px;height:46px;flex:none;background:var(--ice);border-radius:8px;display:grid;place-items:center;font-size:10px;color:var(--muted);text-align:center">no foto</span>'}
+      <div class="n" style="flex:1;min-width:0"><input data-vn="${i}" value="${esc(x.n||'')}" placeholder="${esc(p?catNome(p):'prodotto non più a catalogo')}" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:15px">
+      ${d.prezzi?`<input data-vp="${i}" value="${esc(x.pr||'')}" inputmode="decimal" placeholder="Prezzo €" style="width:110px;margin-top:6px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:15px">`:''}</div>
+      <div style="display:flex;flex-direction:column;gap:4px"><button data-vu="${i}" aria-label="Su" ${i?'':'disabled'}>▲</button><button data-vd="${i}" aria-label="Giù" ${i<d.voci.length-1?'':'disabled'}>▼</button></div><button data-vx="${i}" aria-label="Togli">Togli</button></div>`}).join('')}</div>`;
+    el.querySelectorAll('[data-vn]').forEach(x=>x.oninput=()=>{d.voci[+x.dataset.vn].n=x.value;catTocca()});
+    el.querySelectorAll('[data-vp]').forEach(x=>x.oninput=()=>{d.voci[+x.dataset.vp].pr=x.value;catTocca()});
+    el.querySelectorAll('[data-vu]').forEach(x=>x.onclick=()=>{const i=+x.dataset.vu;[d.voci[i-1],d.voci[i]]=[d.voci[i],d.voci[i-1]];catTocca();voci()});
+    el.querySelectorAll('[data-vd]').forEach(x=>x.onclick=()=>{const i=+x.dataset.vd;[d.voci[i+1],d.voci[i]]=[d.voci[i],d.voci[i+1]];catTocca();voci()});
+    el.querySelectorAll('[data-vx]').forEach(x=>x.onclick=()=>{d.voci.splice(+x.dataset.vx,1);catTocca();voci()})}
+  voci();
+}
+// logo: ridotto a max 700 px; se ha trasparenza resta PNG, altrimenti JPEG
+async function catLogo(file){const bm=await createImageBitmap(file);const k=Math.min(1,700/Math.max(bm.width,bm.height));
+  const cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(bm.width*k));cv.height=Math.max(1,Math.round(bm.height*k));const x=cv.getContext('2d');x.drawImage(bm,0,0,cv.width,cv.height);
+  const px=x.getImageData(0,0,cv.width,cv.height).data;let tr=0;for(let i=3;i<px.length;i+=16)if(px[i]<240)tr++;const trasp=tr>px.length/16*0.02;
+  if(trasp)return {url:cv.toDataURL('image/png'),trasp};
+  const c2=document.createElement('canvas');c2.width=cv.width;c2.height=cv.height;const y=c2.getContext('2d');y.fillStyle='#fff';y.fillRect(0,0,c2.width,c2.height);y.drawImage(cv,0,0);return {url:c2.toDataURL('image/jpeg',.9),trasp}}
+
+function catScegli(v){const d=CAT.c.dati;const sel=new Set(d.voci.map(x=>x.p));
+  v.innerHTML=`<div class="back"><button id="bk">‹ Fatto (${sel.size})</button><h2>Scegli i prodotti</h2></div>
+   <div class="field" style="margin-bottom:10px"><input id="cq" type="search" placeholder="Cerca prodotto" value="${esc(CAT.q)}" autocomplete="off" aria-label="Cerca prodotto"></div><div id="cr"></div>
+   <div class="btns" style="position:sticky;bottom:96px"><button class="btn main" id="cok">Fatto: ${sel.size} prodotti</button></div>`;
+  const fine=()=>{CAT.fam=null;catVai('ed')};$('#bk').onclick=fine;$('#cok').onclick=fine;
+  const aggiorna=()=>{$('#bk').textContent=`‹ Fatto (${sel.size})`;$('#cok').textContent=`Fatto: ${sel.size} prodotti`};
+  const card=p=>{const f=fotoDi(p),on=sel.has(p[0]);return `<button class="fcard${on?' on':''}" data-cp="${p[0]}" aria-pressed="${on}" style="${on?'outline:3px solid var(--ok);outline-offset:-3px':''}">${f?`<img src="${esc(f.thumb||f.img)}" alt="" loading="lazy">`:'<div style="aspect-ratio:1;display:grid;place-items:center;background:var(--ice);color:var(--muted);font-size:13px">senza foto</div>'}<b>${on?'✓ ':''}${esc(catNome(p))}</b><small>${esc(S[p[1]])}</small></button>`};
+  const bind=el=>el.querySelectorAll('[data-cp]').forEach(b=>b.onclick=()=>{const id=+b.dataset.cp;
+    if(sel.has(id)){sel.delete(id);d.voci=d.voci.filter(x=>x.p!==id)}else{sel.add(id);d.voci.push({p:id,n:'',pr:''})}catTocca();
+    b.outerHTML=card(byId[id]);bind(el);aggiorna()});
+  const cr=$('#cr'),cq=$('#cq');
+  const mostra=()=>{const q=CAT.q.trim();
+    if(q.length>=2){const hits=search(q).slice(0,60);cr.innerHTML=hits.length?`<div class="fgrid">${hits.map(card).join('')}</div>`:`<div class="empty">Nessun prodotto per “${esc(q)}”.</div>`;bind(cr);return}
+    if(CAT.fam==null){cr.innerHTML=`<p class="note" style="margin:0 0 10px">Tocca una famiglia, poi i prodotti da mettere nel catalogo (tocca di nuovo per toglierli).</p><div class="fams">${ordineFoto().map(i=>{const n=P.filter(p=>p[1]===i&&sel.has(p[0])).length;return `<button class="fam" data-cf="${i}"><b>${esc(S[i])}</b><span>${n?n+' scelti':P.filter(p=>p[1]===i).length+' prodotti'}</span></button>`}).join('')}</div>`;
+      cr.querySelectorAll('[data-cf]').forEach(b=>b.onclick=()=>{CAT.fam=+b.dataset.cf;mostra();window.scrollTo(0,0)});return}
+    const ps=P.filter(p=>p[1]===CAT.fam);
+    cr.innerHTML=`<div class="btns" style="margin:0 0 10px"><button class="btn" id="cfb">‹ Famiglie</button><button class="btn" id="cfa">Seleziona tutta la famiglia</button></div><div class="lbl">${esc(S[CAT.fam])}</div><div class="fgrid">${ps.map(card).join('')}</div>`;
+    $('#cfb').onclick=()=>{CAT.fam=null;mostra()};
+    $('#cfa').onclick=()=>{ps.forEach(p=>{if(!sel.has(p[0])){sel.add(p[0]);d.voci.push({p:p[0],n:'',pr:''})}});catTocca();mostra();aggiorna()};
+    bind(cr)};
+  let t;cq.oninput=()=>{CAT.q=cq.value;clearTimeout(t);t=setTimeout(mostra,150)};mostra();
+}
+
+/* ---- disegno delle pagine (A4 a 200 dpi) ---- */
+const CW=1654,CH=2339;
+function catRR(x,X,Y,W,H,r){r=Math.min(r,W/2,H/2);x.beginPath();x.moveTo(X+r,Y);x.arcTo(X+W,Y,X+W,Y+H,r);x.arcTo(X+W,Y+H,X,Y+H,r);x.arcTo(X,Y+H,X,Y,r);x.arcTo(X,Y,X+W,Y,r);x.closePath()}
+function catRighe(x,t,w,max){const par=String(t||'').split(/\s+/);const out=[];let r='';
+  for(const p of par){const n=r?r+' '+p:p;if(x.measureText(n).width<=w||!r)r=n;else{out.push(r);r=p}}if(r)out.push(r);
+  if(out.length>max){out.length=max;let u=out[max-1];while(u.length&&x.measureText(u+'…').width>w)u=u.slice(0,-1);out[max-1]=u+'…'}return out}
+async function catImg(src){if(!src)return null;try{if(src.startsWith('data:')){const b=await (await fetch(src)).blob();return await createImageBitmap(b)}
+  const r=await fetch(src,{mode:'cors'});if(!r.ok)return null;return await createImageBitmap(await r.blob())}catch(e){return null}}
+function catContain(x,im,X,Y,W,H){const k=Math.min(W/im.width,H/im.height);const w=im.width*k,h=im.height*k;x.drawImage(im,X+(W-w)/2,Y+(H-h)/2,w,h)}
+function catCover(x,im,X,Y,W,H){const k=Math.max(W/im.width,H/im.height);const w=im.width*k,h=im.height*k;x.drawImage(im,X+(W-w)/2,Y+(H-h)/2,w,h)}
+const FD='"Barlow Condensed", "Arial Narrow", Arial, sans-serif',FB='Barlow, Arial, sans-serif';
+async function catDisegna(c,prog){const d=c.dati,col=d.colore||'#1d3f9e',nc=d.col==2?2:3;
+  try{await Promise.all(['700 60px "Barlow Condensed"','600 40px "Barlow Condensed"','500 30px Barlow','600 30px Barlow'].map(f=>document.fonts.load(f)))}catch(e){}
+  const voci=d.voci.filter(x=>byId[x.p]);
+  const imgs=[];for(let i=0;i<voci.length;i++){const f=fotoDi(byId[voci[i].p]);imgs.push(await catImg(f&&f.img));if(prog)prog(i+1,voci.length)}
+  const logo=await catImg(c.logo),mag=await catImg('img/logo-magrini.png');
+  // elementi da impaginare: titoli di famiglia e righe di prodotti
+  const blocchi=[];const gruppi=[];
+  voci.forEach((x,i)=>{const p=byId[x.p];const g=d.gruppi?S[p[1]]:'';let G=gruppi.find(z=>z.g===g);if(!G){G={g,it:[]};gruppi.push(G)}G.it.push(i)});
+  gruppi.forEach(G=>{if(G.g)blocchi.push({t:'h',g:G.g});for(let i=0;i<G.it.length;i+=nc)blocchi.push({t:'r',it:G.it.slice(i,i+nc)})});
+  const M=90,GAP=28,cw=(CW-2*M-GAP*(nc-1))/nc,foto=Math.round(cw*(nc==2?.62:.72));
+  const altoNome=nc==2?130:116,cellH=foto+40+altoNome+(d.prezzi?70:20),HH=66;
+  // testata della prima pagina
+  const testa1=()=>{let h=M;if(logo)h+=nc==2?300:280;h+=110;if(d.sotto)h+=50;return h+30};
+  const PIEDE=230;
+  const pagine=[];let cur=null,y=0;
+  const nuova=()=>{cur={b:[]};pagine.push(cur);y=pagine.length===1?testa1():M+90};
+  nuova();
+  blocchi.forEach((b,k)=>{const h=b.t==='h'?HH:cellH+GAP;const succ=blocchi[k+1];const serve=b.t==='h'&&succ?h+cellH:h;
+    if(y+serve>CH-PIEDE)nuova();cur.b.push({...b,y});y+=h});
+  const out=[];
+  pagine.forEach((pg,pi)=>{const cv=document.createElement('canvas');cv.width=CW;cv.height=CH;const x=cv.getContext('2d');
+    x.fillStyle='#fff';x.fillRect(0,0,CW,CH);x.textBaseline='alphabetic';
+    // banda colorata in alto
+    x.fillStyle=col;x.fillRect(0,0,CW,22);
+    if(pi===0){let ty=M;
+      if(logo){const LH=nc==2?260:240,LW=Math.min(CW-2*M,LH*2.4);
+        const forma=d.forma||'nessuna';
+        if(forma==='nessuna'){catContain(x,logo,(CW-LW)/2,ty,LW,LH)}
+        else{let w,h;if(forma==='cerchio'||forma==='quadrato'){w=h=LH}else{h=LH;w=Math.min(LW,Math.max(LH,LH*logo.width/logo.height))}
+          const X=(CW-w)/2;x.save();if(forma==='cerchio'){x.beginPath();x.arc(CW/2,ty+h/2,h/2,0,Math.PI*2)}else catRR(x,X,ty,w,h,forma==='quadrato'?18:h*.22);
+          x.fillStyle='#fff';x.fill();x.clip();
+          if(forma==='smussato')catContain(x,logo,X,ty,w,h);else catCover(x,logo,X,ty,w,h);x.restore();
+          x.save();if(forma==='cerchio'){x.beginPath();x.arc(CW/2,ty+h/2,h/2,0,Math.PI*2)}else catRR(x,X,ty,w,h,forma==='quadrato'?18:h*.22);x.lineWidth=5;x.strokeStyle=col;x.stroke();x.restore()}
+        ty+=LH+40}
+      x.fillStyle=col;x.textAlign='center';x.font='700 96px '+FD;x.fillText((d.titolo||'').toUpperCase(),CW/2,ty+80,CW-2*M);ty+=110;
+      if(d.sotto){x.fillStyle='#555';x.font='500 36px '+FB;x.fillText(d.sotto,CW/2,ty+30,CW-2*M)}
+    }else{x.fillStyle=col;x.textAlign='left';x.font='700 54px '+FD;x.fillText((d.titolo||'').toUpperCase(),M,M+40,CW*.6);
+      if(logo){const h=80;const w=Math.min(260,h*logo.width/logo.height);catContain(x,logo,CW-M-w,M-20,w,h)}
+      x.fillStyle='#ddd';x.fillRect(M,M+64,CW-2*M,3)}
+    pg.b.forEach(b=>{
+      if(b.t==='h'){x.fillStyle=col;x.textAlign='left';x.font='700 44px '+FD;const t=b.g.toUpperCase();x.fillText(t,M,b.y+44);const w=x.measureText(t).width;x.fillRect(M+w+20,b.y+28,CW-2*M-w-20,4);return}
+      b.it.forEach((i,j)=>{const X=M+j*(cw+GAP),Y=b.y,vo=voci[i],p=byId[vo.p],im=imgs[i];
+        x.fillStyle='#f6f7fa';catRR(x,X,Y,cw,cellH,26);x.fill();
+        const fx=X+(cw-foto)/2,fy=Y+20;
+        if(im)catContain(x,im,fx,fy,foto,foto);else{x.fillStyle='#e9ecf2';catRR(x,fx,fy,foto,foto,18);x.fill();x.fillStyle='#9aa3b2';x.font='500 30px '+FB;x.textAlign='center';x.fillText('foto non disponibile',X+cw/2,fy+foto/2)}
+        x.fillStyle='#14213d';x.textAlign='center';x.font=(nc==2?'700 46px ':'700 40px ')+FD;
+        const righe=catRighe(x,vo.n||catNome(p),cw-40,2);righe.forEach((r,k)=>x.fillText(r,X+cw/2,fy+foto+52+k*(nc==2?46:40)));
+        if(d.prezzi){const pr=catPrezzo(vo.pr);if(pr){x.font='700 50px '+FD;const w=x.measureText(pr).width+48;const py=Y+cellH-80;
+          x.fillStyle=col;catRR(x,X+(cw-w)/2,py,w,62,31);x.fill();x.fillStyle='#fff';x.fillText(pr,X+cw/2,py+48)}}})});
+    // piede: nota unica, logo Magrini, numero pagina
+    const py=CH-PIEDE+40;x.fillStyle='#ddd';x.fillRect(M,py,CW-2*M,3);
+    x.fillStyle='#555';x.textAlign='left';x.font='500 27px '+FB;const nr=catRighe(x,d.nota||'',CW-2*M-280,4);nr.forEach((r,k)=>x.fillText(r,M,py+46+k*34));
+    if(mag){const h=86,w=h*mag.width/mag.height;x.drawImage(mag,CW-M-w,py+22,w,h)}
+    x.fillStyle='#999';x.textAlign='right';x.font='500 24px '+FB;x.fillText(pagine.length>1?`pagina ${pi+1} di ${pagine.length}`:'',CW-M,py+150);
+    x.fillStyle=col;x.fillRect(0,CH-22,CW,22);
+    out.push(cv)});
+  return out}
+const catBlob=(cv,t,q)=>new Promise((res,rej)=>cv.toBlob(b=>b?res(b):rej(new Error('immagine non creata')),t,q));
+async function catPdf(cvs){const {PDFDocument}=PDFLib;const doc=await PDFDocument.create();
+  for(const cv of cvs){const jpg=await doc.embedJpg(await (await catBlob(cv,'image/jpeg',.9)).arrayBuffer());const pg=doc.addPage([595.28,841.89]);pg.drawImage(jpg,{x:0,y:0,width:595.28,height:841.89})}
+  return new Blob([await doc.save()],{type:'application/pdf'})}
+
+async function catAnteprima(v){const c=CAT.c;const base=slug('catalogo '+(c.cliente||'cliente'));
+  v.innerHTML=`<div class="back"><button id="bk">‹ Modifica</button><h2>Anteprima</h2></div><div class="msg" id="cam">Preparo le pagine…</div><div id="cap"></div>`;
+  $('#bk').onclick=()=>catVai('ed');
+  try{
+    if(!CAT.uscite){const cvs=await catDisegna(c,(i,n)=>{const m=$('#cam');if(m)m.textContent=`Preparo le foto… ${i}/${n}`});
+      const m=$('#cam');if(m)m.textContent='Creo il PDF…';
+      const pdf=await catPdf(cvs);const jpg=[];const png=[];for(const cv of cvs){jpg.push(await catBlob(cv,'image/jpeg',.9));png.push(await catBlob(cv,'image/png'))}
+      CAT.uscite={n:cvs.length,pdf,jpg,png,url:jpg.map(b=>URL.createObjectURL(b))}}
+    const U=CAT.uscite;if(!$('#cap'))return;
+    const n=U.n,nomi=k=>n>1?`-${k+1}`:'';
+    const fPdf=new File([U.pdf],base+'.pdf',{type:'application/pdf'}),fJpg=U.jpg.map((b,k)=>new File([b],base+nomi(k)+'.jpg',{type:'image/jpeg'})),fPng=U.png.map((b,k)=>new File([b],base+nomi(k)+'.png',{type:'image/png'}));
+    $('#cam').className='msg';$('#cam').textContent=`${n} ${n===1?'pagina':'pagine'} A4. Il PDF è per la stampa; le immagini per WhatsApp o i social.`;
+    $('#cap').innerHTML=`<div class="btns" style="margin:0 0 12px"><button class="btn main" id="csp">Condividi PDF</button><button class="btn" id="cop">Apri PDF</button><button class="btn" id="cdp">Scarica e stampa</button>
+      <button class="btn main" id="csj">Condividi ${n>1?'immagini':'immagine'}</button><button class="btn" id="cdj">Scarica JPG</button><button class="btn" id="cdn">Scarica PNG</button></div>
+      ${U.url.map((u,k)=>`<img src="${u}" alt="Pagina ${k+1}" style="width:100%;display:block;margin:0 0 14px;border:1px solid var(--line);border-radius:6px;background:#fff">`).join('')}<div id="cxm" class="msg"></div>`;
+    const scarica=fs=>fs.forEach((f,k)=>setTimeout(()=>{const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)},k*400));
+    const condividi=async fs=>{const m=$('#cxm');try{if(navigator.canShare&&navigator.canShare({files:fs})){await navigator.share({files:fs,title:'Catalogo '+c.cliente});log('catalogo_condiviso',c.cliente)}else{scarica(fs);m.className='msg';m.textContent='Questo telefono non condivide file: li ho scaricati.'}}
+      catch(e){if(e.name!=='AbortError'){m.className='msg err';m.textContent='Condivisione non riuscita: riprova.'}}};
+    $('#csp').onclick=()=>condividi([fPdf]);$('#csj').onclick=()=>condividi(fJpg);
+    $('#cdp').onclick=()=>scarica([fPdf]);$('#cdj').onclick=()=>scarica(fJpg);$('#cdn').onclick=()=>scarica(fPng);
+    $('#cop').onclick=()=>{const u=URL.createObjectURL(U.pdf);window.open(u,'_blank')||(location.href=u)};
+  }catch(e){const m=$('#cam');if(m){m.className='msg err';m.textContent='Non riesco a creare il catalogo: '+(e.message||e)}}
+}
 
 /* ================= TEMA E SCHERMO ================= */
 // tema: sempre chiaro all'apertura, anche se il telefono e' in modalita' scura; lo scuro solo se l'utente lo sceglie con ☾ (si ricorda)
@@ -1791,7 +2016,7 @@ window.addEventListener('scroll',()=>{const y=window.scrollY,d=y-prevY;prevY=y;i
 
 /* ================= AVVIO ================= */
 async function render(){const v=$('#view');if(typeof setMini==='function')setMini(false);MM=view==='mag'?(MAG.tab==='giac'&&MAG.gsv==='mod'?MM_GIAC:MAG.tab==='sc'&&MAG.scv==='mod'?MM_SC:MAG.tab==='car'&&MAG.ord&&MAG.carv==='mod'?MM_CAR:MAG.tab==='inv'&&MAG.inv&&MAG.invv==='mod'?MM_INV:MM_MAG):MM_ORD;
-  if(view==='fam'){renderFam(v);bannerModifica(v)}else if(view==='mod'){renderMod(v);bannerModifica(v)}else if(view==='sum'){renderSum(v);bannerModifica(v)}else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);else if(view==='mag')await renderMag(v);testata();bar();if(view==='mod'||(view==='mag'&&magInMod()))mAltezza()}
+  if(view==='fam'){renderFam(v);bannerModifica(v)}else if(view==='mod'){renderMod(v);bannerModifica(v)}else if(view==='sum'){renderSum(v);bannerModifica(v)}else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);else if(view==='mag')await renderMag(v);else if(view==='cat')await renderCat(v);testata();bar();if(view==='mod'||(view==='mag'&&magInMod()))mAltezza()}
 sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')show('s-login')});
 avvia();
 </script>
