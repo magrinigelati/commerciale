@@ -1771,7 +1771,7 @@ const CAT_NOTA='Gli ingredienti e gli allergeni sono riportati sulle confezioni 
 const CAT_COLORI=[['#1d3f9e','Blu'],['#c8102e','Rosso'],['#0a7d3b','Verde'],['#6a2c91','Viola'],['#d9480f','Arancio'],['#1b1b1b','Nero']];
 const CAT_FORME=[['nessuna','Nessuna cornice'],['cerchio','Cerchio'],['quadrato','Quadrato'],['smussato','Rettangolo smussato']];
 const CAT={passo:'lista',lista:null,c:null,q:'',fam:null,uscite:null,sporco:false};
-const catNuovo=()=>({id:null,cliente:'',logo:null,dati:{titolo:'I nostri gelati',sotto:'',col:3,colore:CAT_COLORI[0][0],forma:'smussato',stile:'onde',prezzi:true,gruppi:true,nota:CAT_NOTA,voci:[]}});
+const catNuovo=()=>({id:null,cliente:'',logo:null,dati:{titolo:'I nostri gelati',sotto:'',col:3,colore:CAT_COLORI[0][0],forma:'smussato',stile:'coni',prezzi:true,gruppi:true,nota:CAT_NOTA,voci:[]}});
 const catNome=p=>{const f=FOTO&&fotoDi(p);const n=(f&&!f.propria&&f.nome)||p[2];return n.charAt(0).toUpperCase()+n.slice(1)};
 const catPrezzo=s=>{s=String(s||'').trim().replace(/^€\s*/,'');if(!s)return '';const n=parseFloat(s.replace(',','.'));return isNaN(n)?s:'€ '+n.toFixed(2).replace('.',',')};
 const catAbilitato=()=>!!ME&&(ME.cataloghi===true||['ufficio','admin'].includes(ME.ruolo));
@@ -1823,7 +1823,7 @@ function catEditor(v){const c=CAT.c,d=c.dati;
      <div style="flex:1;min-width:180px"><input type="file" id="clf" accept="image/png,image/jpeg,image/webp"><p class="note" id="clm" style="margin:6px 0 0">Meglio un PNG trasparente. Se ha lo sfondo, scegli una cornice.</p>${c.logo?'<button class="btn" id="clx" style="margin-top:6px">Togli logo</button>':''}</div></div>
      <div class="chips" style="margin-top:10px">${CAT_FORME.map(([k,l])=>chip('forma',k,l,d.forma===k)).join('')}</div></div>
    <div class="lbl">Aspetto</div>
-   <div class="field"><label>Stile</label><div class="chips">${chip('stile','onde','Onde e bolle',(d.stile||'onde')==='onde')}${chip('stile','pois','Pois',d.stile==='pois')}${chip('stile','pulito','Pulito',d.stile==='pulito')}</div></div>
+   <div class="field"><label>Stile</label><div class="chips">${chip('stile','onde','Onde e bolle',(d.stile||'onde')==='onde')}${chip('stile','pois','Pois',d.stile==='pois')}${chip('stile','pulito','Pulito',d.stile==='pulito')}${CAT_SFONDI.map(z=>chip('stile',z.k,z.nome,d.stile===z.k)).join('')}</div></div>
    <div class="field"><label>Colonne</label><div class="chips">${chip('col',2,'2 per riga (foto grandi)',d.col==2)}${chip('col',3,'3 per riga',d.col==3)}</div></div>
    <div class="field"><label>Colore</label><div class="chips">${CAT_COLORI.map(([k,l])=>`<button type="button" data-ch="colore" data-val="${k}" aria-pressed="${d.colore===k}"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${k};margin-right:6px;vertical-align:-1px"></span>${l}</button>`).join('')}</div></div>
    <div class="field"><label>Prezzi</label><div class="chips">${chip('prezzi',1,'Con prezzi',!!d.prezzi)}${chip('prezzi',0,'Senza prezzi',!d.prezzi)}</div></div>
@@ -1911,7 +1911,9 @@ function catOnda(x,y0,amp,fase,colore,fino){x.beginPath();x.moveTo(0,0);x.lineTo
   for(let i=20;i>=0;i--){const X=CW*i/20;x.lineTo(X,y0+amp*Math.sin(fase+Math.PI*2*i/20))}x.closePath();x.fillStyle=colore;x.fill()}
 function catOndaGiu(x,y0,amp,fase,colore){x.beginPath();x.moveTo(0,CH);x.lineTo(CW,CH);
   for(let i=20;i>=0;i--){const X=CW*i/20;x.lineTo(X,y0+amp*Math.sin(fase+Math.PI*2*i/20))}x.closePath();x.fillStyle=colore;x.fill()}
-function catSfondo(x,stile,col,pi){
+const CAT_SFONDI=[{k:'coni',nome:'Coni pastello',img:'img/sfondi/coni-pastello.jpg',ml:250,mt:280,mb:230}];
+function catSfondo(x,stile,col,pi,bg){
+  if(bg){x.drawImage(bg,0,0,CW,CH);return}
   if(stile==='pulito'){x.fillStyle='#fff';x.fillRect(0,0,CW,CH);return}
   x.fillStyle=catMix(col,.95);x.fillRect(0,0,CW,CH);
   if(stile==='pois'){x.fillStyle=catMix(col,.86);for(let r=0;r*70<CH;r++)for(let c=0;c*70<CW+70;c++){x.beginPath();x.arc(c*70+(r%2?35:0),r*70+20,6,0,Math.PI*2);x.fill()}}
@@ -1926,11 +1928,11 @@ async function catDisegna(c,prog){const d=c.dati,col=d.colore||'#1d3f9e',nc=d.co
   const blocchi=[];const gruppi=[];
   voci.forEach((x,i)=>{const p=byId[x.p];const g=d.gruppi?S[p[1]]:'';let G=gruppi.find(z=>z.g===g);if(!G){G={g,it:[]};gruppi.push(G)}G.it.push(i)});
   gruppi.forEach(G=>{if(G.g)blocchi.push({t:'h',g:G.g});for(let i=0;i<G.it.length;i+=nc)blocchi.push({t:'r',it:G.it.slice(i,i+nc)})});
-  const M=90,GAP=30,cw=(CW-2*M-GAP*(nc-1))/nc,foto=Math.round(cw*(nc==2?.56:.7));
-  const altoNome=nc==2?142:132,cellH=foto+50+altoNome+(d.prezzi?70:20),HH=84;
-  const LH=nc==2?250:230;
-  const T1=M+(logo?LH+50:0)+120+(d.sotto?56:0)+40,T2=270;
-  const PIEDE=250;
+  const SF=CAT_SFONDI.find(z=>z.k===stile),bgImg=SF?await catImg(SF.img):null,M=SF?SF.ml:90,MT=SF?SF.mt:90,MB=SF?SF.mb:0,GAP=30,cw=(CW-2*M-GAP*(nc-1))/nc,foto=Math.round(cw*(SF?(nc==2?.5:.6):(nc==2?.56:.7)));
+  const altoNome=nc==2?(SF?116:142):132,cellH=foto+50+altoNome+(d.prezzi?70:20),HH=84;
+  const LH=SF?190:nc==2?250:230;
+  const T1=MT+(logo?LH+50:0)+120+(d.sotto?56:0)+40,T2=SF?MT+130:270;
+  const PIEDE=SF?MB+220:250;
   const pagine=[];let cur=null,y=0;
   const nuova=()=>{cur={b:[]};pagine.push(cur);y=pagine.length===1?T1:T2};
   nuova();
@@ -1949,19 +1951,19 @@ async function catDisegna(c,prog){const d=c.dati,col=d.colore||'#1d3f9e',nc=d.co
     if(forma!=='nessuna'){x.save();via();x.lineWidth=6;x.strokeStyle='#fff';x.stroke();x.restore()}};
   const out=[];
   pagine.forEach((pg,pi)=>{const cv=document.createElement('canvas');cv.width=CW;cv.height=CH;const x=cv.getContext('2d');x.textBaseline='alphabetic';
-    catSfondo(x,stile,col,pi);
+    catSfondo(x,stile,col,pi,bgImg);
     // testata
     const hTesta=pi===0?(logo?M+LH*.62:M+150):170;
-    if(stile==='onde'){catOnda(x,hTesta+40,34,.6,catMix(col,.55));catOnda(x,hTesta,30,0,col)}
+    if(SF){}else if(stile==='onde'){catOnda(x,hTesta+40,34,.6,catMix(col,.55));catOnda(x,hTesta,30,0,col)}
     else if(stile==='pois'){x.fillStyle=col;catRR(x,-40,-40,CW+80,hTesta+40,60);x.fill()}
     else{x.fillStyle=col;x.fillRect(0,0,CW,24)}
-    if(pi===0){let ty=M;
+    if(pi===0){let ty=MT;
       if(logo){disegnaLogo(x,CW/2,ty,LH,CW-2*M-200);ty+=LH+50}
-      const sopra=stile!=='pulito'&&!logo;
+      const sopra=stile!=='pulito'&&!logo&&!SF;
       x.textAlign='center';x.fillStyle=sopra?'#fff':col;x.font='700 104px '+FD;x.fillText((d.titolo||'').toUpperCase(),CW/2,ty+(logo?92:40),CW-2*M);ty+=logo?120:150;
       if(d.sotto){x.fillStyle='#4a5160';x.font='500 38px '+FB;x.fillText(d.sotto,CW/2,ty+36,CW-2*M)}}
-    else{const chiaro=stile!=='pulito';x.textAlign='left';x.fillStyle=chiaro?'#fff':col;x.font='700 60px '+FD;x.fillText((d.titolo||'').toUpperCase(),M,104,CW*.62);
-      if(logo){x.save();const h=96,w=Math.min(300,Math.max(h,h*logo.width/logo.height));x.shadowColor='rgba(0,0,0,.15)';x.shadowBlur=16;catRR(x,CW-M-w-16,32,w+32,h+24,24);x.fillStyle='#fff';x.fill();x.restore();catContain(x,logo,CW-M-w,44,w,h)}}
+    else{const chiaro=stile!=='pulito'&&!SF;x.textAlign='left';x.fillStyle=chiaro?'#fff':col;x.font='700 60px '+FD;x.fillText((d.titolo||'').toUpperCase(),SF?M+40:M,SF?MT+70:104,CW*.55);
+      if(logo){x.save();const h=96,w=Math.min(300,Math.max(h,h*logo.width/logo.height));x.shadowColor='rgba(0,0,0,.15)';x.shadowBlur=16;const ly=SF?MT-24:32;catRR(x,CW-M-w-16,ly,w+32,h+24,24);x.fillStyle='#fff';x.fill();x.restore();catContain(x,logo,CW-M-w,ly+12,w,h)}}
     pg.b.forEach(b=>{
       if(b.t==='h'){const t=b.g.toUpperCase();x.font='700 44px '+FD;const w=x.measureText(t).width+56;
         x.fillStyle=col;catRR(x,M,b.y+8,w,62,31);x.fill();x.fillStyle='#fff';x.textAlign='left';x.fillText(t,M+28,b.y+54);
@@ -1978,7 +1980,7 @@ async function catDisegna(c,prog){const d=c.dati,col=d.colore||'#1d3f9e',nc=d.co
           x.fillStyle=col;catRR(x,X+(cw-w)/2,py,w,66,33);x.fill();x.fillStyle='#fff';x.fillText(pr,X+cw/2,py+50)}}})});
     // piede: onda leggera, nota unica, logo Magrini su base bianca
     const py=CH-PIEDE+30;
-    if(stile==='onde'){catOndaGiu(x,CH-36,14,1.2,catMix(col,.55));catOndaGiu(x,CH-20,12,2,col)}else{x.fillStyle=col;x.fillRect(0,CH-24,CW,24)}
+    if(SF){}else if(stile==='onde'){catOndaGiu(x,CH-36,14,1.2,catMix(col,.55));catOndaGiu(x,CH-20,12,2,col)}else{x.fillStyle=col;x.fillRect(0,CH-24,CW,24)}
     x.fillStyle=catMix(col,.75);x.fillRect(M,py,CW-2*M,3);
     x.fillStyle='#4a5160';x.textAlign='left';x.font='500 28px '+FB;const nr=catRighe(x,d.nota||'',CW-2*M-300,4);nr.forEach((r,k)=>x.fillText(r,M,py+52+k*36));
     if(mag){const h=118,w=h*mag.width/mag.height;x.save();x.shadowColor='rgba(0,0,0,.12)';x.shadowBlur=14;catRR(x,CW-M-w-12,py+22,w+24,h+20,16);x.fillStyle='#fff';x.fill();x.restore();x.drawImage(mag,CW-M-w,py+32,w,h)}
