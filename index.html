@@ -1136,19 +1136,32 @@ const MSG_SESS='Il collegamento è scaduto o il servizio è momentaneamente lent
 async function sessioneValida(){try{let {data:{session}}=await sb.auth.getSession();
   if(!session||session.expires_at*1000<Date.now()+30000){const r=await sb.auth.refreshSession();session=r.data&&r.data.session}return !!session}catch(e){return false}}
 const erroreSess=e=>/row-level security|permission denied|JWT|not authenticated/i.test((e&&e.message)||'');
+let invioInCorso=false;
 async function inviaOrdine(){
+  if(invioInCorso)return;invioInCorso=true;
+  try{return await inviaOrdine_()}finally{invioInCorso=false}
+}
+async function inviaOrdine_(){
   const m=$('#smsg');$('#si').disabled=true;m.className='msg';m.textContent='Invio in corso…';
   if(!(await sessioneValida())){m.className='msg err';m.textContent=MSG_SESS;$('#si').disabled=false;return}
   if(st.mod)return inviaModifica(m);
   const righe=righeCarico();
   // chiave unica del carico: se la rete cade dopo il salvataggio e si ripreme Invia, l'ordine non viene duplicato
   if(!st.chiave){st.chiave=(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random());save()}
+  // stesso carico gia' inviato negli ultimi 10 minuti (doppio tocco, app riaperta, seconda scheda): non lo duplico
+  {const da=new Date(Date.now()-600000).toISOString(),canon=x=>Array.isArray(x)?'['+x.map(canon).join(',')+']':(x&&typeof x==='object')?'{'+Object.keys(x).filter(k=>x[k]!=null).sort().map(k=>JSON.stringify(k)+':'+canon(x[k])).join(',')+'}':JSON.stringify(x),firma=canon([st.data,righe,st.extra||[]]);
+   const {data:rec}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').gte('creato_il',da).order('id',{ascending:false}).limit(5);
+   const gia=(rec||[]).find(o=>canon([o.data,o.righe||[],o.extra||[]])===firma);
+   if(gia){st.chiave=gia.chiave||st.chiave;save();return dopoInvio(gia,righe,m)}}
   let {data,error}=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null,quando:st.quando||null,chiave:st.chiave}).select('*').single();
   if(error&&/chiave/.test(error.message||'')){const r=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null,quando:st.quando||null}).select('*').single();data=r.data;error=r.error} // database non ancora aggiornato
   if(error&&error.code==='23505'){const r=await sb.from('ordini').select('*').eq('chiave',st.chiave).single();data=r.data;error=r.error}
   if(error){m.className='msg err';m.textContent=erroreSess(error)?MSG_SESS:'Invio non riuscito. Controlla la connessione e riprova. ('+error.message+')';$('#si').disabled=false;return}
   righe.forEach(r=>freq[r.p]=(freq[r.p]||0)+1);store.set('mc_freq_'+ME.id,freq);
   log('invio_ordine','N. '+NUM(data));
+  return dopoInvio(data,righe,m);
+}
+async function dopoInvio(data,righe,m){
   const ordInviato={id:data.id,numero:data.numero,data:st.data,righe,extra:st.extra,note:st.nota||null,quando:st.quando||null};
   m.textContent='Ordine salvato, invio la mail all\'ufficio…';
   const esitoMail=await inviaMail(ordInviato);
