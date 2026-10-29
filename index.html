@@ -499,7 +499,7 @@ function bar(){
   $('#go').disabled=view==='sum'&&!righe;
 }
 $('#go').onclick=()=>{if(view==='mag')magConferma();else if(view==='sum')confermaInvio();else go('sum')};
-const TITOLI={home:'Area commerciale',fam:'Foglio di carico',mod:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio',foto:'Foto prodotti',cat:'Catalogo personalizzato',mag:'Magazzino'};
+const TITOLI={home:'Area commerciale',fam:'Foglio di carico',mod:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio',foto:'Foto prodotti',cat:'Catalogo cliente',mag:'Magazzino'};
 function testata(){const mt=$('#mtabs');if(mt){mt.hidden=view!=='mag';if(view==='mag')magTabs(mt)}const car=view==='fam'||view==='mod'||view==='sum';schermoAcceso(car);const h=view==='home';$('#home').hidden=h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!car;$('#data').hidden=!car;const magMod=view==='mag'&&magInMod();document.body.classList.toggle('wide',view==='mod'||magMod);if(view!=='mod'&&!magMod)mEsci()}
 $('#home').onclick=()=>{docCart=null;go('home')};
 // navigazione: ogni passaggio entra nella cronologia del telefono, cosi' lo swipe indietro torna alla schermata precedente
@@ -1824,9 +1824,9 @@ async function catMini(){const box=$('#cprev');if(!box||!CAT.c)return;const n=++
 async function catSalva(msg){const c=CAT.c;
   if(!c.cliente.trim()){msg.className='msg err';msg.textContent='Scrivi il nome del cliente.';return false}
   msg.className='msg';msg.textContent='Salvo…';
-  const riga={cliente:c.cliente.trim(),dati:c.dati,logo:c.logo,aggiornato_il:new Date().toISOString()};
+  const riga={cliente:c.cliente.trim(),dati:c.dati,logo:c.logo,...(c.sfondo||c.id?{sfondo:c.sfondo||null}:{}),aggiornato_il:new Date().toISOString()};
   const r=c.id?await sb.from('cataloghi').update(riga).eq('id',c.id).select('id').single():await sb.from('cataloghi').insert(riga).select('id').single();
-  if(r.error){msg.className='msg err';msg.textContent='Salvataggio non riuscito: '+r.error.message;return false}
+  if(r.error){msg.className='msg err';msg.textContent=/sfondo/.test(r.error.message||'')?'Per salvare lo sfondo personalizzato l\'ufficio deve prima eseguire il file SQL 21.':'Salvataggio non riuscito: '+r.error.message;return false}
   c.id=r.data.id;CAT.sporco=false;try{localStorage.removeItem(catBozzaK())}catch(e){}
   msg.className='msg ok';msg.textContent='Catalogo salvato.';return true}
 
@@ -1842,7 +1842,8 @@ function catEditor(v){const c=CAT.c,d=c.dati;
      <div style="flex:1;min-width:0;max-width:100%"><input type="file" id="clf" accept="image/png,image/jpeg,image/webp" style="max-width:100%;width:100%"><p class="note" id="clm" style="margin:6px 0 0">Meglio un PNG trasparente. Se ha lo sfondo, scegli una cornice.</p>${c.logo?'<button class="btn" id="clx" style="margin-top:6px">Togli logo</button>':''}</div></div>
      <div class="chips" style="margin-top:10px">${CAT_FORME.map(([k,l])=>chip('forma',k,l,d.forma===k)).join('')}</div></div>
    <div class="lbl">Aspetto</div>
-   <div class="field"><label>Stile</label><div class="chips">${chip('stile','onde','Onde e bolle',(d.stile||'onde')==='onde')}${chip('stile','pois','Pois',d.stile==='pois')}${chip('stile','pulito','Pulito',d.stile==='pulito')}${CAT_SFONDI.map(z=>chip('stile',z.k,z.nome,d.stile===z.k)).join('')}</div></div>
+   <div class="field"><label>Stile</label><div class="chips">${chip('stile','onde','Onde e bolle',(d.stile||'onde')==='onde')}${chip('stile','pois','Pois',d.stile==='pois')}${chip('stile','pulito','Pulito',d.stile==='pulito')}${CAT_SFONDI.map(z=>chip('stile',z.k,z.nome,d.stile===z.k)).join('')}${c.sfondo?chip('stile','mio','Il mio sfondo',d.stile==='mio'):''}</div></div>
+   <div class="field"><label>Carica il tuo sfondo personalizzato</label><input type="file" id="csf" accept="image/png,image/jpeg,image/webp" style="max-width:100%;width:100%"><p class="note" id="csm" style="margin:0">Meglio un'immagine verticale, con i decori sui bordi e il centro chiaro e libero.</p>${c.sfondo?'<button type="button" class="btn" id="csx" style="align-self:flex-start">Togli il mio sfondo</button>':''}</div>
    <div class="field"><label>Colonne</label><div class="chips">${chip('col',2,'2 per riga (foto grandi)',d.col==2)}${chip('col',3,'3 per riga',d.col==3)}</div></div>
    <div class="field"><label>Colore</label><div class="chips">${CAT_COLORI.map(([k,l])=>`<button type="button" data-ch="colore" data-val="${k}" aria-pressed="${d.colore===k}"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${k};margin-right:6px;vertical-align:-1px"></span>${l}</button>`).join('')}</div></div>
    <div class="field"><label>Prezzi</label><div class="chips">${chip('prezzi',1,'Con prezzi',!!d.prezzi)}${chip('prezzi',0,'Senza prezzi',!d.prezzi)}</div></div>
@@ -1861,6 +1862,10 @@ function catEditor(v){const c=CAT.c,d=c.dati;
   $('#cnr').onclick=()=>{d.nota=CAT_NOTA;$('#cnt').value=CAT_NOTA;catTocca()};
   v.querySelectorAll('[data-ch]').forEach(b=>b.onclick=()=>{const k=b.dataset.ch,val=b.dataset.val;d[k]=k==='col'?+val:(k==='prezzi'||k==='gruppi')?val==='1':val;catTocca();
     v.querySelectorAll(`[data-ch="${k}"]`).forEach(x=>x.setAttribute('aria-pressed',x===b));if(k==='prezzi')voci()});
+  $('#csf').onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$('#csm');m.textContent='Preparo lo sfondo…';
+    try{c.sfondo=await catSfondoFile(f);d.stile='mio';catTocca();catEditor(v);$('#csm').textContent='Sfondo caricato: lo vedi nell\'anteprima in basso a destra.'}
+    catch(err){m.textContent='Immagine non leggibile: '+(err.message||err)}};
+  if($('#csx'))$('#csx').onclick=()=>{c.sfondo=null;if(d.stile==='mio')d.stile='coni';catTocca();catEditor(v)};
   $('#clf').onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$('#clm');m.textContent='Preparo il logo…';
     try{const r=await catLogo(f);c.logo=r.url;d.forma=r.trasp?'nessuna':(d.forma==='nessuna'?'smussato':d.forma);catTocca();catEditor(v);
       $('#clm').textContent=r.trasp?'Logo trasparente: va bene senza cornice.':'Il logo ha uno sfondo: l\'ho messo in un rettangolo smussato, puoi cambiare forma.'}
@@ -1885,6 +1890,9 @@ function catEditor(v){const c=CAT.c,d=c.dati;
   voci();catMini();
   $('#cprev').onclick=()=>{if(!CAT.grande)return;const o=document.createElement('div');o.className='cpbig';o.innerHTML=`<img src="${CAT.grande.toDataURL('image/jpeg',.85)}" alt="Anteprima della prima pagina"><button type="button" class="btn main">‹ Torna indietro e continua a creare</button>`;o.onclick=e=>{if(e.target===o||e.target.tagName==='BUTTON')o.remove()};document.body.appendChild(o)};
 }
+// sfondo personalizzato: ritagliato in verticale A4 (1240x1754) e salvato in JPEG
+async function catSfondoFile(file){const bm=await createImageBitmap(file);const cv=document.createElement('canvas');cv.width=1240;cv.height=1754;const x=cv.getContext('2d');
+  x.fillStyle='#fff';x.fillRect(0,0,cv.width,cv.height);catCover(x,bm,0,0,cv.width,cv.height);return cv.toDataURL('image/jpeg',.82)}
 // logo: ridotto a max 700 px; se ha trasparenza resta PNG, altrimenti JPEG
 async function catLogo(file){const bm=await createImageBitmap(file);const k=Math.min(1,700/Math.max(bm.width,bm.height));
   const cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(bm.width*k));cv.height=Math.max(1,Math.round(bm.height*k));const x=cv.getContext('2d');x.drawImage(bm,0,0,cv.width,cv.height);
@@ -1936,7 +1944,7 @@ function catOndaGiu(x,y0,amp,fase,colore){x.beginPath();x.moveTo(0,CH);x.lineTo(
   for(let i=20;i>=0;i--){const X=CW*i/20;x.lineTo(X,y0+amp*Math.sin(fase+Math.PI*2*i/20))}x.closePath();x.fillStyle=colore;x.fill()}
 const CAT_SFONDI=[{k:'coni',nome:'Coni pastello',img:'img/sfondi/coni-pastello.jpg',ml:250,mt:280,mb:230}];
 function catSfondo(x,stile,col,pi,bg){
-  if(bg){x.drawImage(bg,0,0,CW,CH);return}
+  if(bg){catCover(x,bg,0,0,CW,CH);return}
   if(stile==='pulito'){x.fillStyle='#fff';x.fillRect(0,0,CW,CH);return}
   x.fillStyle=catMix(col,.95);x.fillRect(0,0,CW,CH);
   if(stile==='pois'){x.fillStyle=catMix(col,.86);for(let r=0;r*70<CH;r++)for(let c=0;c*70<CW+70;c++){x.beginPath();x.arc(c*70+(r%2?35:0),r*70+20,6,0,Math.PI*2);x.fill()}}
@@ -1952,7 +1960,7 @@ async function catDisegna(c,prog,opz={}){const d=c.dati,col=d.colore||'#1d3f9e',
   const blocchi=[];const gruppi=[];
   voci.forEach((x,i)=>{const p=byId[x.p];const g=d.gruppi?S[p[1]]:'';let G=gruppi.find(z=>z.g===g);if(!G){G={g,it:[]};gruppi.push(G)}G.it.push(i)});
   gruppi.forEach(G=>{if(G.g)blocchi.push({t:'h',g:G.g});for(let i=0;i<G.it.length;i+=nc)blocchi.push({t:'r',it:G.it.slice(i,i+nc)})});
-  const SF=CAT_SFONDI.find(z=>z.k===stile),bgImg=SF?await catImg(SF.img):null,M=SF?SF.ml:90,MT=SF?SF.mt:90,MB=SF?SF.mb:0,GAP=30,cw=(CW-2*M-GAP*(nc-1))/nc,foto=Math.round(cw*(SF?(nc==2?.5:.6):(nc==2?.56:.7)));
+  const SF=stile==='mio'&&c.sfondo?{k:'mio',img:c.sfondo,ml:150,mt:170,mb:170}:CAT_SFONDI.find(z=>z.k===stile),bgImg=SF?await catImg(SF.img):null,M=SF?SF.ml:90,MT=SF?SF.mt:90,MB=SF?SF.mb:0,GAP=30,cw=(CW-2*M-GAP*(nc-1))/nc,foto=Math.round(cw*(SF?(nc==2?.5:.6):(nc==2?.56:.7)));
   const altoNome=nc==2?(SF?116:142):132,cellH=foto+50+altoNome+(d.prezzi?70:20),HH=84;
   const LH=SF?190:nc==2?250:230;
   const T1=MT+(logo?LH+50:0)+120+(d.sotto?56:0)+40,T2=SF?MT+130:270;
