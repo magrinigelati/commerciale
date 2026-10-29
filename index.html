@@ -77,6 +77,13 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .fam.has span{color:var(--accent);font-weight:600}
 .lbl{font-family:var(--f-display);font-weight:600;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 6px}
 .back{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.cprev{position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:6;width:100px;padding:0;border:2px solid #fff;border-radius:8px;background:#fff;box-shadow:0 6px 22px rgba(0,0,0,.3);overflow:hidden;transition:opacity .2s}
+.cprev img{display:block;width:100%}
+.cprev span{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:600;padding:3px 0;text-align:center}
+.cprev.car{opacity:.55}
+.cpbig{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;gap:8px}
+.cpbig img{max-width:100%;max-height:calc(100% - 40px);border-radius:6px}
+.cpbig p{color:#fff;margin:0;font-size:14px}
 .back.fissa{position:sticky;top:var(--toph,0px);z-index:4;background:var(--bg);padding:8px 0;margin:-8px 0 8px}
 .back button{background:var(--ice);border:0;border-radius:8px;padding:8px 12px;font-weight:600}
 .back h2{font-family:var(--f-display);font-size:22px;text-transform:uppercase;margin:0;letter-spacing:.03em}
@@ -1803,7 +1810,13 @@ async function renderCat(v){
     const {error}=await sb.from('cataloghi').delete().eq('id',c.id);if(error)return alert(error.message);renderCat(v)}});
 }
 function catVai(p){CAT.passo=p;CAT.uscite=null;nav();render();window.scrollTo(0,0)}
-function catTocca(){CAT.sporco=true;CAT.uscite=null;store.set(catBozzaK(),CAT.c)}
+function catTocca(){CAT.sporco=true;CAT.uscite=null;store.set(catBozzaK(),CAT.c);if(CAT.passo==='ed'){clearTimeout(catMiniT);catMiniT=setTimeout(catMini,600)}}
+// anteprima piccola della prima pagina, sempre visibile mentre si scelgono stile, colori, logo e prodotti
+let catMiniT=null,catMiniN=0;
+async function catMini(){const box=$('#cprev');if(!box||!CAT.c)return;const n=++catMiniN;box.classList.add('car');
+  try{const cv=(await catDisegna(CAT.c,null,{prima:true}))[0];if(n!==catMiniN||!box.isConnected)return;
+    const sm=document.createElement('canvas');sm.width=414;sm.height=585;sm.getContext('2d').drawImage(cv,0,0,414,585);box.querySelector('img').src=sm.toDataURL('image/jpeg',.82);box.hidden=false;CAT.grande=cv}
+  catch(e){}finally{if(n===catMiniN)box.classList.remove('car')}}
 async function catSalva(msg){const c=CAT.c;
   if(!c.cliente.trim()){msg.className='msg err';msg.textContent='Scrivi il nome del cliente.';return false}
   msg.className='msg';msg.textContent='Salvo…';
@@ -1822,7 +1835,7 @@ function catEditor(v){const c=CAT.c,d=c.dati;
    <div class="lbl">Logo del cliente</div>
    <div class="card" style="padding:12px"><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
      <div id="clp" style="width:110px;height:110px;display:grid;place-items:center;background:var(--ice);border-radius:12px;overflow:hidden">${c.logo?`<img src="${c.logo}" alt="Logo" style="max-width:100%;max-height:100%">`:'<span class="note">nessun logo</span>'}</div>
-     <div style="flex:1;min-width:180px"><input type="file" id="clf" accept="image/png,image/jpeg,image/webp"><p class="note" id="clm" style="margin:6px 0 0">Meglio un PNG trasparente. Se ha lo sfondo, scegli una cornice.</p>${c.logo?'<button class="btn" id="clx" style="margin-top:6px">Togli logo</button>':''}</div></div>
+     <div style="flex:1;min-width:0;max-width:100%"><input type="file" id="clf" accept="image/png,image/jpeg,image/webp" style="max-width:100%;width:100%"><p class="note" id="clm" style="margin:6px 0 0">Meglio un PNG trasparente. Se ha lo sfondo, scegli una cornice.</p>${c.logo?'<button class="btn" id="clx" style="margin-top:6px">Togli logo</button>':''}</div></div>
      <div class="chips" style="margin-top:10px">${CAT_FORME.map(([k,l])=>chip('forma',k,l,d.forma===k)).join('')}</div></div>
    <div class="lbl">Aspetto</div>
    <div class="field"><label>Stile</label><div class="chips">${chip('stile','onde','Onde e bolle',(d.stile||'onde')==='onde')}${chip('stile','pois','Pois',d.stile==='pois')}${chip('stile','pulito','Pulito',d.stile==='pulito')}${CAT_SFONDI.map(z=>chip('stile',z.k,z.nome,d.stile===z.k)).join('')}</div></div>
@@ -1834,6 +1847,7 @@ function catEditor(v){const c=CAT.c,d=c.dati;
    <div id="cvl"></div>
    <div class="btns" style="margin-top:8px"><button class="btn main" id="cadd">+ Aggiungi prodotti</button></div>
    <div class="field" style="margin-top:16px"><label for="cnt">Nota in fondo a ogni pagina</label><textarea id="cnt" rows="4" style="padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:15px">${esc(d.nota)}</textarea><button type="button" class="btn" id="cnr" style="align-self:flex-start">Rimetti la nota standard</button></div>
+   <button type="button" id="cprev" class="cprev" hidden aria-label="Ingrandisci l'anteprima"><img alt="Anteprima della prima pagina"><span>Anteprima ⤢</span></button>
    <div class="btns"><button class="btn main" id="cant">Anteprima e stampa</button><button class="btn" id="csv">Salva</button></div><div id="cmsg" class="msg"></div>`;
   $('#bk').onclick=async()=>{if(CAT.sporco&&!(await mChiedi({t:'Uscire senza salvare?',s:'La bozza resta su questo telefono e la puoi riprendere.',ok:'Esci'})))return;CAT.passo='lista';CAT.c=null;render()};
   $('#ccl').oninput=e=>{c.cliente=e.target.value;catTocca()};
@@ -1864,7 +1878,8 @@ function catEditor(v){const c=CAT.c,d=c.dati;
     el.querySelectorAll('[data-vu]').forEach(x=>x.onclick=()=>{const i=+x.dataset.vu;[d.voci[i-1],d.voci[i]]=[d.voci[i],d.voci[i-1]];catTocca();voci()});
     el.querySelectorAll('[data-vd]').forEach(x=>x.onclick=()=>{const i=+x.dataset.vd;[d.voci[i+1],d.voci[i]]=[d.voci[i],d.voci[i+1]];catTocca();voci()});
     el.querySelectorAll('[data-vx]').forEach(x=>x.onclick=()=>{d.voci.splice(+x.dataset.vx,1);catTocca();voci()})}
-  voci();
+  voci();catMini();
+  $('#cprev').onclick=()=>{if(!CAT.grande)return;const o=document.createElement('div');o.className='cpbig';o.innerHTML=`<img src="${CAT.grande.toDataURL('image/jpeg',.85)}" alt="Anteprima della prima pagina"><p>Tocca per chiudere</p>`;o.onclick=()=>o.remove();document.body.appendChild(o)};
 }
 // logo: ridotto a max 700 px; se ha trasparenza resta PNG, altrimenti JPEG
 async function catLogo(file){const bm=await createImageBitmap(file);const k=Math.min(1,700/Math.max(bm.width,bm.height));
@@ -1902,7 +1917,9 @@ function catRR(x,X,Y,W,H,r){r=Math.min(r,W/2,H/2);x.beginPath();x.moveTo(X+r,Y);
 function catRighe(x,t,w,max){const par=String(t||'').split(/\s+/);const out=[];let r='';
   for(const p of par){const n=r?r+' '+p:p;if(x.measureText(n).width<=w||!r)r=n;else{out.push(r);r=p}}if(r)out.push(r);
   if(out.length>max){out.length=max;let u=out[max-1];while(u.length&&x.measureText(u+'…').width>w)u=u.slice(0,-1);out[max-1]=u+'…'}return out}
-async function catImg(src){if(!src)return null;try{if(src.startsWith('data:')){const b=await (await fetch(src)).blob();return await createImageBitmap(b)}
+const CAT_IM=new Map(),CAT_SC=new Map();
+function catImg(src){if(!src)return Promise.resolve(null);if(!CAT_IM.has(src))CAT_IM.set(src,catImg0(src));return CAT_IM.get(src)}
+async function catImg0(src){try{if(src.startsWith('data:')){const b=await (await fetch(src)).blob();return await createImageBitmap(b)}
   const r=await fetch(src,{mode:'cors'});if(!r.ok)return null;return await createImageBitmap(await r.blob())}catch(e){return null}}
 function catContain(x,im,X,Y,W,H){const k=Math.min(W/im.width,H/im.height);const w=im.width*k,h=im.height*k;x.drawImage(im,X+(W-w)/2,Y+(H-h)/2,w,h)}
 function catCover(x,im,X,Y,W,H){const k=Math.max(W/im.width,H/im.height);const w=im.width*k,h=im.height*k;x.drawImage(im,X+(W-w)/2,Y+(H-h)/2,w,h)}
@@ -1922,10 +1939,11 @@ function catSfondo(x,stile,col,pi,bg){
   else{// bolle morbide sullo sfondo
     const B=[[.08,.42,190],[.93,.35,240],[.12,.86,260],[.88,.8,170],[.52,.62,120]];x.fillStyle=catMix(col,.9);
     B.forEach(([a,b,r],i)=>{x.beginPath();x.arc(CW*a,CH*((b+pi*.13)%1*.7+.25),r,0,Math.PI*2);x.fill()})}}
-async function catDisegna(c,prog){const d=c.dati,col=d.colore||'#1d3f9e',nc=d.col==2?2:3,stile=d.stile||'onde';
+async function catDisegna(c,prog,opz={}){const d=c.dati,col=d.colore||'#1d3f9e',nc=d.col==2?2:3,stile=d.stile||'onde';
   try{await Promise.all(['700 60px "Barlow Condensed"','600 40px "Barlow Condensed"','500 30px Barlow','600 30px Barlow'].map(f=>document.fonts.load(f)))}catch(e){}
   const voci=d.voci.filter(x=>byId[x.p]);
-  const imgs=[];for(let i=0;i<voci.length;i++){const f=fotoDi(byId[voci[i].p]);imgs.push(catScontorna(await catImg(f&&f.img)));if(prog)prog(i+1,voci.length)}
+  // foto caricate solo per le pagine da disegnare, scontornate una volta sola
+  const imgs=[];const carica=async idx=>{let n=0;for(const i of idx){const f=fotoDi(byId[voci[i].p]);const src=f&&f.img;if(src&&!CAT_SC.has(src))CAT_SC.set(src,catScontorna(await catImg(src)));imgs[i]=src?CAT_SC.get(src):null;if(prog)prog(++n,idx.length)}};
   const logo=await catImg(c.logo),mag=await catImg('img/logo-magrini.jpg');
   const blocchi=[];const gruppi=[];
   voci.forEach((x,i)=>{const p=byId[x.p];const g=d.gruppi?S[p[1]]:'';let G=gruppi.find(z=>z.g===g);if(!G){G={g,it:[]};gruppi.push(G)}G.it.push(i)});
@@ -1952,7 +1970,8 @@ async function catDisegna(c,prog){const d=c.dati,col=d.colore||'#1d3f9e',nc=d.co
     x.save();via();x.clip();if(forma==='cerchio'||forma==='quadrato')catCover(x,logo,X,ty,w,h);else catContain(x,logo,X,ty,w,h);x.restore();
     if(forma!=='nessuna'){x.save();via();x.lineWidth=6;x.strokeStyle='#fff';x.stroke();x.restore()}};
   const out=[];
-  pagine.forEach((pg,pi)=>{const cv=document.createElement('canvas');cv.width=CW;cv.height=CH;const x=cv.getContext('2d');x.textBaseline='alphabetic';
+  await carica((opz.prima?pagine.slice(0,1):pagine).flatMap(pg=>pg.b.filter(b=>b.t==='r').flatMap(b=>b.it)));
+  pagine.forEach((pg,pi)=>{if(opz.prima&&pi>0)return;const cv=document.createElement('canvas');cv.width=CW;cv.height=CH;const x=cv.getContext('2d');x.textBaseline='alphabetic';
     catSfondo(x,stile,col,pi,bgImg);
     // testata
     const hTesta=pi===0?(logo?M+LH*.62:M+150):170;
