@@ -77,6 +77,7 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .fam.has span{color:var(--accent);font-weight:600}
 .lbl{font-family:var(--f-display);font-weight:600;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 6px}
 .back{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.back.fissa{position:sticky;top:var(--toph,0px);z-index:4;background:var(--bg);padding:8px 0;margin:-8px 0 8px}
 .back button{background:var(--ice);border:0;border-radius:8px;padding:8px 12px;font-weight:600}
 .back h2{font-family:var(--f-display);font-size:22px;text-transform:uppercase;margin:0;letter-spacing:.03em}
 .list{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
@@ -1778,6 +1779,7 @@ const catAbilitato=()=>!!ME&&(ME.cataloghi===true||['ufficio','admin'].includes(
 const catBozzaK=()=>'mc_catbozza_'+ME.id;
 
 async function renderCat(v){
+  const toph=()=>{const t=$('.top');if(t)document.documentElement.style.setProperty('--toph',t.offsetHeight+'px')};toph();setTimeout(toph,300);
   if(!catAbilitato()){v.innerHTML='<div class="empty">Il catalogo cliente non è abilitato per questo account: chiedi all\'ufficio.</div>';return}
   await caricaFoto();
   if(CAT.passo==='ed'&&CAT.c)return catEditor(v);
@@ -1813,7 +1815,7 @@ async function catSalva(msg){const c=CAT.c;
 
 function catEditor(v){const c=CAT.c,d=c.dati;
   const chip=(k,val,lab,on)=>`<button type="button" data-ch="${k}" data-val="${esc(String(val))}" aria-pressed="${on}">${esc(lab)}</button>`;
-  v.innerHTML=`<div class="back"><button id="bk">‹ Cataloghi</button><h2>${c.id?'Modifica catalogo':'Nuovo catalogo'}</h2></div>
+  v.innerHTML=`<div class="back fissa"><button id="bk">‹ Cataloghi</button><h2>${c.id?'Modifica catalogo':'Nuovo catalogo'}</h2></div>
    <div class="field"><label for="ccl">Cliente</label><input id="ccl" value="${esc(c.cliente)}" placeholder="es. Bar Centrale" maxlength="60"></div>
    <div class="field"><label for="ctt">Titolo del depliant</label><input id="ctt" value="${esc(d.titolo)}" maxlength="50"></div>
    <div class="field"><label for="cst">Sottotitolo (facoltativo)</label><input id="cst" value="${esc(d.sotto)}" placeholder="es. indirizzo o telefono del locale" maxlength="80"></div>
@@ -1872,17 +1874,17 @@ async function catLogo(file){const bm=await createImageBitmap(file);const k=Math
   const c2=document.createElement('canvas');c2.width=cv.width;c2.height=cv.height;const y=c2.getContext('2d');y.fillStyle='#fff';y.fillRect(0,0,c2.width,c2.height);y.drawImage(cv,0,0);return {url:c2.toDataURL('image/jpeg',.9),trasp}}
 
 function catScegli(v){const d=CAT.c.dati;const sel=new Set(d.voci.map(x=>x.p));
-  v.innerHTML=`<div class="back"><button id="bk">‹ Fatto (${sel.size})</button><h2>Scegli i prodotti</h2></div>
+  v.innerHTML=`<div class="back fissa"><button id="bk">‹ Fatto (${sel.size})</button><h2>Scegli i prodotti</h2></div>
    <div class="field" style="margin-bottom:10px"><input id="cq" type="search" placeholder="Cerca prodotto" value="${esc(CAT.q)}" autocomplete="off" aria-label="Cerca prodotto"></div><div id="cr"></div>
    <div class="btns" style="position:sticky;bottom:96px"><button class="btn main" id="cok">Fatto: ${sel.size} prodotti</button></div>`;
-  const fine=()=>{CAT.fam=null;catVai('ed')};$('#bk').onclick=fine;$('#cok').onclick=fine;
-  const aggiorna=()=>{$('#bk').textContent=`‹ Fatto (${sel.size})`;$('#cok').textContent=`Fatto: ${sel.size} prodotti`};
+  const fine=()=>{CAT.fam=null;catVai('ed')};$('#bk').onclick=()=>{if(CAT.fam!=null&&CAT.q.trim().length<2){CAT.fam=null;mostra();window.scrollTo(0,0)}else fine()};$('#cok').onclick=fine;
+  const aggiorna=()=>{$('#bk').textContent=CAT.fam!=null&&CAT.q.trim().length<2?'‹ Famiglie':`‹ Fatto (${sel.size})`;$('#cok').textContent=`Fatto: ${sel.size} prodotti`};
   const card=p=>{const f=fotoDi(p),on=sel.has(p[0]);return `<button class="fcard${on?' on':''}" data-cp="${p[0]}" aria-pressed="${on}" style="${on?'outline:3px solid var(--ok);outline-offset:-3px':''}">${f?`<img src="${esc(f.thumb||f.img)}" alt="" loading="lazy">`:'<div style="aspect-ratio:1;display:grid;place-items:center;background:var(--ice);color:var(--muted);font-size:13px">senza foto</div>'}<b>${on?'✓ ':''}${esc(catNome(p))}</b><small>${esc(S[p[1]])}</small></button>`};
   const bind=el=>el.querySelectorAll('[data-cp]').forEach(b=>b.onclick=()=>{const id=+b.dataset.cp;
     if(sel.has(id)){sel.delete(id);d.voci=d.voci.filter(x=>x.p!==id)}else{sel.add(id);d.voci.push({p:id,n:'',pr:''})}catTocca();
     b.outerHTML=card(byId[id]);bind(el);aggiorna()});
   const cr=$('#cr'),cq=$('#cq');
-  const mostra=()=>{const q=CAT.q.trim();
+  const mostra=()=>{const q=CAT.q.trim();setTimeout(aggiorna);
     if(q.length>=2){const hits=search(q).slice(0,60);cr.innerHTML=hits.length?`<div class="fgrid">${hits.map(card).join('')}</div>`:`<div class="empty">Nessun prodotto per “${esc(q)}”.</div>`;bind(cr);return}
     if(CAT.fam==null){cr.innerHTML=`<p class="note" style="margin:0 0 10px">Tocca una famiglia, poi i prodotti da mettere nel catalogo (tocca di nuovo per toglierli).</p><div class="fams">${ordineFoto().map(i=>{const n=P.filter(p=>p[1]===i&&sel.has(p[0])).length;return `<button class="fam" data-cf="${i}"><b>${esc(S[i])}</b><span>${n?n+' scelti':P.filter(p=>p[1]===i).length+' prodotti'}</span></button>`}).join('')}</div>`;
       cr.querySelectorAll('[data-cf]').forEach(b=>b.onclick=()=>{CAT.fam=+b.dataset.cf;mostra();window.scrollTo(0,0)});return}
@@ -1923,7 +1925,7 @@ function catSfondo(x,stile,col,pi,bg){
 async function catDisegna(c,prog){const d=c.dati,col=d.colore||'#1d3f9e',nc=d.col==2?2:3,stile=d.stile||'onde';
   try{await Promise.all(['700 60px "Barlow Condensed"','600 40px "Barlow Condensed"','500 30px Barlow','600 30px Barlow'].map(f=>document.fonts.load(f)))}catch(e){}
   const voci=d.voci.filter(x=>byId[x.p]);
-  const imgs=[];for(let i=0;i<voci.length;i++){const f=fotoDi(byId[voci[i].p]);imgs.push(await catImg(f&&f.img));if(prog)prog(i+1,voci.length)}
+  const imgs=[];for(let i=0;i<voci.length;i++){const f=fotoDi(byId[voci[i].p]);imgs.push(catScontorna(await catImg(f&&f.img)));if(prog)prog(i+1,voci.length)}
   const logo=await catImg(c.logo),mag=await catImg('img/logo-magrini.jpg');
   const blocchi=[];const gruppi=[];
   voci.forEach((x,i)=>{const p=byId[x.p];const g=d.gruppi?S[p[1]]:'';let G=gruppi.find(z=>z.g===g);if(!G){G={g,it:[]};gruppi.push(G)}G.it.push(i)});
@@ -1987,13 +1989,31 @@ async function catDisegna(c,prog){const d=c.dati,col=d.colore||'#1d3f9e',nc=d.co
     if(pagine.length>1){x.fillStyle='#8a92a3';x.textAlign='left';x.font='500 24px '+FB;x.fillText(`pagina ${pi+1} di ${pagine.length}`,M,py+52+nr.length*36+10)}
     out.push(cv)});
   return out}
+// toglie lo sfondo bianco delle foto (riempimento dai bordi, cosi' il bianco dentro il prodotto resta) e taglia i margini vuoti
+function catScontorna(im){if(!im)return null;try{
+  const k=Math.min(1,800/Math.max(im.width,im.height)),w=Math.max(1,Math.round(im.width*k)),h=Math.max(1,Math.round(im.height*k));
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;const x=cv.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0,w,h);
+  const id=x.getImageData(0,0,w,h),D=id.data,N=w*h,bg=new Uint8Array(N),q=new Int32Array(N);let qh=0,qt=0;
+  const chiaro=i=>{const r=D[i*4],g=D[i*4+1],b=D[i*4+2],a=D[i*4+3];if(a<20)return true;const mn=Math.min(r,g,b),mx=Math.max(r,g,b);return mn>=246&&mx-mn<=12};
+  const metti=i=>{if(!bg[i]&&chiaro(i)){bg[i]=1;q[qt++]=i}};
+  for(let X=0;X<w;X++){metti(X);metti((h-1)*w+X)}for(let Y=0;Y<h;Y++){metti(Y*w);metti(Y*w+w-1)}
+  while(qh<qt){const i=q[qh++],X=i%w;if(X>0)metti(i-1);if(X<w-1)metti(i+1);if(i>=w)metti(i-w);if(i<N-w)metti(i+w)}
+  if(qt<N*.04)return im; // niente sfondo bianco: foto lasciata com'e'
+  for(let i=0;i<N;i++){if(bg[i]){D[i*4+3]=0;continue}
+    const X=i%w;const vicino=(X>0&&bg[i-1])||(X<w-1&&bg[i+1])||(i>=w&&bg[i-w])||(i<N-w&&bg[i+w]);
+    if(vicino){const mn=Math.min(D[i*4],D[i*4+1],D[i*4+2]);if(mn>=232)D[i*4+3]=Math.min(D[i*4+3],Math.round((255-mn)*255/24))}}
+  x.putImageData(id,0,0);
+  let x0=w,y0=h,x1=-1,y1=-1;for(let Y=0;Y<h;Y++)for(let X=0;X<w;X++)if(D[(Y*w+X)*4+3]>16){if(X<x0)x0=X;if(X>x1)x1=X;if(Y<y0)y0=Y;if(Y>y1)y1=Y}
+  if(x1<0)return im;const pad=Math.round(Math.max(x1-x0,y1-y0)*.03);x0=Math.max(0,x0-pad);y0=Math.max(0,y0-pad);x1=Math.min(w-1,x1+pad);y1=Math.min(h-1,y1+pad);
+  const out=document.createElement('canvas');out.width=x1-x0+1;out.height=y1-y0+1;out.getContext('2d').drawImage(cv,x0,y0,out.width,out.height,0,0,out.width,out.height);return out}
+  catch(e){return im}}
 const catBlob=(cv,t,q)=>new Promise((res,rej)=>cv.toBlob(b=>b?res(b):rej(new Error('immagine non creata')),t,q));
 async function catPdf(cvs){const {PDFDocument}=PDFLib;const doc=await PDFDocument.create();
   for(const cv of cvs){const jpg=await doc.embedJpg(await (await catBlob(cv,'image/jpeg',.9)).arrayBuffer());const pg=doc.addPage([595.28,841.89]);pg.drawImage(jpg,{x:0,y:0,width:595.28,height:841.89})}
   return new Blob([await doc.save()],{type:'application/pdf'})}
 
 async function catAnteprima(v){const c=CAT.c;const base=slug('catalogo '+(c.cliente||'cliente'));
-  v.innerHTML=`<div class="back"><button id="bk">‹ Modifica</button><h2>Anteprima</h2></div><div class="msg" id="cam">Preparo le pagine…</div><div id="cap"></div>`;
+  v.innerHTML=`<div class="back fissa"><button id="bk">‹ Modifica</button><h2>Anteprima</h2></div><div class="msg" id="cam">Preparo le pagine…</div><div id="cap"></div>`;
   $('#bk').onclick=()=>catVai('ed');
   try{
     if(!CAT.uscite){const cvs=await catDisegna(c,(i,n)=>{const m=$('#cam');if(m)m.textContent=`Preparo le foto… ${i}/${n}`});
@@ -2039,7 +2059,7 @@ const vistaModulo=()=>view==='mod'||(view==='mag'&&typeof magInMod==='function'&
 // toccando la barra scura ridotta, l'intestazione si riapre
 document.addEventListener('click',e=>{const top=$('.top');if(top&&top.classList.contains('mini')&&top.contains(e.target)&&!e.target.closest('button,input,select,a')){setMini(false)}});
 window.addEventListener('scroll',()=>{const y=window.scrollY,d=y-prevY;prevY=y;if(Date.now()<fermo)return;
-  if(vistaModulo()){setMini(false);return}
+  if(vistaModulo()||view==='cat'){setMini(false);return}
   if(y<30){setMini(false);return}
   if(d>0){giu+=d;su=0;if(giu>15)setMini(true)}else if(d<0){su-=d;giu=0;if(su>50)setMini(false)}},{passive:true});
 
