@@ -190,6 +190,7 @@ a.btn{text-decoration:none}
 .oi .n small{display:block;color:var(--muted);font-size:13px}
 .pill{font-size:12px;font-weight:600;padding:3px 8px;border-radius:99px;background:var(--ice);white-space:nowrap}
 .pill.inviato{background:var(--ok);color:#fff}
+.btn.del{border-color:#c8102e;color:#c8102e;font-weight:700}
 .pill.noinv{background:#c8102e;color:#fff;font-weight:800}
 .pill.in_lavorazione{background:var(--warn);color:#fff}
 .pill.caricato{background:var(--ok);color:#fff}
@@ -1232,9 +1233,18 @@ async function renderOrd(v){
   if(error){v.innerHTML='<div class="empty">Non riesco a leggere gli ordini. Riprova tra poco.</div>';return}
   if(!data.length){v.innerHTML='<div class="empty">Nessun ordine negli ultimi 31 giorni.</div>';return}
   v.innerHTML=`<div class="lbl">I tuoi ordini degli ultimi 31 giorni</div><div class="list">${data.map(o=>`<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${NUM(o)} · carico del ${dataIt(o.data)}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · inviato ${new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}${o.versione>1?' · modificato '+oraIt(o.modificato_il):''}${modificabile(o)?' · modificabile fino alle '+oraIt(scadenzaMod(o)):''}${mailMancante(o)?' · <b style="color:#c8102e">la mail all\'ufficio non è partita: apri e premi Riprova mail oppure Condividi su WhatsApp</b>':''}</small></div>${pillStato(o)}</button><div id="od${o.id}" hidden style="padding:0 12px 12px"></div>`).join('')}</div>`;
-  v.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=data.find(x=>x.id==b.dataset.o);const d=$('#od'+o.id);d.hidden=!d.hidden;if(!d.hidden){d.innerHTML=dettaglioHtml(o)+`<div class="btns">${modificabile(o)?`<button class="btn main" data-mod>Modifica ordine (ancora ${Math.max(1,Math.round((scadenzaMod(o)-Date.now())/60000))} min)</button>`:''}${'mail_il' in o&&!o.mail_il?'<button class="btn main" data-rm>Riprova mail all\'ufficio</button>':''}<button class="btn" data-op>Apri PDF</button><button class="btn main" data-sh>${mailMancante(o)?'Condividi su WhatsApp':'Condividi PDF'}</button><button class="btn" data-pdf="${o.id}">Scarica PDF</button></div>`;d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,ME);d.querySelector('[data-op]').onclick=()=>apriPdf(o,ME);
+  v.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=data.find(x=>x.id==b.dataset.o);const d=$('#od'+o.id);d.hidden=!d.hidden;if(!d.hidden){d.innerHTML=dettaglioHtml(o)+`<div class="btns">${modificabile(o)?`<button class="btn main" data-mod>Modifica ordine (ancora ${Math.max(1,Math.round((scadenzaMod(o)-Date.now())/60000))} min)</button>`:''}${'mail_il' in o&&!o.mail_il?'<button class="btn main" data-rm>Riprova mail all\'ufficio</button>':''}<button class="btn" data-op>Apri PDF</button><button class="btn main" data-sh>${mailMancante(o)?'Condividi su WhatsApp':'Condividi PDF'}</button><button class="btn" data-pdf="${o.id}">Scarica PDF</button>${mailMancante(o)?'<button class="btn del" data-el>Elimina ordine</button>':''}</div>`;d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,ME);d.querySelector('[data-op]').onclick=()=>apriPdf(o,ME);
       const md=d.querySelector('[data-mod]');if(md)md.onclick=()=>modificaOrdine(o);
-      const rm=d.querySelector('[data-rm]');if(rm)rm.onclick=async()=>{rm.disabled=true;rm.textContent='Invio…';const r=await inviaMail(o);if(r===true){rm.textContent='Mail inviata';o.mail_il=new Date().toISOString();b.querySelector('small b').remove()}else{rm.disabled=false;rm.textContent='Riprova mail all\'ufficio';alert('Ancora niente: '+r)}};
+      const rm=d.querySelector('[data-rm]');if(rm)rm.onclick=async()=>{rm.disabled=true;rm.textContent='Invio…';const r=await inviaMail(o);if(r===true){rm.textContent='Mail inviata';o.mail_il=new Date().toISOString();b.querySelector('small b').remove();b.querySelector('.pill').outerHTML=pillStato(o);const el=d.querySelector('[data-el]');if(el)el.remove()}else{rm.disabled=false;rm.textContent='Riprova mail all\'ufficio';alert('Ancora niente: '+r)}};
+      const el=d.querySelector('[data-el]');if(el){let pronto=false;el.onclick=async()=>{
+        // doppia conferma: secondo tocco sul pulsante, poi domanda finale
+        if(!pronto){pronto=true;el.textContent='Tocca di nuovo per eliminare';setTimeout(()=>{pronto=false;if(el.isConnected&&!el.disabled)el.textContent='Elimina ordine'},4000);return}
+        pronto=false;el.textContent='Elimina ordine';
+        const si=await mChiedi({t:'Eliminare l\'ordine N. '+NUM(o)+'?',s:'Questo ordine non è mai arrivato in ufficio. Una volta eliminato non si può recuperare.',ok:'Sì, elimina'});
+        if(!si)return;el.disabled=true;el.textContent='Elimino…';
+        const {error}=await sb.rpc('elimina_ordine',{p_id:o.id});
+        if(error){el.disabled=false;el.textContent='Elimina ordine';alert(error.message.includes('elimina_ordine')?'Funzione non ancora attiva: avvisa l\'ufficio.':error.message);return}
+        await renderOrd(v)}}
       preparaPdf(o,ME).catch(()=>{});d.querySelector('[data-sh]').onclick=e=>condividiPdf(o,ME,e.currentTarget)}});
 }
 
