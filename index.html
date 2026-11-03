@@ -1528,6 +1528,7 @@ async function uffCatalogo(v){
       <div class="grid2"><div class="field"><label>Sottotitolo</label>${inp('pms'+p.id,p.sezione)}</div>
       <div class="field"><label>Sposta in famiglia</label><select id="pmf${p.id}" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">${F.map(x=>`<option value="${x.id}" ${x.id===p.famiglia_id?'selected':''}>${esc(x.nome)}</option>`).join('')}</select></div></div>
       <label style="display:flex;gap:6px;align-items:center;margin-bottom:10px"><input type="checkbox" id="pmv${p.id}" ${p.novita?'checked':''}> Segna come novità</label>
+      <label style="display:flex;gap:6px;align-items:center;margin-bottom:10px"><input type="checkbox" id="pmg${p.id}" ${p.senza_glutine?'checked':''}> <b style="color:#1f8a3b">Senza glutine</b> <small style="color:var(--muted)">(solo prodotti certificati: compare il bollino verde nel catalogo cliente)</small></label>
       <div class="field"><label>Foto</label><div class="mrow" style="align-items:center">${fotoCat(p)?`<img src="${esc(fotoCat(p).thumb||fotoCat(p).img)}" alt="" style="width:64px;height:64px;object-fit:contain;border:1px solid var(--line);border-radius:8px;background:#fff">`:''}
         <span class="note">${p.foto?'Foto caricata dall\'ufficio':fotoCat(p)?'Foto presa dal sito':'Nessuna foto'}</span></div>
         <div class="mrow" style="margin-top:6px"><input type="file" id="pmfo${p.id}" accept="image/*"><button class="btn" id="pmfu${p.id}">Carica foto</button>${p.foto?`<button class="btn" id="pmfx${p.id}">Togli foto</button>`:''}</div></div>
@@ -1535,7 +1536,7 @@ async function uffCatalogo(v){
     $('#pmok'+p.id).onclick=async()=>{const nome=$('#pmn'+p.id).value.trim();if(!nome)return err('Il nome non può essere vuoto.');
       const num=id=>{const n=parseInt($(id).value);return n>0?n:null};
       const nv=vs.map((x,k)=>{const y={...x,codice:$('#pmc'+p.id+'_'+k).value.trim(),disponibile:$('#pmd'+p.id+'_'+k).checked,pzct:num('#pmpz'+p.id+'_'+k),ctstr:num('#pmcs'+p.id+'_'+k),ctplt:num('#pmcp'+p.id+'_'+k)};['pzct','ctstr','ctplt'].forEach(c=>{if(y[c]==null)delete y[c]});return y});
-      const {error}=await sb.from('prodotti').update({nome,varianti:nv,sezione:$('#pms'+p.id).value.trim(),famiglia_id:+$('#pmf'+p.id).value,novita:$('#pmv'+p.id).checked}).eq('id',p.id);
+      const {error}=await sb.from('prodotti').update({nome,varianti:nv,sezione:$('#pms'+p.id).value.trim(),famiglia_id:+$('#pmf'+p.id).value,novita:$('#pmv'+p.id).checked,...(('senza_glutine' in p)||$('#pmg'+p.id).checked?{senza_glutine:$('#pmg'+p.id).checked}:{})}).eq('id',p.id);
       if(error)return err(error.message);ricarica()};
     $('#pmfu'+p.id).onclick=async()=>{const file=$('#pmfo'+p.id).files[0];if(!file)return err('Scegli prima la foto.');
       const b=$('#pmfu'+p.id);b.disabled=true;b.textContent='Carico…';
@@ -1796,6 +1797,7 @@ const catNuovo=()=>({id:null,cliente:'',logo:null,dati:{titolo:'I nostri gelati'
 const catNome=p=>{const f=FOTO&&fotoDi(p);const n=(f&&!f.propria&&f.nome)||p[2];return n.charAt(0).toUpperCase()+n.slice(1)};
 const catPrezzo=s=>{s=String(s||'').trim().replace(/^€\s*/,'');if(!s)return '';const n=parseFloat(s.replace(',','.'));return isNaN(n)?s:'€ '+n.toFixed(2).replace('.',',')};
 const catAbilitato=()=>!!ME&&(ME.cataloghi===true||['ufficio','admin'].includes(ME.ruolo));
+const catSG=id=>!!(byIdX[id]&&byIdX[id].senza_glutine);
 const catBozzaK=()=>'mc_catbozza_'+ME.id;
 
 async function renderCat(v){
@@ -1888,7 +1890,7 @@ function catEditor(v){const c=CAT.c,d=c.dati;
     if(!d.voci.length){el.innerHTML='<div class="empty" style="padding:14px">Nessun prodotto: premi Aggiungi prodotti.</div>';return}
     el.innerHTML=`<div class="list">${d.voci.map((x,i)=>{const p=byId[x.p];const f=p&&fotoDi(p);return `<div class="sr" style="align-items:center;gap:8px">
       ${f?`<img src="${esc(f.thumb||f.img)}" alt="" style="width:46px;height:46px;object-fit:contain;flex:none">`:'<span style="width:46px;height:46px;flex:none;background:var(--ice);border-radius:8px;display:grid;place-items:center;font-size:10px;color:var(--muted);text-align:center">no foto</span>'}
-      <div class="n" style="flex:1;min-width:0"><input data-vn="${i}" value="${esc(x.n||'')}" placeholder="${esc(p?catNome(p):'prodotto non più a catalogo')}" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:15px">
+      <div class="n" style="flex:1;min-width:0"><input data-vn="${i}" value="${esc(x.n||'')}" placeholder="${esc(p?catNome(p):'prodotto non più a catalogo')}" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:15px">${catSG(x.p)?'<span style="display:inline-block;margin-top:4px;padding:2px 8px;border-radius:99px;background:#1f8a3b;color:#fff;font-size:12px;font-weight:700">SENZA GLUTINE</span>':''}
       ${d.prezzi?`<input data-vp="${i}" value="${esc(x.pr||'')}" inputmode="decimal" placeholder="Prezzo €" style="width:110px;margin-top:6px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:15px">`:''}</div>
       <div style="display:flex;flex-direction:column;gap:4px"><button data-vu="${i}" aria-label="Su" ${i?'':'disabled'}>▲</button><button data-vd="${i}" aria-label="Giù" ${i<d.voci.length-1?'':'disabled'}>▼</button></div><button data-vx="${i}" aria-label="Togli">Togli</button></div>`}).join('')}</div>`;
     el.querySelectorAll('[data-vn]').forEach(x=>x.oninput=()=>{d.voci[+x.dataset.vn].n=x.value;catTocca()});
@@ -1915,7 +1917,7 @@ function catScegli(v){const d=CAT.c.dati;const sel=new Set(d.voci.map(x=>x.p));
    <div class="btns" style="position:sticky;bottom:96px"><button class="btn main" id="cok">Fatto: ${sel.size} prodotti</button></div>`;
   const fine=()=>{CAT.fam=null;catVai('ed')};$('#bk').onclick=()=>{if(CAT.fam!=null&&CAT.q.trim().length<2){CAT.fam=null;mostra();window.scrollTo(0,0)}else fine()};$('#cok').onclick=fine;
   const aggiorna=()=>{$('#bk').textContent=CAT.fam!=null&&CAT.q.trim().length<2?'‹ Famiglie':`‹ Fatto (${sel.size})`;$('#cok').textContent=`Fatto: ${sel.size} prodotti`};
-  const card=p=>{const f=fotoDi(p),on=sel.has(p[0]);return `<button class="fcard${on?' on':''}" data-cp="${p[0]}" aria-pressed="${on}" style="${on?'outline:3px solid var(--ok);outline-offset:-3px':''}">${f?`<img src="${esc(f.thumb||f.img)}" alt="" loading="lazy">`:'<div style="aspect-ratio:1;display:grid;place-items:center;background:var(--ice);color:var(--muted);font-size:13px">senza foto</div>'}<b>${on?'✓ ':''}${esc(catNome(p))}</b><small>${esc(S[p[1]])}</small></button>`};
+  const card=p=>{const f=fotoDi(p),on=sel.has(p[0]);return `<button class="fcard${on?' on':''}" data-cp="${p[0]}" aria-pressed="${on}" style="${on?'outline:3px solid var(--ok);outline-offset:-3px':''}">${f?`<img src="${esc(f.thumb||f.img)}" alt="" loading="lazy">`:'<div style="aspect-ratio:1;display:grid;place-items:center;background:var(--ice);color:var(--muted);font-size:13px">senza foto</div>'}<b>${on?'✓ ':''}${esc(catNome(p))}</b><small>${esc(S[p[1]])}${catSG(p[0])?' · <b style="color:#1f8a3b">senza glutine</b>':''}</small></button>`};
   const bind=el=>el.querySelectorAll('[data-cp]').forEach(b=>b.onclick=()=>{const id=+b.dataset.cp;
     if(sel.has(id)){sel.delete(id);d.voci=d.voci.filter(x=>x.p!==id)}else{sel.add(id);d.voci.push({p:id,n:'',pr:''})}catTocca();
     b.outerHTML=card(byId[id]);bind(el);aggiorna()});
@@ -2016,6 +2018,8 @@ async function catDisegna(c,prog,opz={}){const d=c.dati,col=d.colore||'#1d3f9e',
         x.fillStyle=catMix(col,.9);x.beginPath();x.arc(X+cw/2,fy+foto/2,foto*.5,0,Math.PI*2);x.fill();
         if(im){x.save();x.shadowColor='rgba(0,0,0,.18)';x.shadowBlur=18;x.shadowOffsetY=8;catContain(x,im,fx+foto*.04,fy+foto*.04,foto*.92,foto*.92);x.restore()}
         else{x.fillStyle=catMix(col,.6);x.font='500 30px '+FB;x.textAlign='center';x.fillText('foto non disponibile',X+cw/2,fy+foto/2+10)}
+        if(catSG(vo.p)){const R=nc==2?62:54,bx=X+cw-R-16,by=Y+R+16;x.save();x.shadowColor='rgba(0,0,0,.2)';x.shadowBlur=10;x.shadowOffsetY=3;x.beginPath();x.arc(bx,by,R,0,Math.PI*2);x.fillStyle='#1f8a3b';x.fill();x.restore();
+          x.beginPath();x.arc(bx,by,R-6,0,Math.PI*2);x.lineWidth=3;x.strokeStyle='#fff';x.stroke();x.fillStyle='#fff';x.textAlign='center';x.font='700 '+(nc==2?26:23)+'px '+FD;x.fillText('SENZA',bx,by-4,R*2-22);x.fillText('GLUTINE',bx,by+(nc==2?24:21),R*2-22)}
         x.fillStyle='#14213d';x.textAlign='center';x.font=(nc==2?'700 48px ':'700 42px ')+FD;
         const righe=catRighe(x,vo.n||catNome(p),cw-44,2);righe.forEach((r,k)=>x.fillText(r,X+cw/2,fy+foto+62+k*(nc==2?48:42)));
         if(d.prezzi){const pr=catPrezzo(vo.pr);if(pr){x.font='700 52px '+FD;const w=x.measureText(pr).width+56;const py=Y+cellH-84;
