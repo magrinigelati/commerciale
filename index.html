@@ -1332,7 +1332,7 @@ async function pdfOrdine(o,utente){
     pages[c.pg].pushOperators(pushGraphicsState(),setCharacterSqueeze(LARGO*100),setTextRenderingMode(TextRenderingMode.FillAndOutline),setLineWidth(.25),setStrokingColor(isPz?red:blue));
     pages[c.pg].drawText(t,{x:x0,y:c.y,size:sz,font:f,color:isPz?red:blue});pages[c.pg].pushOperators(popGraphicsState())});
   fuori.push(...piano.resto);
-  if(o.versione>1){const t='MODIFICATO il '+new Date(o.modificato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})+(o.versione>2?' ('+o.versione+'ª versione)':'')+': sostituisce le stampe precedenti';let sz=9;while(sz>6&&f.widthOfTextAtSize(t,sz)>235)sz-=.25;pages[0].drawText(t,{x:14,y:H-12.5,size:sz,font:f,color:red})} // margine in alto a sinistra
+  if(o.versione>1){const t='Modificato entro i termini';let sz=7;while(sz>6&&f.widthOfTextAtSize(t,sz)>235)sz-=.25;pages[0].drawText(t,{x:14,y:H-12.5,size:sz,font:f,color:red})} // margine in alto a sinistra
   if(o.quando){const t='CARICO: '+String(o.quando).toUpperCase().slice(0,40),k=1.2;let sz=12.5;while(sz>8&&f.widthOfTextAtSize(t,sz)*k>330)sz-=.5;const w=f.widthOfTextAtSize(t,sz)*k;
     pages[0].pushOperators(pushGraphicsState(),setCharacterSqueeze(k*100));pages[0].drawText(t,{x:575-w,y:H-13.5,size:sz,font:f,color:blue});pages[0].pushOperators(popGraphicsState())} // margine sopra la tabella, in alto a destra
   if(pages[1])pages[1].drawRectangle({x:570.8,y:H-818.9,width:2,height:58.6,color:rgb(0,0,0)}); // bordo destro mancante nel modulo originale
