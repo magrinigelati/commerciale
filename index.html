@@ -38,14 +38,30 @@
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0d1820; --surface:#152430; --ink:#e4edf2; --muted:#93a8b6; --line:#24384a;
-  --ice:#1c3242; --accent:#e5383b; --accent-ink:#ffffff; --accent-txt:#ff6b6e; --ok:#4fc58a; --warn:#f0a83a;
-  --head:#0a131a; --head-ink:#e4edf2; --head-line:rgba(255,255,255,.3); --sel:#0a131a; --sel-ink:#e4edf2; --tab-on:#e5383b; color-scheme:dark}}
+  --bg:#0c1428; --surface:#152040; --ink:#e8edfa; --muted:#9aa8cc; --line:#24325a;
+  --ice:#1c2a52; --accent:#f2b705; --accent-ink:#14213d; --accent-txt:#ff6b6e; --ok:#4fc58a; --warn:#f0a83a;
+  --head:#16295e; --head-ink:#ffffff; --head-line:rgba(255,255,255,.3); --sel:#f2b705; --sel-ink:#14213d; --tab-on:#f2b705; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0d1820; --surface:#152430; --ink:#e4edf2; --muted:#93a8b6; --line:#24384a;
-  --ice:#1c3242; --accent:#e5383b; --accent-ink:#ffffff; --accent-txt:#ff6b6e; --ok:#4fc58a; --warn:#f0a83a;
-  --head:#0a131a; --head-ink:#e4edf2; --head-line:rgba(255,255,255,.3); --sel:#0a131a; --sel-ink:#e4edf2; --tab-on:#e5383b; color-scheme:dark}
+  --bg:#0c1428; --surface:#152040; --ink:#e8edfa; --muted:#9aa8cc; --line:#24325a;
+  --ice:#1c2a52; --accent:#f2b705; --accent-ink:#14213d; --accent-txt:#ff6b6e; --ok:#4fc58a; --warn:#f0a83a;
+  --head:#16295e; --head-ink:#ffffff; --head-line:rgba(255,255,255,.3); --sel:#f2b705; --sel-ink:#14213d; --tab-on:#f2b705; color-scheme:dark}
 *{box-sizing:border-box}
+/* tema scuro: Quando carichi e scheda catalogo */
+:root[data-theme="dark"] .qbox{background:#13254d;border-color:#4f7cff}
+:root[data-theme="dark"] .qbox label{color:#e8edfa}
+:root[data-theme="dark"] .qbox .chips button{background:#152040;color:#e8edfa;border-color:#2f4278}
+:root[data-theme="dark"] .qbox .chips button[aria-pressed=true]{background:#4f7cff;color:#fff;border-color:#4f7cff}
+:root[data-theme="dark"] .qbox input{background:#152040;color:#e8edfa}
+:root[data-theme="dark"] .tile.cat{background:linear-gradient(135deg,#1e2a52,#4a4430);border-color:#7a6c45;color:#fff3d1}
+:root[data-theme="dark"] .tile.cat span{color:#eadfbf}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .qbox{background:#13254d;border-color:#4f7cff}
+:root:not([data-theme="light"]) .qbox label{color:#e8edfa}
+:root:not([data-theme="light"]) .qbox .chips button{background:#152040;color:#e8edfa;border-color:#2f4278}
+:root:not([data-theme="light"]) .qbox .chips button[aria-pressed=true]{background:#4f7cff;color:#fff;border-color:#4f7cff}
+:root:not([data-theme="light"]) .qbox input{background:#152040;color:#e8edfa}
+:root:not([data-theme="light"]) .tile.cat{background:linear-gradient(135deg,#1e2a52,#4a4430);border-color:#7a6c45;color:#fff3d1}
+:root:not([data-theme="light"]) .tile.cat span{color:#eadfbf}}
+
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.4;padding-bottom:92px}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
@@ -180,8 +196,7 @@ a.btn{text-decoration:none}
 .tile.big b{font-size:28px}.tile.big span{color:var(--accent-ink);opacity:.85}
 .tile.cat{grid-column:1/-1;background:linear-gradient(135deg,#e6f4ff,#cfe8fb);border-color:#a9d2f2}
 .tile.cat span{color:#3d5a73}
-[data-theme=dark] .tile.cat{background:linear-gradient(135deg,#3b3220,#3d2230);border-color:#6a3f50}
-[data-theme=dark] .tile.cat span{color:#e2c4cf}
+
 .tile.uff{grid-column:1/-1;border-style:dashed}
 .brand #esci{padding:6px 12px}
 
