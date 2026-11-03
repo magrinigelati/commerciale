@@ -100,6 +100,10 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .cpbig{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;gap:8px}
 .cpbig img{max-width:100%;max-height:calc(100% - 80px);border-radius:6px}
 .cpbig .btn{flex:none}
+.aggbar{position:sticky;bottom:calc(98px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;margin:14px 0 4px;z-index:3}
+.aggbar .btn{width:100%;max-width:480px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.avviso{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(104px + env(safe-area-inset-bottom,0px));z-index:30;background:#14213d;color:#fff;padding:10px 16px;border-radius:999px;font-size:15px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.25);transition:opacity .4s;max-width:92vw;text-align:center}
+.avviso.via{opacity:0}
 .back.fissa{position:sticky;top:var(--toph,0px);z-index:4;background:var(--bg);padding:8px 0;margin:-8px 0 8px}
 .back button{background:var(--ice);border:0;border-radius:8px;padding:8px 12px;font-weight:600}
 .back h2{font-family:var(--f-display);font-size:22px;text-transform:uppercase;margin:0;letter-spacing:.03em}
@@ -589,6 +593,8 @@ function bindMant(root){
     const vi=+f.value,id=+g.value;setQ(id,vi,qOf(id,vi)+q);m.className='msg ok';m.textContent='Aggiunto: '+byId[id][2]+' '+(vi===1?'4,75 L':'4,25 L')+', '+q+' ct su ordinazione'};
 }
 
+/* avviso breve in basso */
+function avviso(t){document.querySelectorAll('.avviso').forEach(x=>x.remove());const d=document.createElement('div');d.className='avviso';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.classList.add('via'),1800);setTimeout(()=>d.remove(),2300)}
 /* ================= VISTA CARICO ================= */
 function renderFam(v){
   if(fam!==null){
@@ -599,8 +605,12 @@ function renderFam(v){
       const single=secs.length===1&&secs[0][0].toLowerCase()===S[fam].toLowerCase();
       body=secs.map(([s,ps])=>`${single?'':`<div class="lbl sub">${esc(s)}</div>`}<div class="list">${ps.map(p=>rowHtml(p,false)).join('')}</div>`).join('');}
     const inSub=fam!=='rec'&&SUBFAM.includes(S[fam])&&sub!==null;
-    v.innerHTML=`<div class="back"><button id="bk">‹ ${inSub?esc(S[fam]):'Famiglie'}</button><h2>${fam==='rec'?'I più usati':esc(inSub?subsOf(fam)[sub].t:S[fam])}</h2></div>${body}`;
+    const conRighe=!(fam!=='rec'&&SUBFAM.includes(S[fam])&&sub===null);
+    v.innerHTML=`<div class="back"><button id="bk">‹ ${inSub?esc(S[fam]):'Famiglie'}</button><h2>${fam==='rec'?'I più usati':esc(inSub?subsOf(fam)[sub].t:S[fam])}</h2></div>${body}${conRighe?'<div class="aggbar"><button class="btn main" id="agg">✓ Aggiungi e torna alle famiglie</button></div>':''}`;
     $('#bk').onclick=indietro;
+    // le quantita' sono gia' nel carico: il pulsante conferma e riporta all'elenco delle famiglie
+    if($('#agg'))$('#agg').onclick=()=>{const n=list.reduce((t,p)=>t+(p[6].some((_,vi)=>qOf(p[0],vi))?1:0),0);
+      fam=null;sub=null;nav();render();window.scrollTo(0,0);avviso(n?`${n} ${n===1?'prodotto':'prodotti'} di questa famiglia nel carico`:'Nessun prodotto aggiunto da questa famiglia')};
     v.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{sub=+b.dataset.sub;nav();render();window.scrollTo(0,0)});
     bindMant(v);bindRows(v);return;
   }
