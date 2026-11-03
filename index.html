@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="theme-color" content="#1b2f40">
+<meta name="theme-color" content="#23408f">
 <script>document.documentElement.dataset.theme='light';try{const s=JSON.parse(localStorage.getItem('mc_tema'));if(s)document.documentElement.dataset.theme=s}catch(e){}</script>
 <title>Area commerciale Magrini</title>
 <meta name="description" content="Area riservata ad agenti, padroncini e concessionari Magrini Gelati: ordini e materiale aggiornato.">
@@ -31,20 +31,20 @@
 
 /* Layout: app a una colonna da telefono, barra in alto con i tre modi (Famiglie, Detta, Riepilogo) e barra fissa in basso con il conteggio del carico */
 :root{
-  --bg:#fffbf0; --surface:#ffffff; --ink:#1d2b55; --muted:#6b6a5c; --line:#efe3bf;
-  --ice:#fdf0c4; --accent:#f2b705; --accent-ink:#1d2b55; --accent-txt:#c4183c; --ok:#1f7a4d; --warn:#b26b00;
-  --head:#fff6d6; --head-ink:#23408f; --head-line:rgba(35,64,143,.35); --sel:#23408f; --sel-ink:#ffffff;
+  --bg:#f2f5fb; --surface:#ffffff; --ink:#14213d; --muted:#5a6785; --line:#d6dff0;
+  --ice:#e3eaf8; --accent:#23408f; --accent-ink:#ffffff; --accent-txt:#c4183c; --ok:#1f7a4d; --warn:#b26b00;
+  --head:#23408f; --head-ink:#ffffff; --head-line:rgba(255,255,255,.35); --sel:#14213d; --sel-ink:#ffffff; --tab-on:#f2b705;
   --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0d1820; --surface:#152430; --ink:#e4edf2; --muted:#93a8b6; --line:#24384a;
   --ice:#1c3242; --accent:#e5383b; --accent-ink:#ffffff; --accent-txt:#ff6b6e; --ok:#4fc58a; --warn:#f0a83a;
-  --head:#0a131a; --head-ink:#e4edf2; --head-line:rgba(255,255,255,.3); --sel:#0a131a; --sel-ink:#e4edf2; color-scheme:dark}}
+  --head:#0a131a; --head-ink:#e4edf2; --head-line:rgba(255,255,255,.3); --sel:#0a131a; --sel-ink:#e4edf2; --tab-on:#e5383b; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0d1820; --surface:#152430; --ink:#e4edf2; --muted:#93a8b6; --line:#24384a;
   --ice:#1c3242; --accent:#e5383b; --accent-ink:#ffffff; --accent-txt:#ff6b6e; --ok:#4fc58a; --warn:#f0a83a;
-  --head:#0a131a; --head-ink:#e4edf2; --head-line:rgba(255,255,255,.3); --sel:#0a131a; --sel-ink:#e4edf2; color-scheme:dark}
+  --head:#0a131a; --head-ink:#e4edf2; --head-line:rgba(255,255,255,.3); --sel:#0a131a; --sel-ink:#e4edf2; --tab-on:#e5383b; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.4;padding-bottom:92px}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -65,7 +65,7 @@ button{cursor:pointer}
 .who input[type=date]{flex:0 0 auto}
 .tabs{display:grid;grid-template-columns:repeat(2,1fr);margin-top:10px}
 .tabs button{background:none;border:0;border-bottom:3px solid transparent;color:var(--head-ink);opacity:.7;padding:10px 4px;font-family:var(--f-display);font-weight:600;font-size:17px;letter-spacing:.05em;text-transform:uppercase}
-.tabs button[aria-selected=true]{opacity:1;border-color:var(--accent)}
+.tabs button[aria-selected=true]{opacity:1;border-color:var(--tab-on,var(--accent))}
 main{padding:14px 16px;max-width:720px;margin:0 auto}
 .search{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:17px}
 .fams{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:12px}
