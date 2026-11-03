@@ -31,20 +31,20 @@
 
 /* Layout: app a una colonna da telefono, barra in alto con i tre modi (Famiglie, Detta, Riepilogo) e barra fissa in basso con il conteggio del carico */
 :root{
-  --bg:#eef3f6; --surface:#ffffff; --ink:#122433; --muted:#5b6f7e; --line:#d5e0e7;
-  --ice:#d9ecf5; --accent:#c4183c; --accent-ink:#ffffff; --ok:#1f7a4d; --warn:#b26b00;
-  --head:#1b2f40; --head-ink:#f2f7fa;
+  --bg:#fffbf0; --surface:#ffffff; --ink:#1d2b55; --muted:#6b6a5c; --line:#efe3bf;
+  --ice:#fdf0c4; --accent:#f2b705; --accent-ink:#1d2b55; --accent-txt:#c4183c; --ok:#1f7a4d; --warn:#b26b00;
+  --head:#fff6d6; --head-ink:#23408f; --head-line:rgba(35,64,143,.35); --sel:#23408f; --sel-ink:#ffffff;
   --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0d1820; --surface:#152430; --ink:#e4edf2; --muted:#93a8b6; --line:#24384a;
-  --ice:#1c3242; --accent:#e5383b; --accent-ink:#ffffff; --ok:#4fc58a; --warn:#f0a83a;
-  --head:#0a131a; --head-ink:#e4edf2; color-scheme:dark}}
+  --ice:#1c3242; --accent:#e5383b; --accent-ink:#ffffff; --accent-txt:#ff6b6e; --ok:#4fc58a; --warn:#f0a83a;
+  --head:#0a131a; --head-ink:#e4edf2; --head-line:rgba(255,255,255,.3); --sel:#0a131a; --sel-ink:#e4edf2; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0d1820; --surface:#152430; --ink:#e4edf2; --muted:#93a8b6; --line:#24384a;
-  --ice:#1c3242; --accent:#e5383b; --accent-ink:#ffffff; --ok:#4fc58a; --warn:#f0a83a;
-  --head:#0a131a; --head-ink:#e4edf2; color-scheme:dark}
+  --ice:#1c3242; --accent:#e5383b; --accent-ink:#ffffff; --accent-txt:#ff6b6e; --ok:#4fc58a; --warn:#f0a83a;
+  --head:#0a131a; --head-ink:#e4edf2; --head-line:rgba(255,255,255,.3); --sel:#0a131a; --sel-ink:#e4edf2; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.4;padding-bottom:92px}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -58,9 +58,9 @@ button{cursor:pointer}
 .me{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
 #tema{font-size:16px;padding:4px 10px;line-height:1.2}
 .who-n{font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:.06em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.who-x{background:transparent;border:1px solid rgba(255,255,255,.3);color:var(--head-ink);border-radius:8px;padding:6px 10px;font-size:13px}
+.who-x{background:transparent;border:1px solid var(--head-line);color:var(--head-ink);border-radius:8px;padding:6px 10px;font-size:13px}
 .who-f{display:flex;gap:6px;flex:1;min-width:0}
-.who input{flex:1;min-width:0;background:transparent;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:7px 10px;color:var(--head-ink)}
+.who input{flex:1;min-width:0;background:transparent;border:1px solid var(--head-line);border-radius:8px;padding:7px 10px;color:var(--head-ink)}
 .who input::placeholder{color:rgba(242,247,250,.55)}
 .who input[type=date]{flex:0 0 auto}
 .tabs{display:grid;grid-template-columns:repeat(2,1fr);margin-top:10px}
@@ -74,7 +74,7 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .fam span{font-size:13px;color:var(--muted)}
 .fam.has{border-color:var(--accent);box-shadow:inset 4px 0 0 var(--accent)}
 .fam.boxf{border-style:dashed;border-color:var(--warn)}
-.fam.has span{color:var(--accent);font-weight:600}
+.fam.has span{color:var(--accent-txt);font-weight:600}
 .lbl{font-family:var(--f-display);font-weight:600;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 6px}
 .back{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .cprev{position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:6;width:100px;padding:0;border:2px solid #fff;border-radius:8px;background:#fff;box-shadow:0 6px 22px rgba(0,0,0,.3);overflow:hidden;transition:opacity .2s}
@@ -94,7 +94,7 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .pn{width:100%;min-width:0;background:none;border:0;text-align:left;padding:4px 0}
 .pn b{display:block;font-weight:500}
 .pn small{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
-.nov{display:inline-block;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-left:4px}
+.nov{display:inline-block;font-size:11px;font-weight:600;color:var(--accent-txt);text-transform:uppercase;letter-spacing:.05em;margin-left:4px}
 .step{display:flex;align-items:center;gap:4px;flex:0 0 auto}
 .step .vl{font-size:11px;color:var(--muted);width:34px;text-align:right;text-transform:uppercase}
 .step button{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:22px;line-height:1;font-weight:600}
@@ -103,8 +103,8 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .vars{display:flex;flex-direction:column;gap:4px}
 .um{display:flex;flex:0 0 auto;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .um button{border:0;background:var(--surface);color:var(--muted);font-family:var(--f-display);font-weight:700;font-size:14px;letter-spacing:.04em;padding:0 7px;height:40px}
-.um button[aria-pressed=true]{background:var(--head);color:var(--head-ink)}
-.cv{color:var(--accent);font-weight:600}
+.um button[aria-pressed=true]{background:var(--sel);color:var(--sel-ink)}
+.cv{color:var(--accent-txt);font-weight:600}
 small.cv{display:block}
 .umsel{flex:0 0 auto;height:40px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-family:var(--f-display);font-weight:700;font-size:14px;padding:0 6px}
 .um.sm button{height:30px;font-size:12px;padding:0 6px}
@@ -131,7 +131,7 @@ textarea{width:100%;min-height:140px;padding:12px;border:1px solid var(--line);b
 .sum h3{font-family:var(--f-display);font-size:16px;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 6px;color:var(--muted)}
 .sr{display:flex;gap:10px;align-items:center;padding:9px 12px;border-top:1px solid var(--line)}
 .sr:first-child{border-top:0}
-.sr .q{font-family:var(--f-display);font-weight:700;font-size:20px;min-width:36px;text-align:right;color:var(--accent);font-variant-numeric:tabular-nums}
+.sr .q{font-family:var(--f-display);font-weight:700;font-size:20px;min-width:36px;text-align:right;color:var(--accent-txt);font-variant-numeric:tabular-nums}
 .sr .n{flex:1;min-width:0}
 .sr .n small{display:block;color:var(--muted);font-size:12px}
 .sr button{background:none;border:0;color:var(--muted);font-size:14px;padding:6px}
@@ -140,7 +140,7 @@ textarea{width:100%;min-height:140px;padding:12px;border:1px solid var(--line);b
 .extra input{padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);min-width:0}
 .empty{padding:22px;text-align:center;color:var(--muted)}
 .msg{margin-top:10px;font-size:15px}
-.msg.err{color:var(--accent)} .msg.ok{color:var(--ok)}
+.msg.err{color:var(--accent-txt)} .msg.ok{color:var(--ok)}
 .bar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:12px}
 .bar .tot{flex:1;min-width:0}
 .bar .tot b{font-family:var(--f-display);font-size:22px;font-variant-numeric:tabular-nums}
@@ -150,7 +150,7 @@ textarea{width:100%;min-height:140px;padding:12px;border:1px solid var(--line);b
 .step.ord input{border-style:dashed}
 .step .vl{width:46px;line-height:1.1}
 .nt{display:block;color:var(--warn)!important;font-size:12px}
-.ev{display:block;color:var(--accent)!important;font-weight:600;font-size:12px}
+.ev{display:block;color:var(--accent-txt)!important;font-weight:600;font-size:12px}
 .row.evid{box-shadow:inset 4px 0 0 var(--warn)}
 .so{color:var(--warn);font-size:12px;font-weight:600}
 .mbox{background:var(--surface);border:1px dashed var(--warn);border-radius:12px;padding:12px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px}
@@ -178,8 +178,8 @@ a.btn{text-decoration:none}
 .tile span{font-size:13px;color:var(--muted)}
 .tile.big{grid-column:1/-1;background:var(--accent);border-color:var(--accent);color:var(--accent-ink);min-height:120px;justify-content:flex-end}
 .tile.big b{font-size:28px}.tile.big span{color:var(--accent-ink);opacity:.85}
-.tile.cat{grid-column:1/-1;background:linear-gradient(135deg,#fff3d1,#ffe0ea);border-color:#f2c3cf}
-.tile.cat span{color:#6b4a55}
+.tile.cat{grid-column:1/-1;background:linear-gradient(135deg,#e6f4ff,#cfe8fb);border-color:#a9d2f2}
+.tile.cat span{color:#3d5a73}
 [data-theme=dark] .tile.cat{background:linear-gradient(135deg,#3b3220,#3d2230);border-color:#6a3f50}
 [data-theme=dark] .tile.cat span{color:#e2c4cf}
 .tile.uff{grid-column:1/-1;border-style:dashed}
@@ -209,7 +209,7 @@ a.btn{text-decoration:none}
 .pill.off{background:var(--line);color:var(--muted)}
 .seg{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 .seg button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:8px 14px;font-weight:600}
-.seg button[aria-pressed=true]{background:var(--head);color:var(--head-ink);border-color:var(--head)}
+.seg button[aria-pressed=true]{background:var(--sel);color:var(--sel-ink);border-color:var(--sel)}
 /* sottomenu: piu' piccoli e con il rosso del portale, per distinguerli dalle schede principali */
 .seg.main{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:10px}
 .seg.main button{padding:7px 2px;font-size:13px;line-height:1.15;white-space:nowrap;text-align:center}
@@ -253,15 +253,15 @@ body{overflow-anchor:none}
 .mr .mn b{font-size:16px;line-height:1.2}.mr .mn small{color:var(--muted);font-size:12px}
 .mr .mg{flex:0 0 auto;min-width:64px;text-align:right;display:flex;flex-direction:column;align-items:flex-end}
 .mr .mg b{font-family:var(--f-display);font-weight:700;font-size:19px;color:#0d38b3;font-variant-numeric:tabular-nums}.mr .mg b i{font-style:normal;font-size:11px;margin-left:2px;color:var(--muted)}
-.mr .mg small{font-size:12px;font-weight:700}.mr .mg .dpos{color:var(--ok)}.mr .mg .dneg{color:var(--accent)}.mr .mg .gset{color:var(--warn);font-size:15px}
+.mr .mg small{font-size:12px;font-weight:700}.mr .mg .dpos{color:var(--ok)}.mr .mg .dneg{color:var(--accent-txt)}.mr .mg .gset{color:var(--warn);font-size:15px}
 .mr .step input{width:52px}
 .mc .gb{color:#0d38b3}.mc .gr{color:#b00a20;margin-left:.25em}.mc .gg{color:#0a7d3b;margin-left:.25em}.mc .go{color:#c25a00;margin-left:.1em}.mc .gi{color:#0d38b3;background:#ffe640;padding:0 .25em}
 .st.ok{background:var(--ok)}
 /* quando carichi: scelte a pulsante, in un riquadro rosso su fondo giallo chiaro per farlo notare */
-.qbox{margin-top:18px;padding:12px 14px;border:2px solid var(--accent);border-radius:12px;background:#fff8d6}
+.qbox{margin-top:18px;padding:12px 14px;border:2px solid var(--accent-txt);border-radius:12px;background:#fff8d6}
 .qbox label{font-size:17px;font-weight:700;color:#122433}
 .qbox .chips button{background:#fff;color:#122433}
-.qbox .chips button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+.qbox .chips button[aria-pressed=true]{background:var(--accent-txt);color:#fff}
 .qbox .nov{vertical-align:middle;margin-left:8px;padding:2px 7px;border:1px solid var(--accent);border-radius:999px;font-size:11px}
 .qbox input{background:#fff;color:#122433}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
@@ -1014,7 +1014,7 @@ function renderCarOrd(v){
 }
 // scorta desiderata per referenza
 function scRiga([p,vi]){const k=gk(p[0],vi),g=giac(p[0],vi),sc=scorta(p[0],vi),m=sc-g;
-  return `<div class="mr" data-sk="${k}"><div class="mn"><b>${esc(nomeV(p,vi))}</b><small>${esc(S[p[1]])} · in magazzino ${g} ct${sc?(m>0?` · <b style="color:var(--accent)">mancano ${m}</b>`:' · coperta'):''}</small></div>
+  return `<div class="mr" data-sk="${k}"><div class="mn"><b>${esc(nomeV(p,vi))}</b><small>${esc(S[p[1]])} · in magazzino ${g} ct${sc?(m>0?` · <b style="color:var(--accent-txt)">mancano ${m}</b>`:' · coperta'):''}</small></div>
    <div class="step"><button data-sd="-1" data-k="${k}" aria-label="Meno">−</button><input inputmode="numeric" pattern="[0-9]*" value="${sc||''}" placeholder="0" data-sdi="${k}" aria-label="Scorta desiderata"><button class="plus" data-sd="1" data-k="${k}" aria-label="Più">+</button></div></div>`}
 function scSet(k,v){v=Math.max(0,Math.min(9999,parseInt(v)||0));if(v===(MAG.S[k]||0))delete MAG.sc[k];else MAG.sc[k]=v;magSave();bar()}
 function scBind(root){
@@ -1051,7 +1051,7 @@ async function renderMov(v){
   if(error){v.innerHTML='<div class="empty">Non riesco a leggere i movimenti.</div>';return}
   const TL={carico:'Carico',scarico:'Scarico',rettifica:'Inventario / rettifica',manuale:'Carico e scarico'};
   const nome=r=>{const p=byId[r.p];return p?nomeV(p,r.v):'Prodotto '+r.p};
-  v.innerHTML=(data||[]).length?`<div class="list">${data.map(m=>{const n=(m.righe||[]).length,manc=(m.mancanti||[]).length;return `<div class="oi" style="flex-direction:column;align-items:stretch"><button class="n" data-mx="${m.id}" style="text-align:left"><b>${TL[m.tipo]||m.tipo}${m.ordine_id?' da ordine':''} · ${new Date(m.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</b><small>${n} ${n===1?'riga':'righe'}${manc?` · <b style="color:var(--accent)">${manc} senza giacenza</b>`:''}${m.note?' · '+esc(m.note):''}</small></button><div class="mdet" hidden>${(m.righe||[]).map(r=>`<div class="sr"><span class="q" style="color:${r.delta>=0?'#0d38b3':'var(--accent)'}">${r.delta>0?'+':''}${r.delta}<i>ct</i></span><div class="n">${esc(nome(r))}<small>da ${r.prima} a ${r.dopo} ct</small></div></div>`).join('')}${(m.mancanti||[]).map(r=>`<div class="sr"><span class="q" style="color:var(--accent)">−${r.mancanti}<i>ct</i></span><div class="n">${esc(nome(r))}<small>scaricati senza giacenza (non contati)</small></div></div>`).join('')}</div></div>`}).join('')}</div>`:'<div class="empty">Nessun movimento ancora.</div>';
+  v.innerHTML=(data||[]).length?`<div class="list">${data.map(m=>{const n=(m.righe||[]).length,manc=(m.mancanti||[]).length;return `<div class="oi" style="flex-direction:column;align-items:stretch"><button class="n" data-mx="${m.id}" style="text-align:left"><b>${TL[m.tipo]||m.tipo}${m.ordine_id?' da ordine':''} · ${new Date(m.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}</b><small>${n} ${n===1?'riga':'righe'}${manc?` · <b style="color:var(--accent-txt)">${manc} senza giacenza</b>`:''}${m.note?' · '+esc(m.note):''}</small></button><div class="mdet" hidden>${(m.righe||[]).map(r=>`<div class="sr"><span class="q" style="color:${r.delta>=0?'#0d38b3':'var(--accent)'}">${r.delta>0?'+':''}${r.delta}<i>ct</i></span><div class="n">${esc(nome(r))}<small>da ${r.prima} a ${r.dopo} ct</small></div></div>`).join('')}${(m.mancanti||[]).map(r=>`<div class="sr"><span class="q" style="color:var(--accent-txt)">−${r.mancanti}<i>ct</i></span><div class="n">${esc(nome(r))}<small>scaricati senza giacenza (non contati)</small></div></div>`).join('')}</div></div>`}).join('')}</div>`:'<div class="empty">Nessun movimento ancora.</div>';
   v.querySelectorAll('[data-mx]').forEach(b=>b.onclick=()=>{const d=b.nextElementSibling;d.hidden=!d.hidden});
 }
 // conferma: carico da ordine, oppure variazioni e rettifiche in sospeso
@@ -1083,7 +1083,7 @@ async function magConferma(){
     else if(!(await mChiedi({t:'Confermare le variazioni?',s:[R.pos?'+'+R.pos+' ct in carico':'',R.neg?'−'+R.neg+' ct in scarico':'',R.ns?R.ns+' rettifiche':''].filter(Boolean).join(' · '),ok:'Sì, conferma'})))return;
     const {data,error}=await sb.rpc('applica_movimento',{p_righe:righe,p_ordine:null,p_note:null});
     if(error)throw error;MAG.d={};MAG.set={};magSave();await magCarica();render();
-    $('#view').prepend(Object.assign(document.createElement('div'),{className:'card',innerHTML:`<h3 style="color:var(--ok)">Magazzino aggiornato</h3><p class="note" style="margin:4px 0 0">${(data&&data.righe||[]).length} referenze aggiornate${data&&data.mancanti&&data.mancanti.length?`, <b style="color:var(--accent)">${data.mancanti.length} scaricate oltre la giacenza</b>`:''}.</p>`}));
+    $('#view').prepend(Object.assign(document.createElement('div'),{className:'card',innerHTML:`<h3 style="color:var(--ok)">Magazzino aggiornato</h3><p class="note" style="margin:4px 0 0">${(data&&data.righe||[]).length} referenze aggiornate${data&&data.mancanti&&data.mancanti.length?`, <b style="color:var(--accent-txt)">${data.mancanti.length} scaricate oltre la giacenza</b>`:''}.</p>`}));
   }catch(e){alert('Operazione non riuscita: '+(e.message||e))}
   finally{go_.disabled=false;bar()}
 }
@@ -1182,7 +1182,7 @@ async function dopoInvio(data,righe,m){
   view='ord';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='ord'));
   await render();
   const v=$('#view');const ok=document.createElement('div');ok.className='card';ok.style.borderColor=esitoMail===true?'var(--ok)':'#c8102e';
-  ok.innerHTML=`${esitoMail===true?`<h3 style="color:var(--ok)">Ordine N. ${NUM(data)} inviato</h3>`:`<h3 style="color:#c8102e">Ordine N. ${NUM(data)} NON inviato all'ufficio</h3>`}<p style="margin:0 0 10px;color:var(--muted)">${esitoMail===true?'L\'ufficio lo ha ricevuto. Puoi modificarlo entro un\'ora da I miei ordini, finché l\'ufficio non lo mette in preparazione.':'<b style="color:var(--accent)">Attenzione: la mail all\'ufficio non è partita.</b> L\'ordine è salvato nel portale ma l\'ufficio non lo ha ricevuto: riprova con il pulsante qui sotto oppure <b>condividi il PDF su WhatsApp</b> con l\'ufficio.'}</p><div class="btns">${esitoMail===true?'':'<button class="btn main" id="ok-rm">Riprova mail</button>'}<button class="btn" id="ok-op">Apri PDF</button><button class="btn main" id="ok-sh">${esitoMail===true?'Condividi PDF':'Condividi su WhatsApp'}</button><button class="btn" id="ok-dl">Scarica PDF</button></div>`;v.prepend(ok);
+  ok.innerHTML=`${esitoMail===true?`<h3 style="color:var(--ok)">Ordine N. ${NUM(data)} inviato</h3>`:`<h3 style="color:#c8102e">Ordine N. ${NUM(data)} NON inviato all'ufficio</h3>`}<p style="margin:0 0 10px;color:var(--muted)">${esitoMail===true?'L\'ufficio lo ha ricevuto. Puoi modificarlo entro un\'ora da I miei ordini, finché l\'ufficio non lo mette in preparazione.':'<b style="color:var(--accent-txt)">Attenzione: la mail all\'ufficio non è partita.</b> L\'ordine è salvato nel portale ma l\'ufficio non lo ha ricevuto: riprova con il pulsante qui sotto oppure <b>condividi il PDF su WhatsApp</b> con l\'ufficio.'}</p><div class="btns">${esitoMail===true?'':'<button class="btn main" id="ok-rm">Riprova mail</button>'}<button class="btn" id="ok-op">Apri PDF</button><button class="btn main" id="ok-sh">${esitoMail===true?'Condividi PDF':'Condividi su WhatsApp'}</button><button class="btn" id="ok-dl">Scarica PDF</button></div>`;v.prepend(ok);
   preparaPdf(ordInviato,ME).catch(()=>{});
   if($('#ok-rm'))$('#ok-rm').onclick=async e=>{const b=e.currentTarget;b.disabled=true;b.textContent='Invio…';const r=await inviaMail(ordInviato);if(r===true){b.textContent='Mail inviata';ok.querySelector('p').innerHTML='L\'ufficio lo ha ricevuto. Puoi modificarlo entro un\'ora da I miei ordini, finché l\'ufficio non lo mette in preparazione.'}else{b.disabled=false;b.textContent='Riprova mail';alert('Ancora niente: '+r)}};
   $('#ok-sh').onclick=e=>condividiPdf(ordInviato,ME,e.currentTarget);$('#ok-dl').onclick=()=>scaricaPdf(ordInviato,ME);$('#ok-op').onclick=()=>apriPdf(ordInviato,ME);
@@ -1215,7 +1215,7 @@ async function inviaModifica(m){
   view='ord';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='ord'));
   await render();
   const v=$('#view'),ok=document.createElement('div');ok.className='card';ok.style.borderColor='var(--ok)';
-  ok.innerHTML=`<h3 style="color:var(--ok)">Ordine N. ${numero} modificato</h3><p style="margin:0 0 10px;color:var(--muted)">${esitoMail===true?'L\'ufficio ha ricevuto la nuova versione con le differenze.':'<b style="color:var(--accent)">Attenzione: la mail all\'ufficio non è partita.</b> La modifica è salvata nel portale: riprova da I miei ordini oppure <b>condividi il PDF su WhatsApp</b> con l\'ufficio.'}</p><div class="btns"><button class="btn" id="ok-op">Apri PDF</button><button class="btn main" id="ok-sh">Condividi PDF</button></div>`;v.prepend(ok);
+  ok.innerHTML=`<h3 style="color:var(--ok)">Ordine N. ${numero} modificato</h3><p style="margin:0 0 10px;color:var(--muted)">${esitoMail===true?'L\'ufficio ha ricevuto la nuova versione con le differenze.':'<b style="color:var(--accent-txt)">Attenzione: la mail all\'ufficio non è partita.</b> La modifica è salvata nel portale: riprova da I miei ordini oppure <b>condividi il PDF su WhatsApp</b> con l\'ufficio.'}</p><div class="btns"><button class="btn" id="ok-op">Apri PDF</button><button class="btn main" id="ok-sh">Condividi PDF</button></div>`;v.prepend(ok);
   $('#ok-sh').onclick=e=>condividiPdf(data,ME,e.currentTarget);$('#ok-op').onclick=()=>apriPdf(data,ME);
 }
 // riquadro "stai modificando" sopra il foglio di carico e il riepilogo
@@ -1238,7 +1238,7 @@ const STATI={inviato:'Inviato',in_lavorazione:'In preparazione',caricato:'Carica
 const mailMancante=o=>o.stato==='inviato'&&'mail_il' in o&&!o.mail_il;
 const pillStato=o=>mailMancante(o)?'<span class="pill noinv">NON inviato</span>':`<span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span>`;
 function righeTesto(o){return (o.righe||[]).map(r=>{const p=byId[r.p];return p?{q:r.q,u:r.u,ct:r.ct,n:(r.d||p[2])+(p[6].length>1?' · '+p[6][r.v][0]:''),c:r.d?'descrizione modificata (era: '+p[2]+')':(p[6][r.v]?p[6][r.v][2]:''),mod:!!r.d}:{q:r.q,u:r.u,n:'(prodotto non più a catalogo)',c:''}}).concat((o.extra||[]).map(e=>({q:e.q,u:e.u,n:e.d,c:'aggiuntivo'})))}
-function dettaglioHtml(o){return `<div class="list">${righeTesto(o).map(r=>`<div class="sr"><span class="q">${r.q}<i>${ULAB(r.u)}</i></span><div class="n">${esc(r.n)}${r.ct?` <b class="cv">${r.ct} ct</b>`:''}<small>${esc(r.c)}</small></div></div>`).join('')}</div>${o.quando?`<p class="note" style="color:var(--accent);font-weight:700">Carico: ${esc(o.quando)}</p>`:''}${o.note?`<p class="note">Note: ${esc(o.note)}</p>`:''}`}
+function dettaglioHtml(o){return `<div class="list">${righeTesto(o).map(r=>`<div class="sr"><span class="q">${r.q}<i>${ULAB(r.u)}</i></span><div class="n">${esc(r.n)}${r.ct?` <b class="cv">${r.ct} ct</b>`:''}<small>${esc(r.c)}</small></div></div>`).join('')}</div>${o.quando?`<p class="note" style="color:var(--accent-txt);font-weight:700">Carico: ${esc(o.quando)}</p>`:''}${o.note?`<p class="note">Note: ${esc(o.note)}</p>`:''}`}
 async function renderOrd(v){
   v.innerHTML='<div class="empty">Carico gli ordini…</div>';
   const {data,error}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').gte('data',(()=>{const d=new Date();d.setDate(d.getDate()-31);return d.toISOString().slice(0,10)})()).order('id',{ascending:false});
@@ -1396,7 +1396,7 @@ async function uffOrdini(v){
   if(error){$('#ul').innerHTML='<div class="empty">Errore: '+esc(error.message)+'</div>';return}
   const U={};(ut||[]).forEach(u=>U[u.id]=u);
   if(!ord.length){$('#ul').innerHTML='<div class="empty">'+(uffTutti?'Nessun ordine negli ultimi 7 giorni.':'Nessun ordine per questo giorno.')+'</div>';return}
-  $('#ul').innerHTML=`<div class="list">${ord.map(o=>{const u=U[o.utente_id]||{};return `<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${NUM(o)} · ${esc((u.nome_stampa||u.nome||'?'))}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · ${uffTutti?'carico del '+dataIt(o.data)+' · inviato '+new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):new Date(o.inviato_il||o.creato_il).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}${o.quando?' · <b style="color:var(--accent)">carico '+esc(o.quando).toLowerCase()+'</b>':''}${o.note?' · con note':''}${o.versione>1?' · <b style="color:var(--accent)">modificato '+oraIt(o.modificato_il)+(o.versione>2?' ('+o.versione+'ª versione)':'')+'</b>':''}${'mail_il' in o&&!o.mail_il?' · <b style="color:var(--accent)">mail non arrivata</b>':''}</small></div>${pillStato(o)}</button><div id="uo${o.id}" hidden style="padding:0 12px 12px"></div>`}).join('')}</div>`;
+  $('#ul').innerHTML=`<div class="list">${ord.map(o=>{const u=U[o.utente_id]||{};return `<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${NUM(o)} · ${esc((u.nome_stampa||u.nome||'?'))}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · ${uffTutti?'carico del '+dataIt(o.data)+' · inviato '+new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):new Date(o.inviato_il||o.creato_il).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}${o.quando?' · <b style="color:var(--accent-txt)">carico '+esc(o.quando).toLowerCase()+'</b>':''}${o.note?' · con note':''}${o.versione>1?' · <b style="color:var(--accent-txt)">modificato '+oraIt(o.modificato_il)+(o.versione>2?' ('+o.versione+'ª versione)':'')+'</b>':''}${'mail_il' in o&&!o.mail_il?' · <b style="color:var(--accent-txt)">mail non arrivata</b>':''}</small></div>${pillStato(o)}</button><div id="uo${o.id}" hidden style="padding:0 12px 12px"></div>`}).join('')}</div>`;
   $('#ul').querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=ord.find(x=>x.id==b.dataset.o),u=U[o.utente_id]||{};const d=$('#uo'+o.id);d.hidden=!d.hidden;if(d.hidden)return;
     d.innerHTML=dettaglioHtml(o)+`<div class="btns"><button class="btn main" data-pdf>Scarica PDF</button><button class="btn" data-op>Apri PDF</button><button class="btn" data-mail>Rinvia mail</button>${['in_lavorazione','caricato','annullato'].map(s=>`<button class="btn" data-s="${s}">${STATI[s]}</button>`).join('')}</div>`;
     d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,u);d.querySelector('[data-op]').onclick=()=>apriPdf(o,u);
