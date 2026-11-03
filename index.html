@@ -606,7 +606,7 @@ function renderFam(v){
       body=secs.map(([s,ps])=>`${single?'':`<div class="lbl sub">${esc(s)}</div>`}<div class="list">${ps.map(p=>rowHtml(p,false)).join('')}</div>`).join('');}
     const inSub=fam!=='rec'&&SUBFAM.includes(S[fam])&&sub!==null;
     const conRighe=!(fam!=='rec'&&SUBFAM.includes(S[fam])&&sub===null);
-    v.innerHTML=`<div class="back"><button id="bk">‹ ${inSub?esc(S[fam]):'Famiglie'}</button><h2>${fam==='rec'?'I più usati':esc(inSub?subsOf(fam)[sub].t:S[fam])}</h2></div>${body}${conRighe?'<div class="aggbar"><button class="btn main" id="agg">✓ Aggiungi e torna alle famiglie</button></div>':''}`;
+    v.innerHTML=`<div class="back fissa"><button id="bk">‹ ${inSub?esc(S[fam]):'Famiglie'}</button><h2>${fam==='rec'?'I più usati':esc(inSub?subsOf(fam)[sub].t:S[fam])}</h2></div>${body}${conRighe?'<div class="aggbar"><button class="btn main" id="agg">✓ Aggiungi e torna alle famiglie</button></div>':''}`;
     $('#bk').onclick=indietro;
     // le quantita' sono gia' nel carico: il pulsante conferma e riporta all'elenco delle famiglie
     if($('#agg'))$('#agg').onclick=()=>{const n=list.reduce((t,p)=>t+(p[6].some((_,vi)=>qOf(p[0],vi))?1:0),0);
@@ -2122,6 +2122,8 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 /* ================= TESTATA RIDOTTA ================= */
 // scorrendo in giù resta solo la riga Carico/Riepilogo; tornando su (o in cima) ricompare tutto
 let prevY=0,su=0,giu=0,fermo=0;
+// altezza della testata sempre aggiornata: le barre "‹ Famiglie" restano fisse subito sotto
+try{const tp=document.querySelector('.top');if(tp&&'ResizeObserver' in window)new ResizeObserver(()=>document.documentElement.style.setProperty('--toph',tp.offsetHeight+'px')).observe(tp)}catch(e){}
 function setMini(on){const top=$('.top');if(!top||top.classList.contains('mini')===on)return;top.classList.toggle('mini',on);fermo=Date.now()+400;su=giu=0}
 // nei Moduli scorre il foglio e non la pagina: l'intestazione resta sempre intera
 const vistaModulo=()=>view==='mod'||(view==='mag'&&typeof magInMod==='function'&&magInMod());
