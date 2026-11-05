@@ -1278,7 +1278,7 @@ async function inviaOrdine_(){
   {const da=new Date(Date.now()-600000).toISOString(),canon=x=>Array.isArray(x)?'['+x.map(canon).join(',')+']':(x&&typeof x==='object')?'{'+Object.keys(x).filter(k=>x[k]!=null).sort().map(k=>JSON.stringify(k)+':'+canon(x[k])).join(',')+'}':JSON.stringify(x),firma=canon([st.data,righe,st.extra||[]]);
    const {data:rec}=await sb.from('ordini').select('*').eq('utente_id',ME.id).neq('stato','bozza').gte('creato_il',da).order('id',{ascending:false}).limit(5);
    const gia=(rec||[]).find(o=>canon([o.data,o.righe||[],o.extra||[]])===firma);
-   if(gia){st.chiave=gia.chiave||st.chiave;save();return dopoInvio(gia,righe,m)}}
+   if(gia){st.chiave=gia.chiave||st.chiave;save();return dopoInvio(gia,righe,m,true)}}
   let {data,error}=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null,quando:st.quando||null,chiave:st.chiave}).select('*').single();
   if(error&&/chiave/.test(error.message||'')){const r=await sb.from('ordini').insert({data:st.data,stato:'inviato',righe,extra:st.extra,note:st.nota||null,quando:st.quando||null}).select('*').single();data=r.data;error=r.error} // database non ancora aggiornato
   if(error&&error.code==='23505'){const r=await sb.from('ordini').select('*').eq('chiave',st.chiave).single();data=r.data;error=r.error}
@@ -1287,7 +1287,7 @@ async function inviaOrdine_(){
   log('invio_ordine','N. '+NUM(data));
   return dopoInvio(data,righe,m);
 }
-async function dopoInvio(data,righe,m){
+async function dopoInvio(data,righe,m,doppio){
   const ordInviato={id:data.id,numero:data.numero,data:st.data,righe,extra:st.extra,note:st.nota||null,quando:st.quando||null};
   // l'ordine e' salvato: il foglio di carico si svuota subito, anche se poi l'app viene chiusa durante l'invio della mail
   st={q:{},u:{},d:{},extra:[],data:oggi(),nota:''};save();
@@ -1305,10 +1305,11 @@ async function dopoInvio(data,righe,m){
   if($('#ok-wa'))$('#ok-wa').onclick=e=>segnaWhatsApp(ordInviato,e.currentTarget,fattoOk);
   $('#ok-sh').onclick=e=>ordInviato.mail_il?condividiPdf(ordInviato,ME,e.currentTarget):condividiEChiedi(ordInviato,e.currentTarget,null,fattoOk);$('#ok-dl').onclick=()=>scaricaPdf(ordInviato,ME);$('#ok-op').onclick=()=>apriPdf(ordInviato,ME);
   avvisoChiama(esitoMail===true,false,ordInviato,cardMailOk,fattoOk);
+  if(doppio)ok.dataset.doppio='1';
   if(esitoMail===true)nuvoletta(ok); // solo se l'ordine e' arrivato in ufficio: se manca, e' un segnale che qualcosa non va
 }
 // nuvoletta a tema sotto il riquadro dell'ordine inviato (tema e frasi impostati dall'ufficio nell'account)
-async function nuvoletta(dopo){if(dopo.dataset.nv)return;dopo.dataset.nv='1';try{const {data,error}=await sb.rpc('prossima_frase');if(error||!data||!data.frase||!dopo.isConnected)return;
+async function nuvoletta(dopo){if(dopo.dataset.nv||dopo.dataset.doppio)return;dopo.dataset.nv='1';try{const {data,error}=await sb.rpc('prossima_frase');if(error||!data||!data.frase||!dopo.isConnected)return;
   const b=document.createElement('div');b.className='nuvola';b.innerHTML=`<i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i><i class="b5"></i><i class="d1"></i><i class="d2"></i><span class="ic">${esc(data.icona||'💬')}</span><p><b>Curiosità:</b> ${esc(data.frase)}</p><small>${esc(data.icona||'')} ${esc(data.tema)}</small>`;
   const c=document.createElement('div');c.className='btns nvchiudi';c.innerHTML='<button class="btn main">‹ Chiudi e torna alla Home</button>';c.querySelector('button').onclick=()=>go('home');
   dopo.after(b);b.after(c)}catch(e){}}
