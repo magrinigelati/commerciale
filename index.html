@@ -115,6 +115,8 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .nuvola .d1{width:20px;height:20px;top:-30px;left:2px}.nuvola .d2{width:12px;height:12px;top:-50px;left:-10px}
 .nuvola .ic{position:absolute;top:-34px;left:calc(38% + 33px);width:44px;height:44px;font-size:30px;line-height:44px;text-align:center}
 .nuvola p{position:relative;margin:0;font-family:'Caveat',cursive;font-size:25px;line-height:1.15;font-weight:500;text-align:center}
+.nuvola p b{font-weight:700;color:#c4183c}
+.nvchiudi{margin:0 0 18px}.nvchiudi .btn{width:100%}
 .nuvola small{position:relative;display:block;margin-top:6px;font-family:'Caveat',cursive;font-size:19px;font-weight:700;text-align:right;color:#c4183c}
 @keyframes nvin{from{opacity:0;transform:translateY(10px) scale(.95)}}
 @keyframes nvgo{50%{transform:translateY(-4px)}}
@@ -1307,7 +1309,9 @@ async function dopoInvio(data,righe,m){
 }
 // nuvoletta a tema sotto il riquadro dell'ordine inviato (tema e frasi impostati dall'ufficio nell'account)
 async function nuvoletta(dopo){try{const {data,error}=await sb.rpc('prossima_frase');if(error||!data||!data.frase||!dopo.isConnected)return;
-  const b=document.createElement('div');b.className='nuvola';b.innerHTML=`<i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i><i class="b5"></i><i class="d1"></i><i class="d2"></i><span class="ic">${esc(data.icona||'💬')}</span><p>“${esc(data.frase)}”</p><small>${esc(data.icona||'')} ${esc(data.tema)}</small>`;dopo.after(b)}catch(e){}}
+  const b=document.createElement('div');b.className='nuvola';b.innerHTML=`<i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i><i class="b5"></i><i class="d1"></i><i class="d2"></i><span class="ic">${esc(data.icona||'💬')}</span><p><b>Curiosità:</b> ${esc(data.frase)}</p><small>${esc(data.icona||'')} ${esc(data.tema)}</small>`;
+  const c=document.createElement('div');c.className='btns nvchiudi';c.innerHTML='<button class="btn main">‹ Chiudi e torna alla Home</button>';c.querySelector('button').onclick=()=>go('home');
+  dopo.after(b);b.after(c)}catch(e){}}
 
 // righe del carico nel formato salvato nell'ordine
 function righeCarico(){return Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);const u=uOf(id),r={p:id,v:vi,q:st.q[k],u};if(st.d&&st.d[id])r.d=st.d[id];if(u==='st'||u==='pl'){const c=convCt(byId[id],vi,u,st.q[k]);if(c)r.ct=c}return r})}
