@@ -1209,16 +1209,17 @@ async function dopoInvio(data,righe,m){
   // l'ordine e' salvato: il foglio di carico si svuota subito, anche se poi l'app viene chiusa durante l'invio della mail
   st={q:{},u:{},d:{},extra:[],data:oggi(),nota:''};save();
   m.textContent='Ordine salvato, invio la mail all\'ufficio…';
-  const esitoMail=await inviaMail(ordInviato);
+  const esitoMail=await inviaMail(ordInviato);if(esitoMail===true)ordInviato.mail_il=new Date().toISOString();
   view='ord';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='ord'));
   await render();
   const v=$('#view');const ok=document.createElement('div');ok.className='card';ok.style.borderColor=esitoMail===true?'var(--ok)':'#c8102e';
   ok.innerHTML=`${esitoMail===true?`<h3 style="color:var(--ok)">Ordine N. ${NUM(data)} inviato</h3>`:`<h3 style="color:#c8102e">Ordine N. ${NUM(data)} NON inviato all'ufficio</h3>`}<p style="margin:0 0 10px;color:var(--muted)">${esitoMail===true?'L\'ufficio lo ha ricevuto. Puoi modificarlo entro un\'ora da I miei ordini, finché l\'ufficio non lo mette in preparazione.':'<b style="color:var(--accent-txt)">Attenzione: la mail all\'ufficio non è partita.</b> L\'ordine è salvato nel portale ma l\'ufficio non lo ha ricevuto: premi <b>Riprova a inviare la mail</b>.'}</p>${esitoMail===true?'':'<button class="btn main riprova" id="ok-rm">↻ Riprova a inviare la mail all\'ufficio</button>'}<div class="btns"><button class="btn" id="ok-op">Apri PDF</button><button class="btn${esitoMail===true?' main':''}" id="ok-sh">Condividi PDF</button><button class="btn" id="ok-dl">Scarica PDF</button></div>${esitoMail===true?'':WA_BLOCCO('id="ok-sh2"','id="ok-wa"')}`;v.prepend(ok);
   preparaPdf(ordInviato,ME).catch(()=>{});
-  if($('#ok-rm'))$('#ok-rm').onclick=async e=>{const b=e.currentTarget;b.disabled=true;b.textContent='Invio…';const r=await inviaMail(ordInviato);if(r===true){b.textContent='✓ Mail inviata all\'ufficio';const wb=ok.querySelector('.wablocco');if(wb)wb.remove();ok.style.borderColor='var(--ok)';ok.querySelector('h3').style.color='var(--ok)';ok.querySelector('h3').textContent='Ordine N. '+NUM(data)+' inviato';ok.querySelector('p').innerHTML='L\'ufficio lo ha ricevuto. Puoi modificarlo entro un\'ora da I miei ordini, finché l\'ufficio non lo mette in preparazione.'}else{b.disabled=false;b.textContent='↻ Riprova di nuovo';const wb=ok.querySelector('.wablocco');if(wb){wb.hidden=false;wb.querySelector('.wamsg').textContent='La mail non è partita neanche ora ('+r+').'}}};
-  if($('#ok-sh2'))$('#ok-sh2').onclick=e=>condividiPdf(ordInviato,ME,e.currentTarget);
-  if($('#ok-wa'))$('#ok-wa').onclick=e=>segnaWhatsApp(ordInviato,e.currentTarget,()=>{ok.style.borderColor='var(--ok)';ok.querySelector('h3').style.color='var(--ok)';ok.querySelector('h3').textContent='Ordine N. '+NUM(data)+' inviato su WhatsApp';ok.querySelector('p').textContent='Segnato come inviato tramite WhatsApp.';const x=$('#ok-rm');if(x)x.remove();const wb=ok.querySelector('.wablocco');if(wb)wb.remove()});
-  $('#ok-sh').onclick=e=>condividiPdf(ordInviato,ME,e.currentTarget);$('#ok-dl').onclick=()=>scaricaPdf(ordInviato,ME);$('#ok-op').onclick=()=>apriPdf(ordInviato,ME);
+  if($('#ok-rm'))$('#ok-rm').onclick=async e=>{const b=e.currentTarget;b.disabled=true;b.textContent='Invio…';const r=await inviaMail(ordInviato);if(r===true){ordInviato.mail_il=new Date().toISOString();b.textContent='✓ Mail inviata all\'ufficio';const wb=ok.querySelector('.wablocco');if(wb)wb.remove();ok.style.borderColor='var(--ok)';ok.querySelector('h3').style.color='var(--ok)';ok.querySelector('h3').textContent='Ordine N. '+NUM(data)+' inviato';ok.querySelector('p').innerHTML='L\'ufficio lo ha ricevuto. Puoi modificarlo entro un\'ora da I miei ordini, finché l\'ufficio non lo mette in preparazione.'}else{b.disabled=false;b.textContent='↻ Riprova di nuovo';const wb=ok.querySelector('.wablocco');if(wb){wb.hidden=false;wb.querySelector('.wamsg').textContent='La mail non è partita neanche ora ('+r+').'}}};
+  if($('#ok-sh2'))$('#ok-sh2').onclick=e=>condividiEChiedi(ordInviato,e.currentTarget,null,fattoOk);
+  const fattoOk=()=>{ok.style.borderColor='var(--ok)';ok.querySelector('h3').style.color='var(--ok)';ok.querySelector('h3').textContent='Ordine N. '+NUM(data)+' inviato su WhatsApp';ok.querySelector('p').textContent='Segnato come inviato tramite WhatsApp.';const x=$('#ok-rm');if(x)x.remove();const wb=ok.querySelector('.wablocco');if(wb)wb.remove()};
+  if($('#ok-wa'))$('#ok-wa').onclick=e=>segnaWhatsApp(ordInviato,e.currentTarget,fattoOk);
+  $('#ok-sh').onclick=e=>ordInviato.mail_il?condividiPdf(ordInviato,ME,e.currentTarget):condividiEChiedi(ordInviato,e.currentTarget,null,fattoOk);$('#ok-dl').onclick=()=>scaricaPdf(ordInviato,ME);$('#ok-op').onclick=()=>apriPdf(ordInviato,ME);
 }
 
 // righe del carico nel formato salvato nell'ordine
@@ -1271,11 +1272,16 @@ const STATI={inviato:'Inviato',in_lavorazione:'In preparazione',caricato:'Carica
 // ordine mandato all'ufficio su WhatsApp perche' la mail non partiva: lo segno come inviato (solo se era NON inviato)
 // seconda scelta: compare solo dopo un nuovo tentativo di mail non riuscito
 const WA_BLOCCO=(sh,wa)=>`<div class="wablocco" hidden><p class="wamsg" style="margin:0 0 4px;font-weight:700;color:#c8102e"></p><p style="margin:0 0 8px">In alternativa manda il PDF all'ufficio su <b>WhatsApp</b>, poi segna l'ordine come inviato.</p><div class="btns" style="margin:0"><button class="btn" ${sh}>Condividi su WhatsApp</button><button class="btn wa" ${wa}>✓ Mandato su WhatsApp: segna come inviato</button></div></div>`;
-async function segnaWhatsApp(o,btn,fatto){
-  if(!(await mChiedi({t:'Segnare l\'ordine N. '+NUM(o)+' come inviato?',s:'Fallo solo se hai già mandato il PDF all\'ufficio su WhatsApp. L\'ordine risulterà inviato tramite WhatsApp.',ok:'Sì, l\'ho mandato'})))return;
+async function segnaWhatsApp(o,btn,fatto,giaChiesto){
+  if(!giaChiesto&&!(await mChiedi({t:'Segnare l\'ordine N. '+NUM(o)+' come inviato?',s:'Fallo solo se hai già mandato il PDF all\'ufficio su WhatsApp. L\'ordine risulterà inviato tramite WhatsApp.',ok:'Sì, l\'ho mandato'})))return;
   btn.disabled=true;btn.textContent='Salvo…';const {error}=await sb.rpc('segna_inviato_whatsapp',{p_id:o.id});
   if(error){btn.disabled=false;btn.textContent='✓ Mandato su WhatsApp: segna come inviato';alert(/segna_inviato_whatsapp/.test(error.message)?'Funzione non ancora attiva: avvisa l\'ufficio.':error.message);return}
   o.mail_il=new Date().toISOString();o.mail_via='whatsapp';nonInvCache.t=0;fatto()}
+// condivisione di un ordine NON inviato: finita la condivisione chiedo se e' andato all'ufficio su WhatsApp e, se si', lo segno inviato
+async function condividiEChiedi(o,btn,waBtn,fatto){
+  const ok=await condividiPdf(o,ME,btn);if(!ok||o.mail_il)return;
+  if(!(await mChiedi({t:'Hai mandato l\'ordine N. '+NUM(o)+' all\'ufficio su WhatsApp?',s:'Se sì, lo segno come inviato tramite WhatsApp e l\'ufficio lo vede arrivato.',ok:'Sì, l\'ho mandato all\'ufficio'})))return;
+  segnaWhatsApp(o,waBtn||document.createElement('button'),fatto,true)}
 const mailMancante=o=>o.stato==='inviato'&&'mail_il' in o&&!o.mail_il;
 const pillStato=o=>o.stato==='inviato'&&o.mail_via==='whatsapp'?'<span class="pill inviato">Inviato · WhatsApp</span>':mailMancante(o)?'<span class="pill noinv">NON inviato</span>':`<span class="pill ${o.stato}">${STATI[o.stato]||o.stato}</span>`;
 function righeTesto(o){return (o.righe||[]).map(r=>{const p=byId[r.p];return p?{q:r.q,u:r.u,ct:r.ct,n:(r.d||p[2])+(p[6].length>1?' · '+p[6][r.v][0]:''),c:r.d?'descrizione modificata (era: '+p[2]+')':(p[6][r.v]?p[6][r.v][2]:''),mod:!!r.d}:{q:r.q,u:r.u,n:'(prodotto non più a catalogo)',c:''}}).concat((o.extra||[]).map(e=>({q:e.q,u:e.u,n:e.d,c:'aggiuntivo'})))}
@@ -1288,8 +1294,9 @@ async function renderOrd(v){
   v.innerHTML=`<div class="lbl">I tuoi ordini degli ultimi 31 giorni</div><div class="list">${data.map(o=>`<button class="oi" data-o="${o.id}"><div class="n"><b>N. ${NUM(o)} · carico del ${dataIt(o.data)}</b><small>${(o.righe||[]).length+(o.extra||[]).length} righe · inviato ${new Date(o.inviato_il||o.creato_il).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}${o.versione>1?' · modificato '+oraIt(o.modificato_il):''}${modificabile(o)?' · modificabile fino alle '+oraIt(scadenzaMod(o)):''}${mailMancante(o)?' · <b style="color:#c8102e">la mail all\'ufficio non è partita: apri l\'ordine e premi Riprova a inviare la mail</b>':''}</small></div>${pillStato(o)}</button><div id="od${o.id}" hidden style="padding:0 12px 12px"></div>`).join('')}</div>`;
   v.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=data.find(x=>x.id==b.dataset.o);const d=$('#od'+o.id);d.hidden=!d.hidden;if(!d.hidden){d.innerHTML=dettaglioHtml(o)+`${'mail_il' in o&&!o.mail_il?'<button class="btn main riprova" data-rm>↻ Riprova a inviare la mail all\'ufficio</button>':''}<div class="btns">${modificabile(o)?`<button class="btn${mailMancante(o)?' bordo':' main'}" data-mod>Modifica ordine (ancora ${Math.max(1,Math.round((scadenzaMod(o)-Date.now())/60000))} min)</button>`:''}<button class="btn" data-op>Apri PDF</button><button class="btn" data-sh>Condividi PDF</button><button class="btn" data-pdf="${o.id}">Scarica PDF</button>${mailMancante(o)?'<button class="btn del" data-el>Elimina ordine</button>':''}</div>${mailMancante(o)?WA_BLOCCO('data-sh2','data-wa'):''}`;d.querySelector('[data-pdf]').onclick=()=>scaricaPdf(o,ME);d.querySelector('[data-op]').onclick=()=>apriPdf(o,ME);
       const md=d.querySelector('[data-mod]');if(md)md.onclick=()=>modificaOrdine(o);
-      const sh2=d.querySelector('[data-sh2]');if(sh2)sh2.onclick=e=>condividiPdf(o,ME,e.currentTarget);
-      const wa=d.querySelector('[data-wa]');if(wa)wa.onclick=()=>segnaWhatsApp(o,wa,()=>{const sb_=b.querySelector('small b');if(sb_)sb_.remove();b.querySelector('.pill').outerHTML=pillStato(o);['[data-rm]','[data-el]','.wablocco'].forEach(q=>{const x=d.querySelector(q);if(x)x.remove()})});
+      const fattoWA=()=>{const sb_=b.querySelector('small b');if(sb_)sb_.remove();b.querySelector('.pill').outerHTML=pillStato(o);['[data-rm]','[data-el]','.wablocco'].forEach(q=>{const x=d.querySelector(q);if(x)x.remove()});const md_=d.querySelector('[data-mod]');if(md_)md_.className='btn main'};
+      const sh2=d.querySelector('[data-sh2]');if(sh2)sh2.onclick=e=>condividiEChiedi(o,e.currentTarget,null,fattoWA);
+      const wa=d.querySelector('[data-wa]');if(wa)wa.onclick=()=>segnaWhatsApp(o,wa,fattoWA);
       const rm=d.querySelector('[data-rm]');if(rm)rm.onclick=async()=>{rm.disabled=true;rm.textContent='Invio…';const r=await inviaMail(o);if(r===true){rm.textContent='✓ Mail inviata all\'ufficio';const wb=d.querySelector('.wablocco');if(wb)wb.remove();o.mail_il=new Date().toISOString();b.querySelector('small b').remove();b.querySelector('.pill').outerHTML=pillStato(o);const el=d.querySelector('[data-el]');if(el)el.remove()}else{rm.disabled=false;rm.textContent='↻ Riprova di nuovo';const wb=d.querySelector('.wablocco');if(wb){wb.hidden=false;wb.querySelector('.wamsg').textContent='La mail non è partita neanche ora ('+r+').'}}};
       const el=d.querySelector('[data-el]');if(el){let pronto=false;el.onclick=async()=>{
         // doppia conferma: secondo tocco sul pulsante, poi domanda finale
@@ -1300,7 +1307,7 @@ async function renderOrd(v){
         const {error}=await sb.rpc('elimina_ordine',{p_id:o.id});nonInvCache.t=0;
         if(error){el.disabled=false;el.textContent='Elimina ordine';alert(error.message.includes('elimina_ordine')?'Funzione non ancora attiva: avvisa l\'ufficio.':error.message);return}
         await renderOrd(v)}}
-      preparaPdf(o,ME).catch(()=>{});d.querySelector('[data-sh]').onclick=e=>condividiPdf(o,ME,e.currentTarget)}});
+      preparaPdf(o,ME).catch(()=>{});d.querySelector('[data-sh]').onclick=e=>mailMancante(o)?condividiEChiedi(o,e.currentTarget,null,fattoWA):condividiPdf(o,ME,e.currentTarget)}});
 }
 
 
@@ -1403,8 +1410,8 @@ async function condividiPdf(o,utente,btn){
     try{await preparaPdf(o,utente);if(btn){btn.disabled=false;btn.textContent='Tocca per condividere'}}
     catch(e){if(btn){btn.disabled=false;btn.textContent=btn.dataset.t}alert('PDF non pronto: '+(e.message||e))}
     return}
-  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Ordine N. '+NUM(o)});if(btn)btn.textContent=btn.dataset.t}
-    else{scaricaPdf(o,utente);alert('Da questo dispositivo non posso condividere direttamente: ho scaricato il PDF, allegalo tu nella chat.')}}
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Ordine N. '+NUM(o)});if(btn)btn.textContent=btn.dataset.t;return true}
+    else{scaricaPdf(o,utente);alert('Da questo dispositivo non posso condividere direttamente: ho scaricato il PDF, allegalo tu nella chat.');return true}}
   catch(e){if(e&&e.name==='AbortError'){if(btn)btn.textContent=btn.dataset.t}
     else if(e&&e.name==='NotAllowedError'){if(btn)btn.textContent='Tocca per condividere'}
     else alert('Condivisione non riuscita: '+(e.message||e))}
