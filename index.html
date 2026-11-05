@@ -735,7 +735,7 @@ function avvisoChiama(ok,mod,o,onMail,onWA){document.querySelectorAll('.callmask
     <p>${mod?'La modifica è salvata':'L\'ordine è salvato'} nel portale, ma l'ufficio non l'ha ancora ricevuto. Riprova a inviare la mail.</p>
     <button class="btn main callbtn" type="button" id="cr-rm">↻ Riprova a inviare la mail</button>
     <p class="crmsg" hidden style="color:#c8102e;font-weight:700;margin:0 0 10px"></p>
-    <button class="btn callbtn" type="button" id="cr-wa" hidden>Condividi su WhatsApp</button>
+    <button class="btn callbtn bordo" type="button" id="cr-wa" hidden>Condividi su WhatsApp</button>
     <button class="btn callno" type="button">Chiudi</button></div>`;
   d.querySelector('.callno').onclick=via;
   const rb=d.querySelector('#cr-rm'),wb=d.querySelector('#cr-wa'),msg=d.querySelector('.crmsg');
