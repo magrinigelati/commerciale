@@ -1314,7 +1314,7 @@ async function nuvoletta(dopo){if(dopo.dataset.nv||dopo.dataset.doppio)return;do
   const b=document.createElement('div');b.className='nuvola';b.innerHTML=`<i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i><i class="b5"></i><i class="d1"></i><i class="d2"></i><span class="ic">${esc(data.icona||'💬')}</span><p><b>Curiosità:</b> ${esc(data.frase)}</p><small>${esc(data.icona||'')} ${esc(data.tema)}</small>`;
   const c=document.createElement('div');c.className='btns nvchiudi';c.innerHTML='<button class="btn main">‹ Chiudi e torna alla Home</button>';c.querySelector('button').onclick=()=>go('home');
   dopo.after(b);b.after(c);
-  if(data.restano<=5)sb.functions.invoke('avviso-frasi',{body:{}}).catch(()=>{}); // mail ad Alfonso: rigenerare le frasi
+  if(data.restano<=5)sb.functions.invoke('clever-endpoint',{body:{}}).catch(()=>{}); // mail ad Alfonso: rigenerare le frasi
   }catch(e){}}
 
 // righe del carico nel formato salvato nell'ordine
