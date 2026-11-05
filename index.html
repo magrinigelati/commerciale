@@ -1201,9 +1201,10 @@ async function inviaOrdine_(){
 }
 async function dopoInvio(data,righe,m){
   const ordInviato={id:data.id,numero:data.numero,data:st.data,righe,extra:st.extra,note:st.nota||null,quando:st.quando||null};
+  // l'ordine e' salvato: il foglio di carico si svuota subito, anche se poi l'app viene chiusa durante l'invio della mail
+  st={q:{},u:{},d:{},extra:[],data:oggi(),nota:''};save();
   m.textContent='Ordine salvato, invio la mail all\'ufficio…';
   const esitoMail=await inviaMail(ordInviato);
-  st={q:{},u:{},d:{},extra:[],data:oggi(),nota:''};save();
   view='ord';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='ord'));
   await render();
   const v=$('#view');const ok=document.createElement('div');ok.className='card';ok.style.borderColor=esitoMail===true?'var(--ok)':'#c8102e';
