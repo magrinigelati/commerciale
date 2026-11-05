@@ -302,6 +302,12 @@ body{overflow-anchor:none}
 .mnm.ren,.mnm.add{background:#fff3b0;box-shadow:inset 0 0 0 1px #e6b800}
 .mnm.add{cursor:default}
 .mnm.sel{outline:3px solid #0a7d3b;outline-offset:-2px;z-index:2}
+.callmask{position:fixed;inset:0;z-index:45;background:rgba(10,20,40,.55);display:flex;align-items:center;justify-content:center;padding:18px}
+.callbox{width:100%;max-width:440px;background:var(--surface);color:var(--ink);border:3px solid #23408f;border-radius:16px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.35);text-align:center}
+.callbox b#calltit{display:block;font-family:var(--f-display);font-size:24px;color:var(--ok)}
+.callbox p{margin:8px 0 14px;font-size:16px;line-height:1.4}
+.callbox .callbtn{display:block;width:100%;padding:16px;font-size:19px;text-decoration:none;margin-bottom:10px}
+.callbox .callno{width:100%}
 .mask{position:fixed;left:0;right:0;bottom:0;z-index:40;padding:10px;background:transparent;pointer-events:none}
 .mdlg{pointer-events:auto;max-width:560px;margin:0 auto;background:var(--surface);color:var(--ink);border:2px solid #0a7d3b;border-radius:14px;padding:14px 16px;box-shadow:0 -4px 24px rgba(0,0,0,.25)}
 .mdlg b{font-size:17px}.mdlg p{margin:6px 0 0;color:var(--muted);font-size:14px}
@@ -712,6 +718,17 @@ function renderMod(v){document.body.classList.add('wide');
   mInfo();if(mSel)requestAnimationFrame(()=>mVedi());
 }
 // domanda in un riquadro in basso (le finestre del telefono coprirebbero la cella selezionata)
+// subito dopo l'invio: consiglio di chiamare l'ufficio (in piena stagione) per far stampare l'ordine
+const TEL_UFFICIO='+390858941066',TEL_VEDI='085 8941066';
+function avvisoChiama(ok,mod){document.querySelectorAll('.callmask').forEach(x=>x.remove());
+  const d=document.createElement('div');d.className='callmask';
+  d.innerHTML=`<div class="callbox" role="dialog" aria-modal="true" aria-labelledby="calltit"><b id="calltit"${ok?'':' style="color:#c8102e"'}>${ok?(mod?'Modifica inviata':'Ordine inviato'):'Ordine salvato, mail non partita'}</b>
+    <p>${ok?`In piena stagione ti consigliamo di <b>chiamare l'ufficio</b> per avvisare e far stampare ${mod?'la nuova versione dell\'ordine':'l\'ordine'}.`:'Riprova a inviare la mail oppure <b>chiama l\'ufficio</b> per avvisare.'}</p>
+    <a class="btn main callbtn" href="tel:${TEL_UFFICIO}">📞 Chiama l'ufficio ${TEL_VEDI}</a>
+    <button class="btn callno" type="button">Chiudi</button></div>`;
+  document.body.appendChild(d);const via=()=>d.remove();
+  d.querySelector('.callno').onclick=via;d.querySelector('.callbtn').addEventListener('click',()=>setTimeout(via,300));
+  d.addEventListener('click',e=>{if(e.target===d)via()})}
 function mChiedi({t,s,input,ok}){return new Promise(res=>{document.querySelectorAll('.mask').forEach(x=>x.remove());
   const d=document.createElement('div');d.className='mask';d.innerHTML=`<div class="mdlg"><b>${esc(t)}</b>${s?`<p>${esc(s)}</p>`:''}${input!=null?`<input id="mdi" maxlength="60" value="${esc(input)}">`:''}<div class="btns"><button class="btn main" id="mdok">${esc(ok||'Sì')}</button><button class="btn" id="mdno">Annulla</button></div></div>`;
   document.body.appendChild(d);const inp=d.querySelector('#mdi');const chiudi=v=>{d.remove();res(v)};
@@ -1224,6 +1241,7 @@ async function dopoInvio(data,righe,m){
   const fattoOk=()=>{ok.style.borderColor='var(--ok)';ok.querySelector('h3').style.color='var(--ok)';ok.querySelector('h3').textContent='Ordine N. '+NUM(data)+' inviato su WhatsApp';ok.querySelector('p').textContent='Segnato come inviato tramite WhatsApp.';const x=$('#ok-rm');if(x)x.remove();const wb=ok.querySelector('.wablocco');if(wb)wb.remove()};
   if($('#ok-wa'))$('#ok-wa').onclick=e=>segnaWhatsApp(ordInviato,e.currentTarget,fattoOk);
   $('#ok-sh').onclick=e=>ordInviato.mail_il?condividiPdf(ordInviato,ME,e.currentTarget):condividiEChiedi(ordInviato,e.currentTarget,null,fattoOk);$('#ok-dl').onclick=()=>scaricaPdf(ordInviato,ME);$('#ok-op').onclick=()=>apriPdf(ordInviato,ME);
+  avvisoChiama(esitoMail===true,false);
 }
 
 // righe del carico nel formato salvato nell'ordine
@@ -1255,6 +1273,7 @@ async function inviaModifica(m){
   const v=$('#view'),ok=document.createElement('div');ok.className='card';ok.style.borderColor='var(--ok)';
   ok.innerHTML=`<h3 style="color:var(--ok)">Ordine N. ${numero} modificato</h3><p style="margin:0 0 10px;color:var(--muted)">${esitoMail===true?'L\'ufficio ha ricevuto la nuova versione con le differenze.':'<b style="color:var(--accent-txt)">Attenzione: la mail all\'ufficio non è partita.</b> La modifica è salvata nel portale: riprova da I miei ordini oppure <b>condividi il PDF su WhatsApp</b> con l\'ufficio.'}</p><div class="btns"><button class="btn" id="ok-op">Apri PDF</button><button class="btn main" id="ok-sh">Condividi PDF</button></div>`;v.prepend(ok);
   $('#ok-sh').onclick=e=>condividiPdf(data,ME,e.currentTarget);$('#ok-op').onclick=()=>apriPdf(data,ME);
+  avvisoChiama(esitoMail===true,true);
 }
 // riquadro "stai modificando" sopra il foglio di carico e il riepilogo
 function bannerModifica(v){if(!st.mod||(view!=='fam'&&view!=='mod'&&view!=='sum'))return;const d=document.createElement('div');d.className='card';d.style.borderColor='var(--accent)';
