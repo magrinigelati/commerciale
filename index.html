@@ -26,7 +26,7 @@
 <meta property="og:locale" content="it_IT">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=Caveat:wght@500;700&display=swap">
 <style>
 
 /* Layout: app a una colonna da telefono, barra in alto con i tre modi (Famiglie, Detta, Riepilogo) e barra fissa in basso con il conteggio del carico */
@@ -108,15 +108,16 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .back button{background:var(--ice);border:0;border-radius:8px;padding:8px 12px;font-weight:600}
 .back h2{font-family:var(--f-display);font-size:22px;text-transform:uppercase;margin:0;letter-spacing:.03em}
 .list{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.nuvola{position:relative;display:flex;gap:12px;align-items:flex-start;margin:4px 0 18px 18px;padding:12px 14px;border:2px solid #f2b705;border-radius:16px;background:#fff8dc;color:#14213d;animation:nvin .35s ease-out}
-.nuvola::before{content:"";position:absolute;top:-11px;left:26px;border:9px solid transparent;border-top:0;border-bottom:11px solid #f2b705}
-.nuvola::after{content:"";position:absolute;top:-7px;left:28px;border:7px solid transparent;border-top:0;border-bottom:9px solid #fff8dc}
-.nuvola .ic{flex:0 0 auto;width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 1px 4px rgba(0,0,0,.12)}
-.nuvola small{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8a6a00}
-.nuvola p{margin:3px 0 0;font-size:15px;line-height:1.4}
-@keyframes nvin{from{opacity:0;transform:translateY(-6px)}}
-:root[data-theme="dark"] .nuvola{background:#2a2410;color:#f3ead0}:root[data-theme="dark"] .nuvola::after{border-bottom-color:#2a2410}:root[data-theme="dark"] .nuvola small{color:#f2b705}:root[data-theme="dark"] .nuvola .ic{background:#152040}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .nuvola{background:#2a2410;color:#f3ead0}:root:not([data-theme="light"]) .nuvola::after{border-bottom-color:#2a2410}:root:not([data-theme="light"]) .nuvola small{color:#f2b705}:root:not([data-theme="light"]) .nuvola .ic{background:#152040}}
+.nuvola{position:relative;margin:58px 8px 40px 18px;padding:20px 26px 14px;background:#fff;color:#23408f;border-radius:70px;filter:drop-shadow(0 6px 14px rgba(35,64,143,.18));animation:nvin .5s ease-out,nvgo 5s ease-in-out .5s infinite}
+.nuvola i{position:absolute;background:#fff;border-radius:50%}
+.nuvola .b1{width:86px;height:86px;top:-40px;left:16%}.nuvola .b2{width:110px;height:110px;top:-56px;left:38%}.nuvola .b3{width:74px;height:74px;top:-32px;right:12%}
+.nuvola .b4{width:90px;height:60px;bottom:-14px;left:22%}.nuvola .b5{width:110px;height:64px;bottom:-18px;right:18%}
+.nuvola .d1{width:20px;height:20px;top:-30px;left:2px}.nuvola .d2{width:12px;height:12px;top:-50px;left:-10px}
+.nuvola .ic{position:absolute;top:-34px;left:calc(38% + 33px);width:44px;height:44px;font-size:30px;line-height:44px;text-align:center}
+.nuvola p{position:relative;margin:0;font-family:'Caveat',cursive;font-size:25px;line-height:1.15;font-weight:500;text-align:center}
+.nuvola small{position:relative;display:block;margin-top:6px;font-family:'Caveat',cursive;font-size:19px;font-weight:700;text-align:right;color:#c4183c}
+@keyframes nvin{from{opacity:0;transform:translateY(10px) scale(.95)}}
+@keyframes nvgo{50%{transform:translateY(-4px)}}
 .riepant{display:flex;align-items:center;gap:14px;width:100%;margin:0 0 16px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);text-align:left;font:inherit;cursor:pointer}
 .riepant .pp{display:flex;gap:6px;flex:0 0 auto}
 .riepant .pp i{display:block;width:58px;aspect-ratio:595/842;background:#fff center/cover no-repeat;border:1px solid var(--line);border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,.15)}
@@ -1306,7 +1307,7 @@ async function dopoInvio(data,righe,m){
 }
 // nuvoletta a tema sotto il riquadro dell'ordine inviato (tema e frasi impostati dall'ufficio nell'account)
 async function nuvoletta(dopo){try{const {data,error}=await sb.rpc('prossima_frase');if(error||!data||!data.frase||!dopo.isConnected)return;
-  const b=document.createElement('div');b.className='nuvola';b.innerHTML=`<span class="ic">${esc(data.icona||'💬')}</span><div><small>${esc(data.tema)}</small><p>${esc(data.frase)}</p></div>`;dopo.after(b)}catch(e){}}
+  const b=document.createElement('div');b.className='nuvola';b.innerHTML=`<i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i><i class="b5"></i><i class="d1"></i><i class="d2"></i><span class="ic">${esc(data.icona||'💬')}</span><p>“${esc(data.frase)}”</p><small>${esc(data.icona||'')} ${esc(data.tema)}</small>`;dopo.after(b)}catch(e){}}
 
 // righe del carico nel formato salvato nell'ordine
 function righeCarico(){return Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);const u=uOf(id),r={p:id,v:vi,q:st.q[k],u};if(st.d&&st.d[id])r.d=st.d[id];if(u==='st'||u==='pl'){const c=convCt(byId[id],vi,u,st.q[k]);if(c)r.ct=c}return r})}
