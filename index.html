@@ -1250,7 +1250,7 @@ function bannerModifica(v){if(!st.mod||(view!=='fam'&&view!=='mod'&&view!=='sum'
   d.innerHTML=`<b>Stai modificando l'ordine N. ${st.mod.numero}</b><p class="note" style="margin:4px 0 8px">${min>0?'Puoi inviare la modifica fino alle '+oraIt(st.mod.scade)+' (ancora '+min+' min). Cambia le quantità e poi Riepilogo → Invia modifica.':'Tempo scaduto: la modifica non può più essere inviata. Per correzioni chiama l\'ufficio.'}</p><button class="btn sm" id="annmod">Annulla modifica</button>`;
   v.prepend(d);d.querySelector('#annmod').onclick=()=>{if(!confirm('Annullare la modifica? L\'ordine resta com\'era quando lo hai inviato.'))return;chiudiModifica();render()}}
 // mail all'ufficio con il PDF allegato (se non parte, l'ordine resta comunque nel portale)
-async function inviaMail(o,utente=ME){
+async function inviaMail(o,utente=ME){nonInvCache.t=0;
   try{const bytes=await pdfOrdine(o,utente);let bin='';const u8=new Uint8Array(bytes);for(let i=0;i<u8.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
     const {data:{session}}=await sb.auth.getSession();
     const r=await fetch(SB_URL+'/functions/v1/invia-ordine',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+session.access_token},body:JSON.stringify({id:o.id,pdf:btoa(bin)})});
@@ -1280,7 +1280,7 @@ async function renderOrd(v){
         pronto=false;el.textContent='Elimina ordine';
         const si=await mChiedi({t:'Eliminare l\'ordine N. '+NUM(o)+'?',s:'Questo ordine non è mai arrivato in ufficio. Una volta eliminato non si può recuperare.',ok:'Sì, elimina'});
         if(!si)return;el.disabled=true;el.textContent='Elimino…';
-        const {error}=await sb.rpc('elimina_ordine',{p_id:o.id});
+        const {error}=await sb.rpc('elimina_ordine',{p_id:o.id});nonInvCache.t=0;
         if(error){el.disabled=false;el.textContent='Elimina ordine';alert(error.message.includes('elimina_ordine')?'Funzione non ancora attiva: avvisa l\'ufficio.':error.message);return}
         await renderOrd(v)}}
       preparaPdf(o,ME).catch(()=>{});d.querySelector('[data-sh]').onclick=e=>condividiPdf(o,ME,e.currentTarget)}});
@@ -2136,8 +2136,22 @@ window.addEventListener('scroll',()=>{const y=window.scrollY,d=y-prevY;prevY=y;i
   if(d>0){giu+=d;su=0;if(giu>15)setMini(true)}else if(d<0){su-=d;giu=0;if(su>50)setMini(false)}},{passive:true});
 
 /* ================= AVVIO ================= */
+// avviso: ordini salvati ma con la mail all'ufficio mai partita (app chiusa durante l'invio, rete caduta...)
+let nonInvCache={t:0,rows:[]};
+async function bannerNonInviati(v){
+  try{if(Date.now()-nonInvCache.t>60000){const da=new Date(Date.now()-7*864e5).toISOString();
+      const {data}=await sb.from('ordini').select('id,numero,data,inviato_il').eq('utente_id',ME.id).eq('stato','inviato').is('mail_il',null).gte('inviato_il',da).order('id',{ascending:false});
+      nonInvCache={t:Date.now(),rows:data||[]}}
+    const rows=nonInvCache.rows;if(!rows.length||view!=='fam'||fam!==null||!v.isConnected||v.querySelector('.nonInv'))return;
+    const d=document.createElement('div');d.className='card nonInv';d.style.cssText='border:2px solid #c8102e;background:#fff0f2;color:#5a0f1c';
+    const el=rows.map(o=>`<b>N. ${esc(o.numero||o.id)}</b> del ${new Date(o.data).toLocaleDateString('it-IT')}`).join(', ');
+    d.innerHTML=`<h3 style="margin:0 0 6px;color:#c8102e">Attenzione: ${rows.length===1?'un ordine precedente non è arrivato':'alcuni ordini precedenti non sono arrivati'} in ufficio</h3>
+      <p style="margin:0 0 10px">${el}: c'è stato un intoppo durante l'invio. Vai su <b>I miei ordini</b>, apri l'ordine con <b>NON inviato</b> e premi <b>Riprova mail</b> oppure <b>Condividi su WhatsApp</b>.</p>
+      <button class="btn main" type="button">Vai a I miei ordini</button>`;
+    d.querySelector('button').onclick=()=>{nonInvCache.t=0;view='ord';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='ord'));render();window.scrollTo(0,0)};
+    v.prepend(d)}catch(e){}}
 async function render(){const v=$('#view');if(typeof setMini==='function')setMini(false);MM=view==='mag'?(MAG.tab==='giac'&&MAG.gsv==='mod'?MM_GIAC:MAG.tab==='sc'&&MAG.scv==='mod'?MM_SC:MAG.tab==='car'&&MAG.ord&&MAG.carv==='mod'?MM_CAR:MAG.tab==='inv'&&MAG.inv&&MAG.invv==='mod'?MM_INV:MM_MAG):MM_ORD;
-  if(view==='fam'){renderFam(v);bannerModifica(v)}else if(view==='mod'){renderMod(v);bannerModifica(v)}else if(view==='sum'){renderSum(v);bannerModifica(v)}else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);else if(view==='mag')await renderMag(v);else if(view==='cat')await renderCat(v);testata();bar();if(view==='mod'||(view==='mag'&&magInMod()))mAltezza()}
+  if(view==='fam'){renderFam(v);bannerModifica(v);if(fam===null&&!st.mod)bannerNonInviati(v)}else if(view==='mod'){renderMod(v);bannerModifica(v)}else if(view==='sum'){renderSum(v);bannerModifica(v)}else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);else if(view==='mag')await renderMag(v);else if(view==='cat')await renderCat(v);testata();bar();if(view==='mod'||(view==='mag'&&magInMod()))mAltezza()}
 sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')show('s-login')});
 avvia();
 </script>
