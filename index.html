@@ -226,6 +226,10 @@ a.btn{text-decoration:none}
 .wablocco{margin-top:12px;padding:12px;border:1px dashed var(--line);border-radius:12px;background:var(--surface)}
 .btn.bordo{border:2px solid #14213d}
 :root[data-theme="dark"] .btn.bordo{border-color:#8fa6e8}
+.confinvio{margin-top:14px;border:3px solid #c8102e!important;background:#fff5f6;box-shadow:0 6px 18px rgba(200,16,46,.18)}
+.confinvio h3{color:#c8102e}
+:root[data-theme="dark"] .confinvio{background:#2a1520;border-color:#ff5a6e!important}
+:root[data-theme="dark"] .confinvio h3{color:#ff8a98}
 .btn.wa{border-color:#1f8a3b;color:#1f8a3b;font-weight:700}
 .pill.noinv{background:#c8102e;color:#fff;font-weight:800}
 .pill.in_lavorazione{background:var(--warn);color:#fff}
@@ -1167,7 +1171,7 @@ function renderSum(v){
 }
 function confermaInvio(){
   const c=$('#conf');if(!c)return;
-  c.innerHTML=`<div class="card" style="margin-top:14px;border-color:var(--accent)"><h3>${st.mod?'Inviare la modifica dell\'ordine N. '+st.mod.numero+'?':'Inviare l\'ordine?'}</h3><p style="margin:0 0 10px;color:var(--muted)">Carico del ${dataIt(st.data)} · ${$('#tot').textContent}. ${st.mod?'L\'ufficio riceverà una nuova mail con le differenze.':'Potrai modificarlo entro un\'ora dall\'invio, finché l\'ufficio non lo mette in preparazione.'}</p>
+  c.innerHTML=`<div class="card confinvio"><h3>${st.mod?'Inviare la modifica dell\'ordine N. '+st.mod.numero+'?':'Inviare l\'ordine?'}</h3><p style="margin:0 0 10px;color:var(--muted)">Carico del ${dataIt(st.data)} · ${$('#tot').textContent}. ${st.mod?'L\'ufficio riceverà una nuova mail con le differenze.':'Potrai modificarlo entro un\'ora dall\'invio, finché l\'ufficio non lo mette in preparazione.'}</p>
    <div class="btns"><button class="btn main" id="si">Sì, invia</button><button class="btn" id="no">Annulla</button></div></div>`;
   c.scrollIntoView({behavior:'smooth',block:'center'});
   $('#no').onclick=()=>c.innerHTML='';
