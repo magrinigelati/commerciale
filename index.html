@@ -308,7 +308,7 @@ body{overflow-anchor:none}
 .callbox p{margin:8px 0 14px;font-size:16px;line-height:1.4}
 .callbox .callbtn{display:block;width:100%;padding:16px;font-size:19px;text-decoration:none;margin-bottom:10px}
 .callbox .callno{width:100%}
-.mask{position:fixed;left:0;right:0;bottom:0;z-index:40;padding:10px;background:transparent;pointer-events:none}
+.mask{position:fixed;left:0;right:0;bottom:0;z-index:60;padding:10px;background:transparent;pointer-events:none}
 .mdlg{pointer-events:auto;max-width:560px;margin:0 auto;background:var(--surface);color:var(--ink);border:2px solid #0a7d3b;border-radius:14px;padding:14px 16px;box-shadow:0 -4px 24px rgba(0,0,0,.25)}
 .mdlg b{font-size:17px}.mdlg p{margin:6px 0 0;color:var(--muted);font-size:14px}
 .mdlg input{width:100%;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font-size:17px}
@@ -720,15 +720,29 @@ function renderMod(v){document.body.classList.add('wide');
 // domanda in un riquadro in basso (le finestre del telefono coprirebbero la cella selezionata)
 // subito dopo l'invio: consiglio di chiamare l'ufficio (in piena stagione) per far stampare l'ordine
 const TEL_UFFICIO='+390858941066',TEL_VEDI='085 8941066';
-function avvisoChiama(ok,mod){document.querySelectorAll('.callmask').forEach(x=>x.remove());
-  const d=document.createElement('div');d.className='callmask';
-  d.innerHTML=`<div class="callbox" role="dialog" aria-modal="true" aria-labelledby="calltit"><b id="calltit"${ok?'':' style="color:#c8102e"'}>${ok?(mod?'Modifica inviata':'Ordine inviato'):'Ordine salvato, mail non partita'}</b>
-    <p>${ok?`In piena stagione ti consigliamo di <b>chiamare l'ufficio</b> per avvisare e far stampare ${mod?'la nuova versione dell\'ordine':'l\'ordine'}.`:'Riprova a inviare la mail oppure <b>chiama l\'ufficio</b> per avvisare.'}</p>
-    <a class="btn main callbtn" href="tel:${TEL_UFFICIO}">📞 Chiama l'ufficio ${TEL_VEDI}</a>
+function avvisoChiama(ok,mod,o,onMail,onWA){document.querySelectorAll('.callmask').forEach(x=>x.remove());
+  const d=document.createElement('div');d.className='callmask';document.body.appendChild(d);const via=()=>d.remove();
+  d.addEventListener('click',e=>{if(e.target===d)via()});
+  // ordine arrivato in ufficio (mail o WhatsApp): consiglio di chiamare
+  const inviato=(wa)=>{d.innerHTML=`<div class="callbox" role="dialog" aria-modal="true" aria-labelledby="calltit"><b id="calltit">${wa?'Ordine inviato su WhatsApp':mod?'Modifica inviata':'Ordine inviato'}</b>
+      <p>In piena stagione ti consigliamo di <b>chiamare l'ufficio</b> per avvisare e far stampare ${mod?'la nuova versione dell\'ordine':'l\'ordine'}.</p>
+      <a class="btn main callbtn" href="tel:${TEL_UFFICIO}">📞 Chiama l'ufficio ${TEL_VEDI}</a>
+      <button class="btn callno" type="button">Chiudi</button></div>`;
+    d.querySelector('.callno').onclick=via;d.querySelector('.callbtn').addEventListener('click',()=>setTimeout(via,300))};
+  if(ok)return inviato(false);
+  // mail non partita: prima si riprova la mail; WhatsApp solo se fallisce ancora
+  d.innerHTML=`<div class="callbox" role="dialog" aria-modal="true" aria-labelledby="calltit"><b id="calltit" style="color:#c8102e">La mail all'ufficio non è partita</b>
+    <p>${mod?'La modifica è salvata':'L\'ordine è salvato'} nel portale, ma l'ufficio non l'ha ancora ricevuto. Riprova a inviare la mail.</p>
+    <button class="btn main callbtn" type="button" id="cr-rm">↻ Riprova a inviare la mail</button>
+    <p class="crmsg" hidden style="color:#c8102e;font-weight:700;margin:0 0 10px"></p>
+    <button class="btn callbtn" type="button" id="cr-wa" hidden>Condividi su WhatsApp</button>
     <button class="btn callno" type="button">Chiudi</button></div>`;
-  document.body.appendChild(d);const via=()=>d.remove();
-  d.querySelector('.callno').onclick=via;d.querySelector('.callbtn').addEventListener('click',()=>setTimeout(via,300));
-  d.addEventListener('click',e=>{if(e.target===d)via()})}
+  d.querySelector('.callno').onclick=via;
+  const rb=d.querySelector('#cr-rm'),wb=d.querySelector('#cr-wa'),msg=d.querySelector('.crmsg');
+  rb.onclick=async()=>{rb.disabled=true;rb.textContent='Invio…';const r=await inviaMail(o);
+    if(r===true){o.mail_il=new Date().toISOString();if(onMail)onMail();inviato(false);return}
+    rb.disabled=false;rb.textContent='↻ Riprova di nuovo';msg.hidden=false;msg.textContent='Non è partita neanche ora ('+r+'). In alternativa mandalo all\'ufficio su WhatsApp.';wb.hidden=false};
+  wb.onclick=()=>condividiEChiedi(o,wb,null,()=>{if(onWA)onWA();inviato(true)})}
 function mChiedi({t,s,input,ok}){return new Promise(res=>{document.querySelectorAll('.mask').forEach(x=>x.remove());
   const d=document.createElement('div');d.className='mask';d.innerHTML=`<div class="mdlg"><b>${esc(t)}</b>${s?`<p>${esc(s)}</p>`:''}${input!=null?`<input id="mdi" maxlength="60" value="${esc(input)}">`:''}<div class="btns"><button class="btn main" id="mdok">${esc(ok||'Sì')}</button><button class="btn" id="mdno">Annulla</button></div></div>`;
   document.body.appendChild(d);const inp=d.querySelector('#mdi');const chiudi=v=>{d.remove();res(v)};
@@ -1236,12 +1250,13 @@ async function dopoInvio(data,righe,m){
   const v=$('#view');const ok=document.createElement('div');ok.className='card';ok.style.borderColor=esitoMail===true?'var(--ok)':'#c8102e';
   ok.innerHTML=`${esitoMail===true?`<h3 style="color:var(--ok)">Ordine N. ${NUM(data)} inviato</h3>`:`<h3 style="color:#c8102e">Ordine N. ${NUM(data)} NON inviato all'ufficio</h3>`}<p style="margin:0 0 10px;color:var(--muted)">${esitoMail===true?'L\'ufficio lo ha ricevuto. Puoi modificarlo entro un\'ora da I miei ordini, finché l\'ufficio non lo mette in preparazione.':'<b style="color:var(--accent-txt)">Attenzione: la mail all\'ufficio non è partita.</b> L\'ordine è salvato nel portale ma l\'ufficio non lo ha ricevuto: premi <b>Riprova a inviare la mail</b>.'}</p>${esitoMail===true?'':'<button class="btn main riprova" id="ok-rm">↻ Riprova a inviare la mail all\'ufficio</button>'}<div class="btns"><button class="btn" id="ok-op">Apri PDF</button><button class="btn${esitoMail===true?' main':''}" id="ok-sh">Condividi PDF</button><button class="btn" id="ok-dl">Scarica PDF</button></div>${esitoMail===true?'':WA_BLOCCO('id="ok-sh2"','id="ok-wa"')}`;v.prepend(ok);
   preparaPdf(ordInviato,ME).catch(()=>{});
-  if($('#ok-rm'))$('#ok-rm').onclick=async e=>{const b=e.currentTarget;b.disabled=true;b.textContent='Invio…';const r=await inviaMail(ordInviato);if(r===true){ordInviato.mail_il=new Date().toISOString();b.textContent='✓ Mail inviata all\'ufficio';const wb=ok.querySelector('.wablocco');if(wb)wb.remove();ok.style.borderColor='var(--ok)';ok.querySelector('h3').style.color='var(--ok)';ok.querySelector('h3').textContent='Ordine N. '+NUM(data)+' inviato';ok.querySelector('p').innerHTML='L\'ufficio lo ha ricevuto. Puoi modificarlo entro un\'ora da I miei ordini, finché l\'ufficio non lo mette in preparazione.'}else{b.disabled=false;b.textContent='↻ Riprova di nuovo';const wb=ok.querySelector('.wablocco');if(wb){wb.hidden=false;wb.querySelector('.wamsg').textContent='La mail non è partita neanche ora ('+r+').'}}};
+  const cardMailOk=()=>{ordInviato.mail_il=ordInviato.mail_il||new Date().toISOString();const b=$('#ok-rm');if(b){b.disabled=true;b.textContent='✓ Mail inviata all\'ufficio'}const wb=ok.querySelector('.wablocco');if(wb)wb.remove();ok.style.borderColor='var(--ok)';ok.querySelector('h3').style.color='var(--ok)';ok.querySelector('h3').textContent='Ordine N. '+NUM(data)+' inviato';ok.querySelector('p').innerHTML='L\'ufficio lo ha ricevuto. Puoi modificarlo entro un\'ora da I miei ordini, finché l\'ufficio non lo mette in preparazione.'};
+  if($('#ok-rm'))$('#ok-rm').onclick=async e=>{const b=e.currentTarget;b.disabled=true;b.textContent='Invio…';const r=await inviaMail(ordInviato);if(r===true){cardMailOk()}else{b.disabled=false;b.textContent='↻ Riprova di nuovo';const wb=ok.querySelector('.wablocco');if(wb){wb.hidden=false;wb.querySelector('.wamsg').textContent='La mail non è partita neanche ora ('+r+').'}}};
   if($('#ok-sh2'))$('#ok-sh2').onclick=e=>condividiEChiedi(ordInviato,e.currentTarget,null,fattoOk);
   const fattoOk=()=>{ok.style.borderColor='var(--ok)';ok.querySelector('h3').style.color='var(--ok)';ok.querySelector('h3').textContent='Ordine N. '+NUM(data)+' inviato su WhatsApp';ok.querySelector('p').textContent='Segnato come inviato tramite WhatsApp.';const x=$('#ok-rm');if(x)x.remove();const wb=ok.querySelector('.wablocco');if(wb)wb.remove()};
   if($('#ok-wa'))$('#ok-wa').onclick=e=>segnaWhatsApp(ordInviato,e.currentTarget,fattoOk);
   $('#ok-sh').onclick=e=>ordInviato.mail_il?condividiPdf(ordInviato,ME,e.currentTarget):condividiEChiedi(ordInviato,e.currentTarget,null,fattoOk);$('#ok-dl').onclick=()=>scaricaPdf(ordInviato,ME);$('#ok-op').onclick=()=>apriPdf(ordInviato,ME);
-  avvisoChiama(esitoMail===true,false);
+  avvisoChiama(esitoMail===true,false,ordInviato,cardMailOk,fattoOk);
 }
 
 // righe del carico nel formato salvato nell'ordine
@@ -1273,7 +1288,7 @@ async function inviaModifica(m){
   const v=$('#view'),ok=document.createElement('div');ok.className='card';ok.style.borderColor='var(--ok)';
   ok.innerHTML=`<h3 style="color:var(--ok)">Ordine N. ${numero} modificato</h3><p style="margin:0 0 10px;color:var(--muted)">${esitoMail===true?'L\'ufficio ha ricevuto la nuova versione con le differenze.':'<b style="color:var(--accent-txt)">Attenzione: la mail all\'ufficio non è partita.</b> La modifica è salvata nel portale: riprova da I miei ordini oppure <b>condividi il PDF su WhatsApp</b> con l\'ufficio.'}</p><div class="btns"><button class="btn" id="ok-op">Apri PDF</button><button class="btn main" id="ok-sh">Condividi PDF</button></div>`;v.prepend(ok);
   $('#ok-sh').onclick=e=>condividiPdf(data,ME,e.currentTarget);$('#ok-op').onclick=()=>apriPdf(data,ME);
-  avvisoChiama(esitoMail===true,true);
+  avvisoChiama(esitoMail===true,true,{...data,mail_il:esitoMail===true?new Date().toISOString():null},null,null);
 }
 // riquadro "stai modificando" sopra il foglio di carico e il riepilogo
 function bannerModifica(v){if(!st.mod||(view!=='fam'&&view!=='mod'&&view!=='sum'))return;const d=document.createElement('div');d.className='card';d.style.borderColor='var(--accent)';
