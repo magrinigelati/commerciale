@@ -1563,7 +1563,7 @@ function nvLeggi(txt){const out={frasi:[]};txt.replace(/\r/g,'').split('\n').for
   r=r.replace(/^(\d+[.)]\s*|[-*•]\s+)/,'').replace(/^["“«]|["”»]$/g,'').trim();if(r.length>2)out.frasi.push(r.slice(0,300))});return out}
 function nvEditor(u,dopo){const box=$('#ue'+u.id);if(!box)return;let nuove=null;
   box.innerHTML=`<div class="card" style="margin-top:8px;width:100%"><h3 style="margin-top:0">Nuvoletta curiosità di ${esc(u.nome_stampa||u.nome)}</h3>
-   <div class="grid2"><div class="field"><label for="nvt${u.id}">Tema</label><input id="nvt${u.id}" value="${esc(u.tema||'')}" placeholder="es. Juventus"></div>
+   <div class="grid2"><div class="field"><label for="nvt${u.id}">Tema</label><input id="nvt${u.id}" value="${esc(u.tema||'')}" placeholder="es. Inter"></div>
    <div class="field"><label for="nvi${u.id}">Icona (emoji)</label><input id="nvi${u.id}" value="${esc(u.icona||'')}" placeholder="es. ⚽" maxlength="8"></div></div>
    <div class="field"><label for="nvf${u.id}">File delle frasi (.txt, una frase per riga)</label><input type="file" id="nvf${u.id}" accept=".txt,text/plain"></div>
    <p class="note" id="nvm${u.id}" style="margin:4px 0 10px">${(u.frasi||[]).length?`Ora ci sono ${(u.frasi||[]).length} frasi, ${nvRestano(u)} ancora da vedere. Caricando un file nuovo le sostituisci e si riparte da capo.`:'Nessuna frase caricata.'}</p>
