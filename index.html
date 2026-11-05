@@ -962,7 +962,7 @@ function renderInv(v){
       if(q.trim().length>1){const list=search(q).slice(0,40).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv,vi])=>p[6].length===1||vv[4]||keys.has(gk(p[0],vi))));
         r.innerHTML=list.length?`<div class="list">${list.map(invRiga).join('')}</div>`:'<div class="empty">Nessuna referenza trovata.</div>';invBind(r);return}
       if(MAG.invFam!=null){const fi=MAG.invFam,ps=P.filter(p=>p[1]===fi);const list=ps.flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv,vi])=>p[6].length===1||vv[4]||keys.has(gk(p[0],vi))));
-        r.innerHTML=`<div class="back"><button id="ifbk">‹ Famiglie</button><h2>${esc(S[fi])}</h2></div>`+gruppi(list).map(([sez,xs])=>`${sez&&sez.toLowerCase()!==S[fi].toLowerCase()?`<div class="lbl sub">${esc(sez)}</div>`:''}<div class="list">${xs.map(invRiga).join('')}</div>`).join('');
+        r.innerHTML=`<div class="back fissa"><button id="ifbk">‹ Famiglie</button><h2>${esc(S[fi])}</h2></div>`+gruppi(list).map(([sez,xs])=>`${sez&&sez.toLowerCase()!==S[fi].toLowerCase()?`<div class="lbl sub">${esc(sez)}</div>`:''}<div class="list">${xs.map(invRiga).join('')}</div>`).join('');
         $('#ifbk').onclick=()=>{MAG.invFam=null;draw();window.scrollTo(0,0)};invBind(r);return}
       const cont=[...keys].map(k=>{const [id,vi]=k.split(':').map(Number);return byId[id]?[byId[id],vi]:null}).filter(Boolean).sort((a,b)=>P.indexOf(a[0])-P.indexOf(b[0])||a[1]-b[1]);
       const nFam=i=>[...keys].filter(k=>byId[k.split(':')[0]]&&byId[k.split(':')[0]][1]===i).length;
@@ -1023,7 +1023,7 @@ function renderCS(v){
     if(q.trim().length>1){const list=search(q).slice(0,40).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv,vi])=>p[6].length===1||vv[4]||keys.has(gk(p[0],vi))));
       r.innerHTML=list.length?`<div class="list">${list.map(magRiga).join('')}</div>`:'<div class="empty">Nessuna referenza trovata.</div>';magBind(r);return}
     if(MAG.csFam!=null){const fi=MAG.csFam,list=P.filter(p=>p[1]===fi).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv,vi])=>p[6].length===1||vv[4]||keys.has(gk(p[0],vi))));
-      r.innerHTML=`<div class="back"><button id="csbk">‹ Famiglie</button><h2>${esc(S[fi])}</h2></div>`+gruppi(list).map(([sez,xs])=>`${sez&&sez.toLowerCase()!==S[fi].toLowerCase()?`<div class="lbl sub">${esc(sez)}</div>`:''}<div class="list">${xs.map(magRiga).join('')}</div>`).join('');
+      r.innerHTML=`<div class="back fissa"><button id="csbk">‹ Famiglie</button><h2>${esc(S[fi])}</h2></div>`+gruppi(list).map(([sez,xs])=>`${sez&&sez.toLowerCase()!==S[fi].toLowerCase()?`<div class="lbl sub">${esc(sez)}</div>`:''}<div class="list">${xs.map(magRiga).join('')}</div>`).join('');
       $('#csbk').onclick=()=>{MAG.csFam=null;draw();window.scrollTo(0,0)};magBind(r);return}
     const inMag=magRighe('');const nFam=i=>inMag.filter(([p])=>p[1]===i).length;
     r.innerHTML=(inMag.length?`<div class="lbl">In magazzino</div><div class="list">${inMag.map(magRiga).join('')}</div>`:'<div class="empty">Magazzino vuoto: apri una famiglia per caricare.</div>')+
@@ -1052,7 +1052,7 @@ function renderCarOrd(v){
   const o=(MAG.ordini||[]).find(x=>x.id===MAG.ord);const car=MAG.car||[];
   const righe=car.map((r,i)=>r.x?`<div class="sr"><span class="q">${r.q}<i>${ULAB(r.u)}</i></span><div class="n" style="opacity:.6">${esc(r.d)}<small>prodotto fuori catalogo: non entra in magazzino</small></div></div>`
     :`<div class="sr"><div class="n"><b>${esc(r.d||nomeV(byId[r.p],r.v))}</b><small>${esc(r.nota||'')}${giac(r.p,r.v)?(r.nota?' · ':'')+'in magazzino '+giac(r.p,r.v)+' ct':''}</small></div><div class="step"><button data-ca="-1" data-i="${i}">−</button><input inputmode="numeric" pattern="[0-9]*" value="${r.q||''}" placeholder="0" data-ci="${i}"><button class="plus" data-ca="1" data-i="${i}">+</button></div><button data-cx="${i}" aria-label="Togli">Togli</button></div>`).join('');
-  const testa=`<div class="back"><button id="bk">‹ Ordini</button><h2>${o?'Ordine N. '+NUM(o)+' · carico del '+dataIt(o.data):'Ordine'}</h2></div>
+  const testa=`<div class="back fissa"><button id="bk">‹ Ordini</button><h2>${o?'Ordine N. '+NUM(o)+' · carico del '+dataIt(o.data):'Ordine'}</h2></div>
    <div class="seg sub" style="margin-bottom:8px"><button data-cv="el" aria-pressed="${MAG.carv!=='mod'}">Elenco</button><button data-cv="mod" aria-pressed="${MAG.carv==='mod'}">Modulo</button></div>`;
   if(MAG.carv==='mod'){v.innerHTML=testa+`<div id="carmod"></div>`;v.querySelectorAll('[data-cv]').forEach(b=>b.onclick=()=>{MAG.carv=b.dataset.cv;render()});$('#bk').onclick=annullaCar;renderMod($('#carmod'));return}
   v.innerHTML=testa+`<p class="note" style="margin:0 0 10px">Sistema le quantità ritirate in <b>cartoni</b>: togli ciò che non è arrivato, aggiungi ciò che hai preso a voce. Poi <b>Conferma carico</b> in basso.</p>
@@ -1071,7 +1071,7 @@ function renderCarOrd(v){
     if(q.length>1){const hits=search(q).slice(0,20).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv])=>p[6].length===1||vv[4]));
       r.innerHTML=hits.length?`<div class="list">${hits.map(cRiga).join('')}</div>`:'<div class="empty">Nessuna referenza trovata.</div>';cBind(r);return}
     if(MAG.carFam!=null){const fi=MAG.carFam,list=P.filter(p=>p[1]===fi).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv])=>p[6].length===1||vv[4]));
-      r.innerHTML=`<div class="back"><button id="cfbk">‹ Famiglie</button><h2>${esc(S[fi])}</h2></div><div class="list">${list.map(cRiga).join('')}</div>`;
+      r.innerHTML=`<div class="back fissa"><button id="cfbk">‹ Famiglie</button><h2>${esc(S[fi])}</h2></div><div class="list">${list.map(cRiga).join('')}</div>`;
       $('#cfbk').onclick=()=>{MAG.carFam=null;render()};cBind(r);return}
     r.innerHTML=`<div class="fams">${S.map((nm,i)=>{const c=car.filter(x=>!x.x&&x.q>0&&byId[x.p]&&byId[x.p][1]===i).length,n=P.filter(p=>p[1]===i).length;return `<button class="fam${c?' has':''}" data-cff="${i}"><b>${esc(nm)}</b><span>${c?c+' nel carico · ':''}${n} prodotti</span></button>`}).join('')}</div>`;
     r.querySelectorAll('[data-cff]').forEach(bt=>bt.onclick=()=>{MAG.carFam=+bt.dataset.cff;drawC();r.scrollIntoView({block:'start'})})};
@@ -1101,7 +1101,7 @@ function renderScorta(v){
     if(q.trim().length>1){const list=search(q).slice(0,40).flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv,vi])=>p[6].length===1||vv[4]||keys.has(gk(p[0],vi))));
       r.innerHTML=list.length?`<div class="list">${list.map(scRiga).join('')}</div>`:'<div class="empty">Nessuna referenza trovata.</div>';scBind(r);return}
     if(MAG.scFam!=null){const fi=MAG.scFam,ps=P.filter(p=>p[1]===fi);const list=ps.flatMap(p=>p[6].map((vv,vi)=>[p,vi]).filter(([vv,vi])=>p[6].length===1||vv[4]||keys.has(gk(p[0],vi))));
-      r.innerHTML=`<div class="back"><button id="sfbk">‹ Famiglie</button><h2>${esc(S[fi])}</h2></div>`+gruppi(list).map(([sez,xs])=>`${sez&&sez.toLowerCase()!==S[fi].toLowerCase()?`<div class="lbl sub">${esc(sez)}</div>`:''}<div class="list">${xs.map(scRiga).join('')}</div>`).join('');
+      r.innerHTML=`<div class="back fissa"><button id="sfbk">‹ Famiglie</button><h2>${esc(S[fi])}</h2></div>`+gruppi(list).map(([sez,xs])=>`${sez&&sez.toLowerCase()!==S[fi].toLowerCase()?`<div class="lbl sub">${esc(sez)}</div>`:''}<div class="list">${xs.map(scRiga).join('')}</div>`).join('');
       $('#sfbk').onclick=()=>{MAG.scFam=null;draw();window.scrollTo(0,0)};scBind(r);return}
     const imp=[...keys].map(k=>{const [id,vi]=k.split(':').map(Number);return byId[id]?[byId[id],vi]:null}).filter(Boolean).sort((a,b)=>P.indexOf(a[0])-P.indexOf(b[0])||a[1]-b[1]);
     const nFam=i=>[...keys].filter(k=>byId[k.split(':')[0]]&&byId[k.split(':')[0]][1]===i).length;
@@ -1586,7 +1586,7 @@ async function uffCatalogo(v){
     return `<div class="oi cart" style="flex-wrap:wrap;${p.attivo?'':'opacity:.55'}"><div class="n"><b>${esc(p.nome)}${p.novita?' <span class="nov">novità</span>':''}${p.attivo?'':' <span class="pill off">Nascosto</span>'}</b>
       <small>${vs.map(x=>(multi?esc(x.breve||x.etichetta)+': ':'')+(x.codice?esc(x.codice):'senza codice')+(x.disponibile===false?' (su ordinazione)':'')).join(' · ')}${p.pagina==null?' · fuori foglio':''}</small></div>
       <div class="btns" style="width:100%;margin-top:6px"><button class="btn" data-ps="${p.id}">▲</button><button class="btn" data-pg="${p.id}">▼</button><button class="btn" data-pm="${p.id}">Modifica</button><button class="btn" data-pv="${p.id}">${p.attivo?'Nascondi':'Mostra'}</button></div><div id="pm${p.id}" style="width:100%"></div></div>`};
-  v.innerHTML=`<div class="back"><button id="cbk">‹ Famiglie</button><h2>${esc(f.nome)}</h2></div>
+  v.innerHTML=`<div class="back fissa"><button id="cbk">‹ Famiglie</button><h2>${esc(f.nome)}</h2></div>
     ${secs.map((s,si)=>`<div class="lbl sub" style="display:flex;align-items:center;gap:8px;justify-content:space-between"><span>${esc(s||'(senza sottotitolo)')}</span><button class="btn" data-sr="${si}" style="padding:6px 10px;font-size:13px;text-transform:none;letter-spacing:0">Rinomina sottotitolo</button></div><div id="sr${si}"></div><div class="list">${ps.filter(p=>p.sezione===s).map(riga).join('')}</div>`).join('')}
     <div class="card" style="margin-top:14px"><h3>Nuovo prodotto in ${esc(f.nome)}</h3>
      <div class="grid2"><div class="field"><label for="np-n">Nome</label><input id="np-n" placeholder="es. cono pistacchio"></div>
@@ -1687,7 +1687,7 @@ async function renderFoto(v){
       fr.querySelectorAll('[data-fl]').forEach(b=>b.onclick=()=>{const fs=fotoSez(linee[+b.dataset.fl]);apriFoto(fs,fs.nome)})};
     let t;fq.oninput=()=>{fotoQ=fq.value;clearTimeout(t);t=setTimeout(cerca,150)};cerca();return}
   const ps=P.filter(p=>p[1]===fotoFam);const secs=[];ps.forEach(p=>{if(!secs.includes(p[7]))secs.push(p[7])});
-  let h=`<div class="back"><button id="bk">‹ Famiglie</button><h2>${esc(S[fotoFam])}</h2></div>`;
+  let h=`<div class="back fissa"><button id="bk">‹ Famiglie</button><h2>${esc(S[fotoFam])}</h2></div>`;
   secs.forEach((s,si)=>{const L=ps.filter(p=>p[7]===s);const con=L.filter(p=>fotoDi(p)),senza=L.filter(p=>!fotoDi(p));const fs=fotoSez(s);
     if(!(secs.length===1&&s.toLowerCase()===S[fotoFam].toLowerCase()))h+=`<div class="lbl sub">${esc(s)}</div>`;
     h+=`<div class="fgrid">${fs?`<button class="fcard" data-fx="${si}"><img src="${esc(fs.thumb)}" alt="" loading="lazy"><b>${esc(fs.nome)}</b><small>foto della linea</small></button>`:''}
@@ -1744,7 +1744,7 @@ async function renderDoc(v){
     v.innerHTML=`<div class="lbl">Documenti</div><div class="fams">${G.map(([c,ds])=>`<button class="fam" data-c="${esc(c)}"><b>${esc(c)}</b><span>${ds.length} ${ds.length===1?'file':'file'}</span></button>`).join('')}</div>`;
     v.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{docCart=b.dataset.c;nav();renderDoc(v);window.scrollTo(0,0)});return}
   const ds=G.find(([c])=>c===docCart)[1];
-  v.innerHTML=`<div class="back"><button id="bk">‹ ${docDaHome?'Home':'Documenti'}</button><h2>${esc(docCart)}</h2></div><div class="list">${ds.map(d=>`<div class="oi" style="flex-wrap:wrap;gap:8px"><div class="n" style="flex:1 1 180px"><b>${esc(d.titolo)}</b><small>${icona(d.percorso)} · aggiornato il ${new Date(d.caricato_il).toLocaleDateString('it-IT')}${UFF()?' · visibile a: '+esc(RUOLI_DOC.filter(([r])=>(d.ruoli||[]).includes(r)).map(([,l])=>l).join(', ')||'solo ufficio'):''}</small></div>
+  v.innerHTML=`<div class="back fissa"><button id="bk">‹ ${docDaHome?'Home':'Documenti'}</button><h2>${esc(docCart)}</h2></div><div class="list">${ds.map(d=>`<div class="oi" style="flex-wrap:wrap;gap:8px"><div class="n" style="flex:1 1 180px"><b>${esc(d.titolo)}</b><small>${icona(d.percorso)} · aggiornato il ${new Date(d.caricato_il).toLocaleDateString('it-IT')}${UFF()?' · visibile a: '+esc(RUOLI_DOC.filter(([r])=>(d.ruoli||[]).includes(r)).map(([,l])=>l).join(', ')||'solo ufficio'):''}</small></div>
      <div class="btns" style="margin:0">${UFF()?`<button class="btn sm" data-dl="${d.id}">Copia link</button>`:''}<a class="btn sm" href="${esc(d.url||'#')}" target="_blank" rel="noopener" data-da="${d.id}">Apri</a><button class="btn sm" data-dd="${d.id}">Scarica</button><button class="btn sm main" data-ds="${d.id}">Condividi</button></div></div>`).join('')}</div>
    <div class="msg" id="dmsg"></div>`;
   $('#bk').onclick=indietro;
