@@ -1313,7 +1313,9 @@ async function dopoInvio(data,righe,m,doppio){
 async function nuvoletta(dopo){if(dopo.dataset.nv||dopo.dataset.doppio)return;dopo.dataset.nv='1';try{const {data,error}=await sb.rpc('prossima_frase');if(error||!data||!data.frase||!dopo.isConnected)return;
   const b=document.createElement('div');b.className='nuvola';b.innerHTML=`<i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i><i class="b5"></i><i class="d1"></i><i class="d2"></i><span class="ic">${esc(data.icona||'💬')}</span><p><b>Curiosità:</b> ${esc(data.frase)}</p><small>${esc(data.icona||'')} ${esc(data.tema)}</small>`;
   const c=document.createElement('div');c.className='btns nvchiudi';c.innerHTML='<button class="btn main">‹ Chiudi e torna alla Home</button>';c.querySelector('button').onclick=()=>go('home');
-  dopo.after(b);b.after(c)}catch(e){}}
+  dopo.after(b);b.after(c);
+  if(data.restano<=5)sb.functions.invoke('avviso-frasi',{body:{}}).catch(()=>{}); // mail ad Alfonso: rigenerare le frasi
+  }catch(e){}}
 
 // righe del carico nel formato salvato nell'ordine
 function righeCarico(){return Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);const u=uOf(id),r={p:id,v:vi,q:st.q[k],u};if(st.d&&st.d[id])r.d=st.d[id];if(u==='st'||u==='pl'){const c=convCt(byId[id],vi,u,st.q[k]);if(c)r.ct=c}return r})}
