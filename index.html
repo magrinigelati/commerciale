@@ -108,6 +108,15 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .back button{background:var(--ice);border:0;border-radius:8px;padding:8px 12px;font-weight:600}
 .back h2{font-family:var(--f-display);font-size:22px;text-transform:uppercase;margin:0;letter-spacing:.03em}
 .list{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.nuvola{position:relative;display:flex;gap:12px;align-items:flex-start;margin:4px 0 18px 18px;padding:12px 14px;border:2px solid #f2b705;border-radius:16px;background:#fff8dc;color:#14213d;animation:nvin .35s ease-out}
+.nuvola::before{content:"";position:absolute;top:-11px;left:26px;border:9px solid transparent;border-top:0;border-bottom:11px solid #f2b705}
+.nuvola::after{content:"";position:absolute;top:-7px;left:28px;border:7px solid transparent;border-top:0;border-bottom:9px solid #fff8dc}
+.nuvola .ic{flex:0 0 auto;width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.nuvola small{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8a6a00}
+.nuvola p{margin:3px 0 0;font-size:15px;line-height:1.4}
+@keyframes nvin{from{opacity:0;transform:translateY(-6px)}}
+:root[data-theme="dark"] .nuvola{background:#2a2410;color:#f3ead0}:root[data-theme="dark"] .nuvola::after{border-bottom-color:#2a2410}:root[data-theme="dark"] .nuvola small{color:#f2b705}:root[data-theme="dark"] .nuvola .ic{background:#152040}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .nuvola{background:#2a2410;color:#f3ead0}:root:not([data-theme="light"]) .nuvola::after{border-bottom-color:#2a2410}:root:not([data-theme="light"]) .nuvola small{color:#f2b705}:root:not([data-theme="light"]) .nuvola .ic{background:#152040}}
 .riepant{display:flex;align-items:center;gap:14px;width:100%;margin:0 0 16px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);text-align:left;font:inherit;cursor:pointer}
 .riepant .pp{display:flex;gap:6px;flex:0 0 auto}
 .riepant .pp i{display:block;width:58px;aspect-ratio:595/842;background:#fff center/cover no-repeat;border:1px solid var(--line);border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,.15)}
@@ -1293,7 +1302,11 @@ async function dopoInvio(data,righe,m){
   if($('#ok-wa'))$('#ok-wa').onclick=e=>segnaWhatsApp(ordInviato,e.currentTarget,fattoOk);
   $('#ok-sh').onclick=e=>ordInviato.mail_il?condividiPdf(ordInviato,ME,e.currentTarget):condividiEChiedi(ordInviato,e.currentTarget,null,fattoOk);$('#ok-dl').onclick=()=>scaricaPdf(ordInviato,ME);$('#ok-op').onclick=()=>apriPdf(ordInviato,ME);
   avvisoChiama(esitoMail===true,false,ordInviato,cardMailOk,fattoOk);
+  nuvoletta(ok);
 }
+// nuvoletta a tema sotto il riquadro dell'ordine inviato (tema e frasi impostati dall'ufficio nell'account)
+async function nuvoletta(dopo){try{const {data,error}=await sb.rpc('prossima_frase');if(error||!data||!data.frase||!dopo.isConnected)return;
+  const b=document.createElement('div');b.className='nuvola';b.innerHTML=`<span class="ic">${esc(data.icona||'💬')}</span><div><small>${esc(data.tema)}</small><p>${esc(data.frase)}</p></div>`;dopo.after(b)}catch(e){}}
 
 // righe del carico nel formato salvato nell'ordine
 function righeCarico(){return Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);const u=uOf(id),r={p:id,v:vi,q:st.q[k],u};if(st.d&&st.d[id])r.d=st.d[id];if(u==='st'||u==='pl'){const c=convCt(byId[id],vi,u,st.q[k]);if(c)r.ct=c}return r})}
@@ -1537,6 +1550,30 @@ function mostraPassword(box,titolo,username,pw){
    <div class="btns"><button class="btn main" id="cp">Copia messaggio per WhatsApp</button></div><div class="msg" id="cpm"></div></div>`;
   $('#cp').onclick=async()=>{try{await navigator.clipboard.writeText(txt);$('#cpm').className='msg ok';$('#cpm').textContent='Copiato: incollalo nella chat WhatsApp.'}catch(e){$('#cpm').textContent=txt}};
 }
+// nuvoletta: tema, icona e frasi di un account (le frasi arrivano da un file .txt, una per riga)
+const nvRestano=u=>{const n=(u.frasi||[]).length;return Math.max(0,n-Math.min(u.frasi_pos||0,n))};
+function nvLeggi(txt){const out={frasi:[]};txt.replace(/\r/g,'').split('\n').forEach(r=>{r=r.trim();if(!r||r.startsWith('#'))return;
+  let m=r.match(/^tema\s*:\s*(.+)$/i);if(m){out.tema=m[1].trim();return}m=r.match(/^icona\s*:\s*(.+)$/i);if(m){out.icona=m[1].trim();return}
+  r=r.replace(/^(\d+[.)]\s*|[-*•]\s+)/,'').replace(/^["“«]|["”»]$/g,'').trim();if(r.length>2)out.frasi.push(r.slice(0,300))});return out}
+function nvEditor(u,dopo){const box=$('#ue'+u.id);if(!box)return;let nuove=null;
+  box.innerHTML=`<div class="card" style="margin-top:8px;width:100%"><h3 style="margin-top:0">Nuvoletta di ${esc(u.nome_stampa||u.nome)}</h3>
+   <div class="grid2"><div class="field"><label for="nvt${u.id}">Tema</label><input id="nvt${u.id}" value="${esc(u.tema||'')}" placeholder="es. Juventus"></div>
+   <div class="field"><label for="nvi${u.id}">Icona (emoji)</label><input id="nvi${u.id}" value="${esc(u.icona||'')}" placeholder="es. ⚽" maxlength="8"></div></div>
+   <div class="field"><label for="nvf${u.id}">File delle frasi (.txt, una frase per riga)</label><input type="file" id="nvf${u.id}" accept=".txt,text/plain"></div>
+   <p class="note" id="nvm${u.id}" style="margin:4px 0 10px">${(u.frasi||[]).length?`Ora ci sono ${(u.frasi||[]).length} frasi, ${nvRestano(u)} ancora da vedere. Caricando un file nuovo le sostituisci e si riparte da capo.`:'Nessuna frase caricata.'}</p>
+   <div class="btns"><button class="btn main" id="nvs${u.id}">Salva</button>${u.tema?`<button class="btn" id="nvx${u.id}">Togli nuvoletta</button>`:''}<button class="btn" id="nvc${u.id}">Annulla</button></div></div>`;
+  $('#nvf'+u.id).onchange=async e=>{const f=e.target.files[0];if(!f)return;const r=nvLeggi(await f.text());
+    if(!r.frasi.length){$('#nvm'+u.id).textContent='Nel file non ho trovato frasi.';nuove=null;return}
+    for(let i=r.frasi.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r.frasi[i],r.frasi[j]]=[r.frasi[j],r.frasi[i]]}
+    nuove=r.frasi;if(r.tema)$('#nvt'+u.id).value=r.tema;if(r.icona)$('#nvi'+u.id).value=r.icona;
+    $('#nvm'+u.id).innerHTML=`<b>${r.frasi.length} frasi lette.</b> Premi Salva per caricarle.`};
+  $('#nvc'+u.id).onclick=()=>{box.innerHTML=''};
+  if($('#nvx'+u.id))$('#nvx'+u.id).onclick=async()=>{const {error}=await sb.from('utenti').update({tema:null,icona:null,frasi:[],frasi_pos:0}).eq('id',u.id);if(error)alert(error.message);else dopo()};
+  $('#nvs'+u.id).onclick=async()=>{const tema=$('#nvt'+u.id).value.trim();if(!tema){$('#nvm'+u.id).textContent='Scrivi il tema.';return}
+    if(!nuove&&!(u.frasi||[]).length){$('#nvm'+u.id).textContent='Carica il file delle frasi.';return}
+    const riga={tema,icona:$('#nvi'+u.id).value.trim()||null};if(nuove){riga.frasi=nuove;riga.frasi_pos=0}
+    const {error}=await sb.from('utenti').update(riga).eq('id',u.id);
+    if(error)alert(/tema|frasi|icona/.test(error.message)?'Prima esegui il file SQL 31 della nuvoletta.':error.message);else dopo()}}
 async function uffUtenti(v){
   const admin=ME.ruolo==='admin';
   v.innerHTML=`<div class="card"><h3>Nuovo account</h3>
@@ -1545,18 +1582,25 @@ async function uffUtenti(v){
    <div class="field"><label for="nu-n">Nome e cognome</label><input id="nu-n" placeholder="Mario Rossi"></div>
    <div class="field"><label for="nu-r">Ruolo</label><select id="nu-r"><option value="agente">Agente</option><option value="padroncino">Padroncino</option><option value="concessionario">Concessionario</option>${admin?'<option value="ufficio">Ufficio</option>':''}</select></div></div>
    <button class="btn main" id="nu-go">Crea account</button><div class="msg err" id="nu-m"></div></form></div>
+   <div class="card" id="nvsw"><h3>Nuvoletta a tema dopo l'invio</h3><p class="note" style="margin:0 0 8px">Carico…</p></div>
    <div id="pwbox"></div><div class="lbl">Account</div><div id="ulist"><div class="empty">Carico…</div></div>`;
   $('#nu').onsubmit=async e=>{e.preventDefault();$('#nu-go').disabled=true;$('#nu-m').textContent='';
     try{const u=$('#nu-u').value.trim();const r=await fn({azione:'crea',username:u,nome_stampa:$('#nu-s').value,nome:$('#nu-n').value||u,ruolo:$('#nu-r').value});
       mostraPassword($('#pwbox'),'Account creato',u,r.password);$('#nu').reset();lista()}
     catch(err){$('#nu-m').textContent=err.message}$('#nu-go').disabled=false};
+  async function interruttore(){const box=$('#nvsw');const {data,error}=await sb.from('impostazioni').select('valore').eq('chiave','nuvoletta').maybeSingle();
+    if(error){box.querySelector('p').textContent='Prima esegui il file SQL 31 della nuvoletta.';return}
+    const on=!!(data&&data.valore===true);
+    box.innerHTML=`<h3>Nuvoletta a tema dopo l'invio</h3><p class="note" style="margin:0 0 10px">${on?'<b style="color:var(--ok)">Attiva</b>: la vedono gli account con un tema e le frasi caricate.':'<b>Spenta</b>: la vedono solo gli account ufficio, per provarla. Il tema si imposta su ogni account con il pulsante <b>Nuvoletta</b>.'}</p><button class="btn${on?'':' main'}" id="nvgo">${on?'Spegni per tutti':'Attiva per tutti'}</button>`;
+    $('#nvgo').onclick=async()=>{$('#nvgo').disabled=true;const {error}=await sb.from('impostazioni').upsert({chiave:'nuvoletta',valore:!on,aggiornato_il:new Date().toISOString()});if(error)alert(error.message);interruttore()}}
+  interruttore();
   async function lista(){
     const [{data:us},{data:ac},{data:oo}]=await Promise.all([sb.from('utenti').select('*').order('nome'),sb.from('accessi').select('utente_id,il').eq('azione','accesso').order('il',{ascending:false}).limit(500),sb.from('ordini').select('utente_id').limit(10000)]);
     const conOrdini=new Set((oo||[]).map(o=>o.utente_id));
     const last={};(ac||[]).forEach(a=>{if(!last[a.utente_id])last[a.utente_id]=a.il});
     $('#ulist').innerHTML=`<div class="list">${(us||[]).map(u=>`<div class="oi" style="flex-wrap:wrap"><div class="n"><b>${esc(u.nome_stampa||u.nome)}</b><small>${esc(u.username)} · ${esc(u.ruolo)}${u.cambio_password?' · password provvisoria':''} · ultimo accesso: ${last[u.id]?new Date(last[u.id]).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):'mai'}</small></div>
-      <span class="pill ${u.attivo?'caricato':'off'}">${u.attivo?'Attivo':'Disattivato'}</span>${u.magazzino?'<span class="pill caricato" style="margin-left:6px">Magazzino</span>':''}${u.cataloghi?'<span class="pill caricato" style="margin-left:6px">Catalogo</span>':''}
-      ${u.id===ME.id?'':`<div class="btns" style="width:100%;margin-top:6px"><button class="btn" data-r="${u.id}" data-un="${esc(u.username)}">Reimposta password</button><button class="btn" data-e="${u.id}">Nome in stampa</button><button class="btn" data-a="${u.id}" data-on="${u.attivo?0:1}">${u.attivo?'Disattiva':'Riattiva'}</button><button class="btn" data-mg="${u.id}" data-on="${u.magazzino?0:1}">${u.magazzino?'Togli magazzino':'Abilita magazzino'}</button><button class="btn" data-ct="${u.id}" data-on="${u.cataloghi?0:1}">${u.cataloghi?'Togli catalogo cliente':'Abilita catalogo cliente'}</button>${conOrdini.has(u.id)||u.attivo?'':`<button class="btn del" data-del="${u.id}" data-un="${esc(u.username)}">Elimina account</button>`}</div><div id="ue${u.id}"></div>`}</div>`).join('')}</div>`;
+      <span class="pill ${u.attivo?'caricato':'off'}">${u.attivo?'Attivo':'Disattivato'}</span>${u.magazzino?'<span class="pill caricato" style="margin-left:6px">Magazzino</span>':''}${u.cataloghi?'<span class="pill caricato" style="margin-left:6px">Catalogo</span>':''}${u.tema?`<span class="pill ${nvRestano(u)<10?'off':'caricato'}" style="margin-left:6px">${esc(u.icona||'💬')} ${esc(u.tema)} · ${nvRestano(u)} di ${(u.frasi||[]).length} da vedere</span>`:''}
+      ${u.id===ME.id?`<div class="btns" style="width:100%;margin-top:6px"><button class="btn" data-nv="${u.id}">Nuvoletta</button></div><div id="ue${u.id}" style="width:100%"></div>`:''}${u.id===ME.id?'':`<div class="btns" style="width:100%;margin-top:6px"><button class="btn" data-nv="${u.id}">Nuvoletta</button><button class="btn" data-r="${u.id}" data-un="${esc(u.username)}">Reimposta password</button><button class="btn" data-e="${u.id}">Nome in stampa</button><button class="btn" data-a="${u.id}" data-on="${u.attivo?0:1}">${u.attivo?'Disattiva':'Riattiva'}</button><button class="btn" data-mg="${u.id}" data-on="${u.magazzino?0:1}">${u.magazzino?'Togli magazzino':'Abilita magazzino'}</button><button class="btn" data-ct="${u.id}" data-on="${u.cataloghi?0:1}">${u.cataloghi?'Togli catalogo cliente':'Abilita catalogo cliente'}</button>${conOrdini.has(u.id)||u.attivo?'':`<button class="btn del" data-del="${u.id}" data-un="${esc(u.username)}">Elimina account</button>`}</div><div id="ue${u.id}" style="width:100%"></div>`}</div>`).join('')}</div>`;
     $('#ulist').querySelectorAll('[data-r]').forEach(b=>b.onclick=async()=>{if(b.dataset.c!=='1'){b.dataset.c='1';b.textContent='Conferma reimposta';return}
       try{const r=await fn({azione:'reimposta',id:b.dataset.r});mostraPassword($('#pwbox'),'Password reimpostata',b.dataset.un,r.password);$('#pwbox').scrollIntoView({behavior:'smooth'});lista()}catch(err){alert(err.message)}});
     $('#ulist').querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{try{await fn({azione:'stato',id:b.dataset.a,attivo:b.dataset.on==='1'});lista()}catch(err){alert(err.message)}});
@@ -1570,6 +1614,7 @@ async function uffUtenti(v){
       lista()}});
     $('#ulist').querySelectorAll('[data-ct]').forEach(b=>b.onclick=async()=>{const {error}=await sb.from('utenti').update({cataloghi:b.dataset.on==='1'}).eq('id',b.dataset.ct);if(error)alert(error.message.includes('cataloghi')?'Prima esegui il file SQL 20 del catalogo cliente.':error.message);else lista()});
     $('#ulist').querySelectorAll('[data-mg]').forEach(b=>b.onclick=async()=>{const {error}=await sb.from('utenti').update({magazzino:b.dataset.on==='1'}).eq('id',b.dataset.mg);if(error)alert(error.message.includes('magazzino')?'Prima esegui il file SQL 15 del magazzino.':error.message);else lista()});
+    $('#ulist').querySelectorAll('[data-nv]').forEach(b=>b.onclick=()=>nvEditor(us.find(x=>x.id===b.dataset.nv),lista));
     $('#ulist').querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>{const u=us.find(x=>x.id===b.dataset.e);const box=$('#ue'+u.id);
       box.innerHTML=`<div class="mrow" style="margin-top:8px"><input id="es${u.id}" value="${esc(u.nome_stampa)}" style="flex:1;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"><button class="btn main" id="esb${u.id}">Salva</button></div>`;
       $('#esb'+u.id).onclick=async()=>{const {error}=await sb.from('utenti').update({nome_stampa:$('#es'+u.id).value.trim().toUpperCase()}).eq('id',u.id);if(error)alert(error.message);else lista()}});
