@@ -1589,18 +1589,11 @@ async function uffUtenti(v){
    <div class="field"><label for="nu-n">Nome e cognome</label><input id="nu-n" placeholder="Mario Rossi"></div>
    <div class="field"><label for="nu-r">Ruolo</label><select id="nu-r"><option value="agente">Agente</option><option value="padroncino">Padroncino</option><option value="concessionario">Concessionario</option>${admin?'<option value="ufficio">Ufficio</option>':''}</select></div></div>
    <button class="btn main" id="nu-go">Crea account</button><div class="msg err" id="nu-m"></div></form></div>
-   <div class="card" id="nvsw"><h3>Nuvoletta curiosità dopo l'invio</h3><p class="note" style="margin:0 0 8px">Carico…</p></div>
    <div id="pwbox"></div><div class="lbl">Account</div><div id="ulist"><div class="empty">Carico…</div></div>`;
   $('#nu').onsubmit=async e=>{e.preventDefault();$('#nu-go').disabled=true;$('#nu-m').textContent='';
     try{const u=$('#nu-u').value.trim();const r=await fn({azione:'crea',username:u,nome_stampa:$('#nu-s').value,nome:$('#nu-n').value||u,ruolo:$('#nu-r').value});
       mostraPassword($('#pwbox'),'Account creato',u,r.password);$('#nu').reset();lista()}
     catch(err){$('#nu-m').textContent=err.message}$('#nu-go').disabled=false};
-  async function interruttore(){const box=$('#nvsw');const {data,error}=await sb.from('impostazioni').select('valore').eq('chiave','nuvoletta').maybeSingle();
-    if(error){box.querySelector('p').textContent='Prima esegui il file SQL 31 della nuvoletta.';return}
-    const on=!!(data&&data.valore===true);
-    box.innerHTML=`<h3>Nuvoletta curiosità dopo l'invio</h3><p class="note" style="margin:0 0 10px">${on?'<b style="color:var(--ok)">Attiva</b>: la vedono gli account con un tema e le frasi caricate.':'<b>Spenta</b>: la vedono solo gli account ufficio, per provarla. Il tema si imposta su ogni account con il pulsante <b>Nuvoletta curiosità</b>.'}</p><button class="btn${on?'':' main'}" id="nvgo">${on?'Spegni per tutti':'Attiva per tutti'}</button>`;
-    $('#nvgo').onclick=async()=>{$('#nvgo').disabled=true;const {error}=await sb.from('impostazioni').upsert({chiave:'nuvoletta',valore:!on,aggiornato_il:new Date().toISOString()});if(error)alert(error.message);interruttore()}}
-  interruttore();
   async function lista(){
     const [{data:us},{data:ac},{data:oo}]=await Promise.all([sb.from('utenti').select('*').order('nome'),sb.from('accessi').select('utente_id,il').eq('azione','accesso').order('il',{ascending:false}).limit(500),sb.from('ordini').select('utente_id').limit(10000)]);
     const conOrdini=new Set((oo||[]).map(o=>o.utente_id));
