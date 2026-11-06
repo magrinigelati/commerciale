@@ -108,16 +108,18 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .back button{background:var(--ice);border:0;border-radius:8px;padding:8px 12px;font-weight:600}
 .back h2{font-family:var(--f-display);font-size:22px;text-transform:uppercase;margin:0;letter-spacing:.03em}
 .list{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.nuvola{position:relative;margin:58px 8px 40px 18px;padding:20px 26px 14px;background:#fff;color:#23408f;border-radius:70px;--nvb:#c3cfec;filter:drop-shadow(1px 0 0 var(--nvb)) drop-shadow(-1px 0 0 var(--nvb)) drop-shadow(0 1px 0 var(--nvb)) drop-shadow(0 -1px 0 var(--nvb)) drop-shadow(0 6px 14px rgba(35,64,143,.18));animation:nvin .5s ease-out,nvgo 5s ease-in-out .5s infinite}
+.nuvola{position:relative;container-type:inline-size;margin:58px 8px 40px 18px;padding:20px min(26px,6%) 14px;background:#fff;color:#23408f;border-radius:70px;--nvb:#c3cfec;filter:drop-shadow(1px 0 0 var(--nvb)) drop-shadow(-1px 0 0 var(--nvb)) drop-shadow(0 1px 0 var(--nvb)) drop-shadow(0 -1px 0 var(--nvb)) drop-shadow(0 6px 14px rgba(35,64,143,.18));animation:nvin .5s ease-out,nvgo 5s ease-in-out .5s infinite}
 .nuvola i{position:absolute;background:#fff;border-radius:50%}
-.nuvola .b1{width:86px;height:86px;top:-40px;left:16%}.nuvola .b2{width:110px;height:110px;top:-56px;left:38%}.nuvola .b3{width:74px;height:74px;top:-32px;right:12%}
-.nuvola .b4{width:90px;height:60px;bottom:-14px;left:22%}.nuvola .b5{width:110px;height:64px;bottom:-18px;right:18%}
+.nuvola .b1{width:min(86px,26%);aspect-ratio:1;top:0;left:12%;transform:translateY(-46%)}
+.nuvola .b2{width:min(110px,34%);aspect-ratio:1;top:0;left:50%;transform:translate(-50%,-50%);display:flex;justify-content:center;align-items:flex-start;padding-top:9%;box-sizing:border-box}
+.nuvola .b3{width:min(74px,22%);aspect-ratio:1;top:0;right:10%;transform:translateY(-43%)}
+.nuvola .b4{width:min(90px,28%);height:60px;bottom:-14px;left:18%}.nuvola .b5{width:min(110px,32%);height:64px;bottom:-18px;right:14%}
 .nuvola .d1{width:20px;height:20px;top:-30px;left:2px}.nuvola .d2{width:12px;height:12px;top:-50px;left:-10px}
-.nuvola .ic{position:absolute;top:-34px;left:calc(38% + 55px);transform:translateX(-50%);height:44px;font-size:30px;line-height:44px;white-space:nowrap;letter-spacing:-2px}
+.nuvola .ic{font-size:min(30px,8cqw);line-height:1;white-space:nowrap;letter-spacing:-2px}
 .nuvola p{position:relative;margin:0;font-family:'Caveat',cursive;font-size:25px;line-height:1.15;font-weight:500;text-align:center}
 .nuvola p b{font-weight:700;color:#c4183c}
 .nvchiudi{margin:0 0 18px}.nvchiudi .btn{width:100%}
-.nuvola small{position:relative;display:block;margin-top:6px;font-family:'Caveat',cursive;font-size:19px;font-weight:700;text-align:right;color:#c4183c}
+.nuvola small{position:relative;display:block;margin-top:6px;padding-right:4%;font-family:'Caveat',cursive;font-size:19px;font-weight:700;text-align:right;color:#c4183c}
 @keyframes nvin{from{opacity:0;transform:translateY(10px) scale(.95)}}
 @keyframes nvgo{50%{transform:translateY(-4px)}}
 .riepant{display:flex;align-items:center;gap:14px;width:100%;margin:0 0 16px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);text-align:left;font:inherit;cursor:pointer}
@@ -1311,7 +1313,7 @@ async function dopoInvio(data,righe,m,doppio){
 }
 // nuvoletta a tema sotto il riquadro dell'ordine inviato (tema e frasi impostati dall'ufficio nell'account)
 async function nuvoletta(dopo){if(dopo.dataset.nv||dopo.dataset.doppio)return;dopo.dataset.nv='1';try{const {data,error}=await sb.rpc('prossima_frase');if(error||!data||!data.frase||!dopo.isConnected)return;
-  const b=document.createElement('div');b.className='nuvola';b.innerHTML=`<i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i><i class="b5"></i><i class="d1"></i><i class="d2"></i><span class="ic">${esc(data.icona||'💬')}</span><p><b>Curiosità:</b> ${esc(data.frase)}</p><small>${esc(data.icona||'')} ${esc(data.tema)}</small>`;
+  const b=document.createElement('div');b.className='nuvola';b.innerHTML=`<i class="b1"></i><i class="b2"><span class="ic">${esc(data.icona||'💬')}</span></i><i class="b3"></i><i class="b4"></i><i class="b5"></i><i class="d1"></i><i class="d2"></i><p><b>Curiosità:</b> ${esc(data.frase)}</p><small>${esc(data.icona||'')} ${esc(data.tema)}</small>`;
   const c=document.createElement('div');c.className='btns nvchiudi';c.innerHTML='<button class="btn main">‹ Chiudi e torna alla Home</button>';c.querySelector('button').onclick=()=>go('home');
   dopo.after(b);b.after(c);
   if(data.restano<=5)sb.functions.invoke('avviso-frasi',{body:{}}).catch(()=>{}); // mail ad Alfonso: rigenerare le frasi
