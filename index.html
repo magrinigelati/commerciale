@@ -384,6 +384,12 @@ body.medit .minfo #mfatto{display:inline-block}
 body.medit .minfo [data-mn="-1"]{display:none}
 body.medit .minfo .mn small{display:none}
 body.medit #bar{display:none}
+.mstrip{display:none}
+body.medit .mstrip{display:block;background:var(--head);margin:-6px -6px 6px;padding:2px 6px 0}
+body.medit .mstrip .tabs{margin:0}
+body.medit .mstrip .tabs button{padding:7px 2px;font-size:13px}
+body.medit .mwrap .mtool{margin:0 0 6px}
+body.medit .mwrap .mtool .note{display:none}
 </style>
 </head>
 <body>
@@ -730,7 +736,7 @@ function renderMod(v){document.body.classList.add('wide');
     st.d[id]=v;save();render()});
   inp.oninput=()=>{const e=MC.by[mSel];if(!e)return;inp.value=inp.value.replace(/\D/g,'').slice(0,3);MM.set(e.id,e.vi,inp.value);mAgg(e.id)};
   if(MM.solo)inp.disabled=true;
-  inp.onfocus=()=>{inp.select();if(mTouch()&&!document.body.classList.contains('medit')){document.body.classList.add('medit');mVV();setTimeout(()=>mVedi(),60)}};
+  inp.onfocus=()=>{inp.select();if(mTouch()&&!document.body.classList.contains('medit')){mStriscia(true);document.body.classList.add('medit');mVV();setTimeout(()=>mVedi(),60)}};
   inp.onblur=()=>setTimeout(()=>{if(document.activeElement!==inp)mEsci()},250);
   inp.onkeydown=ev=>{const k=ev.key;
     if(k==='Enter'||k==='Tab'||k==='ArrowDown'||k==='ArrowUp'){ev.preventDefault();mSposta(k==='ArrowUp'||(k!=='ArrowDown'&&ev.shiftKey)?-1:1)}
@@ -816,7 +822,15 @@ function mAltezza(){const s=$('#msheet');if(!s||document.body.classList.contains
   const bar=$('#bar').hidden?0:$('#bar').offsetHeight;s.style.height=Math.max(260,innerHeight-top-$('#minfo').offsetHeight-bar-22)+'px'}
 // al telefono, mentre si scrive, il modulo occupa lo schermo sopra la tastiera
 function mVV(){const vv=window.visualViewport;document.documentElement.style.setProperty('--vvt',(vv?vv.offsetTop:0)+'px');document.documentElement.style.setProperty('--vvh',(vv?vv.height:innerHeight)+'px')}
-function mEsci(){if(!document.body.classList.contains('medit'))return;document.body.classList.remove('medit');mAltezza();requestAnimationFrame(()=>mVedi())}
+// durante l'inserimento con la tastiera aperta restano visibili una striscia blu con le linguette e la riga Adatta / Pag.
+function mStriscia(on){const w=document.querySelector('.mwrap'),t=document.querySelector('.mtool');if(!w||!t)return;
+  if(on){if(!w.querySelector('.mstrip')){const d=document.createElement('div');d.className='mstrip';
+      d.innerHTML=`<nav class="tabs" style="--ntab:${$('#tabs').children.length}">${$('#tabs').innerHTML}</nav>`;
+      d.querySelectorAll('button').forEach((b,i)=>{b.removeAttribute('id');b.onclick=()=>{const o=$('#tabs').children[i];mEsci();if(o)o.click()}});w.prepend(d)}
+    t.querySelectorAll('button').forEach(b=>{if(!b._nf){b._nf=1;b.addEventListener('mousedown',ev=>ev.preventDefault())}});
+    w.querySelector('.mstrip').after(t)}
+  else{const d=w.querySelector('.mstrip');if(d)d.remove();if(t.parentNode===w)w.before(t)}}
+function mEsci(){if(!document.body.classList.contains('medit'))return;mStriscia(false);document.body.classList.remove('medit');mAltezza();requestAnimationFrame(()=>mVedi())}
 if(window.visualViewport){visualViewport.addEventListener('resize',()=>{if(document.body.classList.contains('medit')){mVV();mVedi()}});visualViewport.addEventListener('scroll',()=>{if(document.body.classList.contains('medit'))mVV()})}
 addEventListener('resize',()=>{if(view==='mod'||(view==='mag'&&magInMod()))mAltezza()});
 
