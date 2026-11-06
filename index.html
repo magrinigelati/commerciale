@@ -123,7 +123,8 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 @keyframes nvin{from{opacity:0;transform:translateY(10px) scale(.95)}}
 @keyframes nvgo{50%{transform:translateY(-4px)}}
 .btn.svuota{color:#c4183c;border:1.5px solid #e7b3bf;background:transparent}
-.msvrow{display:flex;justify-content:flex-end;margin:0 0 10px}
+.msvrow{display:flex;justify-content:flex-end;margin:0 0 10px;max-height:60px;overflow:hidden;transition:max-height .25s ease,margin .25s ease,opacity .2s ease}
+.msvrow.via{max-height:0;margin:0;opacity:0;pointer-events:none}
 .btn.rosso{background:#c4183c;color:#fff;border-color:#c4183c}
 .svconf{border:2px solid #c4183c}
 .riepant{display:flex;align-items:center;gap:14px;width:100%;margin:0 0 16px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);text-align:left;font:inherit;cursor:pointer}
@@ -740,6 +741,8 @@ function renderMod(v){document.body.classList.add('wide');
   info.querySelectorAll('[data-mu]').forEach(b=>b.onclick=()=>{const e=MC.by[mSel];if(!e)return;setU(e.id,b.dataset.mu);mAgg(e.id);mInfo()});
   const us=$('#mus');if(us)us.onchange=()=>{const e=MC.by[mSel];if(!e)return;setU(e.id,us.value);mAgg(e.id);mInfo()};
   $('#mfatto').onclick=()=>{inp.blur();mEsci()};
+  // Svuota ordine: sparisce quando si scorre il foglio verso il basso, ricompare tornando in cima
+  {const row=v.querySelector('.msvrow');if(row)sh.addEventListener('scroll',()=>{const giu=sh.scrollTop>30;if(giu!==row.classList.contains('via'))row.classList.toggle('via',giu)},{passive:true})}
   if($('#msv'))$('#msv').onclick=async()=>{const n=nCarico();
     if(!(await mChiedi({t:"Svuotare l'ordine?",s:`Togli dal carico ${n} ${n===1?'prodotto':'prodotti'}, con note e orario di carico. Non si può annullare.`,ok:"Sì, svuota l'ordine",rosso:true})))return;
     st.q={};st.u={};st.d={};st.extra=[];st.nota='';st.quando='';save();mSel=null;render();avviso('Ordine svuotato: puoi ricominciare da capo')};
