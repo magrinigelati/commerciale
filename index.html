@@ -500,7 +500,7 @@ async function avvia(){
   if(u.cambio_password){show('s-pass');return}
   await caricaCatalogo();
   st=store.get(DKEY(),null)||{q:{},u:{},extra:[],data:oggi()};if(!st.u)st.u={};if(!st.d)st.d={};
-  if(!st.data||st.data<oggi()){if(st.data&&st.data<oggi()&&!Object.keys(st.q).length&&!st.extra.length)st.data=oggi();if(!st.data)st.data=oggi()}
+  if(!st.data||st.data<oggi()){st.data=oggi();save()} // la data non resta mai indietro: un carico iniziato giorni fa prende la data di oggi
   freq=store.get('mc_freq_'+ME.id,{});caricaFreq();
   $('#me-n').textContent=(u.nome_stampa||u.nome||u.username).toUpperCase();
   $('#data').value=st.data;$('#data').onchange=e=>{st.data=e.target.value;save()};
@@ -1304,6 +1304,7 @@ async function inviaOrdine(){
   try{return await inviaOrdine_()}finally{invioInCorso=false}
 }
 async function inviaOrdine_(){
+  if(!st.data||st.data<oggi()){st.data=oggi();save()} // all'invio la data e' quella del giorno di invio (mai una data passata)
   const m=$('#smsg');$('#si').disabled=true;m.className='msg';m.textContent='Invio in corso…';
   if(!(await sessioneValida())){m.className='msg err';m.textContent=MSG_SESS;$('#si').disabled=false;return}
   if(st.mod)return inviaModifica(m);
