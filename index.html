@@ -127,6 +127,8 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .msvrow.via{max-height:0;margin:0;opacity:0;pointer-events:none}
 .btn.rosso{background:#c4183c;color:#fff;border-color:#c4183c}
 .svconf{border:2px solid #c4183c}
+#data:disabled{opacity:1;-webkit-text-fill-color:currentColor;cursor:default}
+#data:disabled::-webkit-calendar-picker-indicator{display:none}
 .riepant{display:flex;align-items:center;gap:14px;width:100%;margin:0 0 16px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);text-align:left;font:inherit;cursor:pointer}
 .riepant .pp{display:flex;gap:6px;flex:0 0 auto}
 .riepant .pp i{display:block;width:58px;aspect-ratio:595/842;background:#fff center/cover no-repeat;border:1px solid var(--line);border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,.15)}
@@ -500,10 +502,10 @@ async function avvia(){
   if(u.cambio_password){show('s-pass');return}
   await caricaCatalogo();
   st=store.get(DKEY(),null)||{q:{},u:{},extra:[],data:oggi()};if(!st.u)st.u={};if(!st.d)st.d={};
-  if(!st.data||st.data<oggi()){st.data=oggi();save()} // la data non resta mai indietro: un carico iniziato giorni fa prende la data di oggi
+  if(!st.mod&&st.data!==oggi()){st.data=oggi();save()} // la data dell'ordine e' sempre quella di invio (oggi); per i tempi di carico c'e' "Quando carichi?"
   freq=store.get('mc_freq_'+ME.id,{});caricaFreq();
   $('#me-n').textContent=(u.nome_stampa||u.nome||u.username).toUpperCase();
-  $('#data').value=st.data;$('#data').onchange=e=>{st.data=e.target.value;save()};
+  $('#data').value=st.data;$('#data').disabled=true;$('#data').title='Data di invio dell\'ordine';
   const tabs=[['fam','Carico'],['mod','Modulo'],['sum','Riepilogo']];
   $('#tabs').style.setProperty('--ntab',tabs.length);
   $('#tabs').innerHTML=tabs.map(([v,l],i)=>`<button role="tab" aria-selected="${i===0}" data-v="${v}">${l}</button>`).join('');
@@ -575,7 +577,7 @@ function bar(){
 }
 $('#go').onclick=()=>{if(view==='mag')magConferma();else if(view==='sum')confermaInvio();else go('sum')};
 const TITOLI={home:'Area commerciale',fam:'Foglio di carico',mod:'Foglio di carico',sum:'Foglio di carico',ord:'I miei ordini',doc:'Documenti',uff:'Ufficio',foto:'Foto prodotti',cat:'Catalogo cliente',mag:'Magazzino'};
-function testata(){const mt=$('#mtabs');if(mt){mt.hidden=view!=='mag';if(view==='mag')magTabs(mt)}const car=view==='fam'||view==='mod'||view==='sum';schermoAcceso(car);const h=view==='home';$('#home').hidden=h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!car;$('#data').hidden=!car;const magMod=view==='mag'&&magInMod();document.body.classList.toggle('wide',view==='mod'||magMod);if(view!=='mod'&&!magMod)mEsci()}
+function testata(){const mt=$('#mtabs');if(mt){mt.hidden=view!=='mag';if(view==='mag')magTabs(mt)}const car=view==='fam'||view==='mod'||view==='sum';if(car&&st&&!st.mod&&st.data!==oggi()){st.data=oggi();save();$('#data').value=st.data}schermoAcceso(car);const h=view==='home';$('#home').hidden=h;$('#titolo').textContent=TITOLI[view]||'';$('#tabs').hidden=!car;$('#data').hidden=!car;const magMod=view==='mag'&&magInMod();document.body.classList.toggle('wide',view==='mod'||magMod);if(view!=='mod'&&!magMod)mEsci()}
 $('#home').onclick=()=>{docCart=null;go('home')};
 // navigazione: ogni passaggio entra nella cronologia del telefono, cosi' lo swipe indietro torna alla schermata precedente
 function snap(){return {mc:1,view,fam,sub,docCart,docDaHome,uffTab,catFam,fotoFam,magTab:MAG.tab,catPasso:CAT.passo}}
@@ -1304,7 +1306,7 @@ async function inviaOrdine(){
   try{return await inviaOrdine_()}finally{invioInCorso=false}
 }
 async function inviaOrdine_(){
-  if(!st.data||st.data<oggi()){st.data=oggi();save()} // all'invio la data e' quella del giorno di invio (mai una data passata)
+  st.data=oggi();save(); // all'invio la data e' sempre quella del giorno di invio
   const m=$('#smsg');$('#si').disabled=true;m.className='msg';m.textContent='Invio in corso…';
   if(!(await sessioneValida())){m.className='msg err';m.textContent=MSG_SESS;$('#si').disabled=false;return}
   if(st.mod)return inviaModifica(m);
@@ -1371,7 +1373,7 @@ function chiudiModifica(){const sosp=store.get(DKEY()+'_sospesa',null);try{local
 async function inviaModifica(m){
   if(Date.now()>st.mod.scade){m.className='msg err';m.textContent='Tempo per la modifica scaduto: per correzioni chiama l\'ufficio. Puoi annullare la modifica dal riquadro in alto.';$('#si').disabled=false;return}
   const righe=righeCarico(),numero=st.mod.numero;
-  const {data,error}=await sb.from('ordini').update({data:st.data,righe,extra:st.extra,note:st.nota||null,quando:st.quando||null}).eq('id',st.mod.id).select('*').single();
+  const {data,error}=await sb.from('ordini').update({righe,extra:st.extra,note:st.nota||null,quando:st.quando||null}).eq('id',st.mod.id).select('*').single();
   if(error){m.className='msg err';m.textContent=/scaduto|preparazione/i.test(error.message)?error.message:erroreSess(error)?MSG_SESS:'Modifica non inviata. Controlla la connessione e riprova. ('+error.message+')';$('#si').disabled=false;return}
   log('modifica_ordine','N. '+numero+' v'+data.versione);
   m.textContent='Modifica salvata, invio la mail all\'ufficio…';
