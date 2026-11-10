@@ -189,7 +189,16 @@ textarea{width:100%;min-height:140px;padding:12px;border:1px solid var(--line);b
 .extra input{padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);min-width:0}
 .empty{padding:22px;text-align:center;color:var(--muted)}
 .msg{margin-top:10px;font-size:15px}
-.msg.err{color:var(--accent-txt)} .msg.ok{color:var(--ok)}
+.msg.err{color:var(--accent-txt)} .msg.ok{color:var(--ok)}.inst{position:fixed;left:0;right:0;bottom:0;z-index:7;display:flex;align-items:center;gap:8px;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px)) 12px;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -4px 14px rgba(0,0,0,.08)}
+.inst[hidden],.instg[hidden]{display:none}
+.inst-b{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:10px;padding:11px 14px;font:inherit;font-weight:700;font-size:16px;background:var(--accent);color:var(--accent-ink)}
+.inst-x{flex:none;width:42px;height:42px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-size:26px;line-height:1}
+body.hasinst main,body.hasinst #s-login{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+.instg{position:fixed;inset:0;z-index:60;background:rgba(10,19,26,.55);display:flex;align-items:flex-end;justify-content:center}
+.instg-c{width:100%;max-width:520px;background:var(--surface);color:var(--ink);border-radius:16px 16px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px))}
+.instg-c h3{margin:0 0 10px;font-size:19px}.instg-c ol{margin:0 0 10px;padding-left:22px;font-size:16px;line-height:1.45}.instg-c li{margin-bottom:8px}
+.instg-c .ico{display:inline-block;border:1.5px solid currentColor;border-radius:5px;padding:0 5px;font-size:13px;line-height:1.3}
+.instg-c .btn{width:100%;margin-top:6px}
 .bar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:12px}
 .bar .tot{flex:1;min-width:0}
 .bar .tot b{font-family:var(--f-display);font-size:22px;font-variant-numeric:tabular-nums}
@@ -442,6 +451,10 @@ body.medit .mwrap .mtool .note{display:none}
 </div>
 </div>
 
+<!-- INSTALLA COME APP: compare solo se il portale e' aperto nel browser -->
+<div class="inst" id="inst" hidden><button type="button" class="inst-b" id="inst-b"><span aria-hidden="true">📲</span> Installa come app</button><button type="button" class="inst-x" id="inst-x" aria-label="Chiudi">×</button></div>
+<div class="instg" id="instg" hidden><div class="instg-c" role="dialog" aria-modal="true" aria-labelledby="instg-t"><h3 id="instg-t">Installa come app</h3><div id="instg-b"></div><button type="button" class="btn main" id="instg-ok">Ho capito</button></div></div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script>
@@ -452,7 +465,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const oggi=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const dataIt=s=>{const [y,m,d]=String(s).slice(0,10).split('-');return `${d}/${m}/${y}`};
-function show(id){['s-login','s-pass','s-app'].forEach(s=>$('#'+s).hidden=s!==id)}
+function show(id){['s-login','s-pass','s-app'].forEach(s=>$('#'+s).hidden=s!==id);if(typeof instAgg==='function')instAgg()}
 
 let ME=null, S=[], P=[], byId={}, MANT=[], SUBFAM=[];
 let st, freq, view='home', fam=null, sub=null, query='';
@@ -2367,8 +2380,38 @@ async function bannerNonInviati(v){
     d.querySelector('button').onclick=()=>{nonInvCache.t=0;view='ord';nav();document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v==='ord'));render();window.scrollTo(0,0)};
     v.prepend(d)}catch(e){}}
 async function render(){const v=$('#view');if(typeof setMini==='function')setMini(false);MM=view==='mag'?(MAG.tab==='giac'&&MAG.gsv==='mod'?MM_GIAC:MAG.tab==='sc'&&MAG.scv==='mod'?MM_SC:MAG.tab==='car'&&MAG.ord&&MAG.carv==='mod'?MM_CAR:MAG.tab==='inv'&&MAG.inv&&MAG.invv==='mod'?MM_INV:MM_MAG):MM_ORD;
-  if(view==='fam'){renderFam(v);bannerModifica(v);if(fam===null&&!st.mod)bannerNonInviati(v)}else if(view==='mod'){renderMod(v);bannerModifica(v)}else if(view==='sum'){renderSum(v);bannerModifica(v)}else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);else if(view==='mag')await renderMag(v);else if(view==='cat')await renderCat(v);testata();bar();if(view==='mod'||(view==='mag'&&magInMod()))mAltezza()}
+  if(view==='fam'){renderFam(v);bannerModifica(v);if(fam===null&&!st.mod)bannerNonInviati(v)}else if(view==='mod'){renderMod(v);bannerModifica(v)}else if(view==='sum'){renderSum(v);bannerModifica(v)}else if(view==='ord')await renderOrd(v);else if(view==='uff')await renderUff(v);else if(view==='doc')await renderDoc(v);else if(view==='home')await renderHome(v);else if(view==='foto')await renderFoto(v);else if(view==='mag')await renderMag(v);else if(view==='cat')await renderCat(v);testata();bar();if(view==='mod'||(view==='mag'&&magInMod()))mAltezza();instAgg()}
 sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')show('s-login')});
+// ---- Installa come app ----
+// Chrome, Edge e Samsung Internet (Android e PC) installano con un tocco; su iPhone/iPad, Firefox Android e Safari Mac
+// il browser non lo permette e il pulsante apre una mini guida. Se il portale e' gia' aperto come app non compare.
+const INST={ev:null,KNO:'mc_inst_no',KOK:'mc_inst_ok'};
+const instApp=()=>matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: minimal-ui)').matches||navigator.standalone===true;
+function instTipo(){const ua=navigator.userAgent,ios=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(INST.ev)return 'auto';
+  if(ios)return /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua)?'ios2':'ios';
+  if(/Android/.test(ua)&&/Firefox/.test(ua))return 'ffa';
+  if(/Macintosh/.test(ua)&&/Safari/.test(ua)&&!/Chrome|Chromium|Edg|Firefox/.test(ua))return 'mac';
+  return null} // negli altri casi (es. Chrome prima che dia il via, Firefox su PC) niente pulsante
+function instAgg(){const el=$('#inst');if(!el)return;let ok=!instApp()&&!!instTipo();
+  if(ok){let no=0,fatto=false;try{no=+localStorage.getItem(INST.KNO)||0;fatto=!!localStorage.getItem(INST.KOK)}catch(e){}
+    if(fatto&&instTipo()!=='auto')ok=false; // gia' installata da qui (Chrome lo sa da solo: se ripropone l'installazione vuol dire che non c'e' piu')
+    if(Date.now()-no<30*864e5)ok=false}
+  if(ok)ok=!$('#s-login').hidden||(!$('#s-app').hidden&&typeof view!=='undefined'&&view==='home');
+  el.hidden=!ok;document.body.classList.toggle('hasinst',ok)}
+const INST_G={
+  ios:'<ol><li>Tocca <b>Condividi</b> <span class="ico">⬆︎</span> nella barra in basso di Safari.</li><li>Scorri e tocca <b>Aggiungi alla schermata Home</b>.</li><li>Tocca <b>Aggiungi</b> in alto a destra.</li></ol><p class="note">L\'icona "Commerciale" comparirà tra le tue app.</p>',
+  ios2:'<ol><li>Tocca <b>Condividi</b> <span class="ico">⬆︎</span> (vicino all\'indirizzo, oppure nel menu ⋯).</li><li>Tocca <b>Aggiungi alla schermata Home</b>.</li><li>Tocca <b>Aggiungi</b>.</li></ol><p class="note">Se non trovi la voce, apri questa pagina con Safari e ripeti.</p>',
+  ffa:'<ol><li>Tocca il menu <b>⋮</b> di Firefox.</li><li>Tocca <b>Installa</b> (o <b>Aggiungi a schermata Home</b>).</li><li>Conferma con <b>Aggiungi</b>.</li></ol>',
+  mac:'<ol><li>Nella barra dei menu di Safari apri <b>File</b>.</li><li>Scegli <b>Aggiungi al Dock</b>.</li><li>Conferma con <b>Aggiungi</b>.</li></ol>'};
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();INST.ev=e;instAgg()});
+window.addEventListener('appinstalled',()=>{INST.ev=null;try{localStorage.setItem(INST.KOK,'1')}catch(e){}$('#instg').hidden=true;instAgg()});
+$('#inst-x').onclick=()=>{try{localStorage.setItem(INST.KNO,String(Date.now()))}catch(e){}instAgg()};
+$('#inst-b').onclick=async()=>{const t=instTipo();if(!t)return;
+  if(t==='auto'){const ev=INST.ev;INST.ev=null;try{ev.prompt();const r=await ev.userChoice;if(r&&r.outcome==='accepted'){try{localStorage.setItem(INST.KOK,'1')}catch(e){}}}catch(e){}instAgg();return}
+  $('#instg-b').innerHTML=INST_G[t];$('#instg').hidden=false};
+$('#instg-ok').onclick=()=>{$('#instg').hidden=true};$('#instg').onclick=e=>{if(e.target.id==='instg')$('#instg').hidden=true};
+try{matchMedia('(display-mode: standalone)').addEventListener('change',instAgg)}catch(e){}
 avvia();
 </script>
 </body>
