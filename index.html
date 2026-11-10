@@ -700,7 +700,7 @@ function renderFam(v){
 function recent(){return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,30).map(e=>byId[e[0]]).filter(Boolean)}
 function drawRes(){
   const r=$('#res');
-  if(query.trim().length>1){const hits=searchD(query).concat(search(query)).slice(0,40);
+  if(query.trim().length>1){const hits=search(query).slice(0,40).concat(searchD(query));
     r.innerHTML=hits.length?`<div class="lbl">${hits.length} risultati</div><div class="list">${hits.map(p=>rowHtml(p,true)).join('')}</div>`:`<div class="empty">Nessun prodotto trovato per “${esc(query)}”.</div>`;bindRows(r);return}
   const rec=recent();
   r.innerHTML=((rec.length||ME.magazzino)?`<div class="fams" style="margin-top:12px">${rec.length?`<button class="fam" data-f="rec"><b>I più usati</b><span>${rec.length} prodotti che ordini spesso</span></button>`:''}${ME.magazzino?`<button class="fam" id="ottim"><b>Ottimizza dal magazzino</b><span>Bozza con quello che manca rispetto alle scorte</span></button>`:''}</div>`:'')+
@@ -1595,7 +1595,8 @@ async function pdfDolce(o,utente){
   for(const r of (o.righe||[])){const p=byId[r.p];if(!p||p[1]!=='dol'||p[5]==null)continue;const v=p[6][0];if(v[1]==null)continue;
     const t=String(r.q);let sz=14;while(sz>7&&f.widthOfTextAtSize(t,sz)>(v[3]||27)-4)sz-=.5;
     pg.drawText(t,{x:v[1]-f.widthOfTextAtSize(t,sz)/2,y:p[5]-sz*.36,size:sz,font:f,color:blue})}
-  { const [yy,mm,dd]=String(o.data).slice(0,10).split('-');pg.drawText(`${dd}/${mm}/${yy}`,{x:56,y:H-63.5,size:12,font:f,color:blue}); } // il campo N. resta libero, come sul foglio dei gelati
+  { const [yy,mm,dd]=String(o.data).slice(0,10).split('-');pg.drawText(`${dd}/${mm}/${yy}`,{x:56,y:H-63.5,size:12,font:f,color:blue}); }
+  if(o.numero!=null){const t=String(o.numero);let sz=12;while(sz>7&&f.widthOfTextAtSize(t,sz)>36)sz-=.5;pg.drawText(t,{x:274.3-f.widthOfTextAtSize(t,sz)/2,y:H-63.5,size:sz,font:f,color:blue})} // N.: lo stesso numero dell'ordine (nella bozza non c'e' ancora)
   { const nm=(utente.nome_stampa||utente.nome||utente.username||'').trim().toUpperCase();let sz=12;while(sz>7&&f.widthOfTextAtSize(nm,sz)>222)sz-=.5;if(nm)pg.drawText(nm,{x:348,y:H-63.5,size:sz,font:f,color:blue}); }
   if(o.versione>1)pg.drawText('Modificato entro i termini',{x:23.9,y:H-14,size:7,font:f,color:red});
   if(o.quando){const t='CARICO: '+String(o.quando).toUpperCase().slice(0,40);let sz=11;while(sz>7&&f.widthOfTextAtSize(t,sz)>300)sz-=.5;pg.drawText(t,{x:572.6-f.widthOfTextAtSize(t,sz),y:H-15,size:sz,font:f,color:blue})}
