@@ -129,6 +129,7 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .svconf{border:2px solid #c4183c}
 #data:disabled{opacity:1;-webkit-text-fill-color:currentColor;cursor:default}
 #data:disabled::-webkit-calendar-picker-indicator{display:none}
+.contabar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:14px}
 .riepant{display:flex;align-items:center;gap:14px;width:100%;margin:0 0 16px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);text-align:left;font:inherit;cursor:pointer}
 .riepant .pp{display:flex;gap:6px;flex:0 0 auto}
 .riepant .pp i{display:block;width:58px;aspect-ratio:595/842;background:#fff center/cover no-repeat;border:1px solid var(--line);border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,.15)}
@@ -827,8 +828,9 @@ function mVV(){const vv=window.visualViewport;document.documentElement.style.set
 // durante l'inserimento con la tastiera aperta restano visibili una striscia blu con le linguette e la riga Adatta / Pag.
 function mStriscia(on){const w=document.querySelector('.mwrap'),t=document.querySelector('.mtool');if(!w||!t)return;
   if(on){if(!w.querySelector('.mstrip')){const d=document.createElement('div');d.className='mstrip';
-      d.innerHTML=`<nav class="tabs" style="--ntab:${$('#tabs').children.length}">${$('#tabs').innerHTML}</nav>`;
-      d.querySelectorAll('button').forEach((b,i)=>{b.removeAttribute('id');b.onclick=()=>{const o=$('#tabs').children[i];mEsci();if(o)o.click()}});w.prepend(d)}
+      const src=view==='mag'&&!$('#mtabs').hidden?$('#mtabs'):$('#tabs'); // nel magazzino le sue linguette, altrimenti quelle dell'ordine
+      d.innerHTML=`<nav class="tabs${src.id==='mtabs'?' mtabs':''}" style="--ntab:${src.children.length}">${src.innerHTML}</nav>`;
+      d.querySelectorAll('button').forEach((b,i)=>{b.removeAttribute('id');b.onclick=()=>{const o=src.children[i];mEsci();if(o)o.click()}});w.prepend(d)}
     t.querySelectorAll('button').forEach(b=>{if(!b._nf){b._nf=1;b.addEventListener('mousedown',ev=>ev.preventDefault())}});
     w.querySelector('.mstrip').after(t)}
   else{const d=w.querySelector('.mstrip');if(d)d.remove();if(t.parentNode===w)w.before(t)}}
@@ -841,6 +843,29 @@ addEventListener('resize',()=>{if(view==='mod'||(view==='mag'&&magInMod()))mAlte
 // magazzino personale (in cartoni): giacenze G, variazioni in sospeso d (delta) e rettifiche set, carico da ordine
 let MAG={tab:'giac',modo:'scarico',scv:'el',gv:'mov',carv:'el',invv:'el',inv:null,invQ:'',invFam:null,scFam:null,csv:'el',csFam:null,carFam:null,csQ:'',gsv:'el',G:{},S:{},sc:{},d:{},set:{},ord:null,car:null,q:'',carQ:'',scQ:'',mov:null,ordini:null,aperto:null};
 const MKEY=()=>'mc_mag_'+ME.id;
+// conteggio vendite nel Modulo di Carico/Scarico: dalla "partenza" (ultimo azzeramento o ultimo inventario) si vedono
+// la giacenza di partenza in blu e accanto i venduti (rosso) e i caricati (verde), anche dopo la conferma.
+// Il pulsante "Aggiorna giacenza e azzera vendite" sposta la partenza ad adesso.
+const CKEY=()=>'mc_conta_'+ME.id;
+let CONTA={dal:null,S:{},ok:false};
+async function contaCarica(){
+  let dal=store.get(CKEY(),null);
+  const {data:inv}=await sb.from('movimenti').select('creato_il').eq('utente_id',ME.id).eq('tipo','rettifica').order('creato_il',{ascending:false}).limit(1);
+  const ultInv=inv&&inv[0]?inv[0].creato_il:null;
+  if(!dal){const d=new Date();d.setHours(0,0,0,0);dal=d.toISOString()}
+  if(ultInv&&ultInv>dal)dal=ultInv; // dopo un inventario si riparte da li'
+  const {data,error}=await sb.from('movimenti').select('tipo,righe,creato_il').eq('utente_id',ME.id).gt('creato_il',dal).neq('tipo','rettifica').limit(500);
+  if(error)throw error;
+  const S={};(data||[]).forEach(m=>(m.righe||[]).forEach(r=>{const d=+r.delta||0;if(!d)return;const k=gk(r.p,r.v);const x=S[k]||(S[k]={pos:0,neg:0});if(d>0)x.pos+=d;else x.neg-=d}));
+  CONTA={dal,S,ok:true}}
+const contaDi=(id,vi)=>{const x=CONTA.S[gk(id,vi)]||{pos:0,neg:0},d=MAG.d[gk(id,vi)]||0;
+  const base=Math.max(0,giac(id,vi)-x.pos+x.neg);return {base,pos:x.pos+(d>0?d:0),neg:x.neg+(d<0?-d:0),pend:d,ora:Math.max(0,giac(id,vi)+d)}};
+function contaTot(){let v=0;Object.values(CONTA.S).forEach(x=>v+=x.neg);Object.values(MAG.d).forEach(d=>{if(d<0)v-=d});return v}
+async function contaAzzera(){
+  if(magRiep().n||magRiep().ns){await mChiedi({t:'Prima conferma le variazioni',s:'Hai ancora variazioni da confermare: premi Conferma in basso, poi aggiorna la giacenza.',ok:'Ok'});return}
+  const tot=contaTot();
+  if(!(await mChiedi({t:'Aggiornare la giacenza sul foglio?',s:`Le vendite segnate${tot?' ('+tot+' ct)':''} sono già tolte dal magazzino: da adesso il foglio mostra solo la giacenza attuale e il conteggio delle vendite riparte da zero.`,ok:'Sì, aggiorna'})))return;
+  store.set(CKEY(),new Date().toISOString());CONTA.ok=false;render()}
 function magSave(){store.set(MKEY(),{d:MAG.d,set:MAG.set,ord:MAG.ord,car:MAG.car,sc:MAG.sc,inv:MAG.inv})}
 function magLoad(){const m=store.get(MKEY(),null);if(m){MAG.d=m.d||{};MAG.set=m.set||{};MAG.ord=m.ord||null;MAG.car=m.car||null;MAG.sc=m.sc||{};MAG.inv=m.inv||null}}
 const gk=(id,vi)=>id+':'+(vi||0);
@@ -849,7 +874,7 @@ const nomeV=(p,vi)=>p[2]+(p[6].length>1?' · '+vLab(p[6][vi]||p[6][0]):'');
 function magDelta(id,vi,v){const k=gk(id,vi);v=Math.max(-999,Math.min(999,Math.round(+v||0)));if(v)MAG.d[k]=v;else delete MAG.d[k];magSave();bar()}
 async function magCarica(){let {data,error}=await sb.from('magazzino').select('prodotto_id,variante,quantita,scorta').eq('utente_id',ME.id);
   if(error&&/scorta/.test(error.message||'')){const r=await sb.from('magazzino').select('prodotto_id,variante,quantita').eq('utente_id',ME.id);data=r.data;error=r.error} // database senza il file 16
-  if(error)throw error;MAG.G={};MAG.S={};(data||[]).forEach(r=>{if(r.quantita)MAG.G[gk(r.prodotto_id,r.variante)]=r.quantita;if(r.scorta)MAG.S[gk(r.prodotto_id,r.variante)]=r.scorta})}
+  if(error)throw error;MAG.G={};MAG.S={};(data||[]).forEach(r=>{if(r.quantita)MAG.G[gk(r.prodotto_id,r.variante)]=r.quantita;if(r.scorta)MAG.S[gk(r.prodotto_id,r.variante)]=r.scorta});CONTA.ok=false}
 const scorta=(id,vi)=>MAG.sc[gk(id,vi)]!=null?MAG.sc[gk(id,vi)]:(MAG.S[gk(id,vi)]||0);
 // quantita' mancanti rispetto alla scorta desiderata: [{p,v,q}]
 function mancanti(){return Object.keys(Object.assign({},MAG.S,MAG.sc)).map(k=>{const [id,vi]=k.split(':').map(Number);const p=byId[id];if(!p)return null;const m=scorta(id,vi)-giac(id,vi);return m>0?{p:id,v:vi,q:m}:null}).filter(Boolean).sort((a,b)=>P.indexOf(byId[a.p])-P.indexOf(byId[b.p]))}
@@ -891,11 +916,11 @@ function magAggRiga(k){document.querySelectorAll(`.mr[data-k="${k}"]`).forEach(r
 // nel Modulo del magazzino la casella mostra la giacenza che avrai dopo la conferma: con + carichi, con - scarichi, oppure scrivi il numero finale.
 // Di fianco, piccola, la variazione (+ verde / - rosso)
 const MM_MAG={get:(id,vi)=>Math.max(0,giac(id,vi)+(MAG.d[gk(id,vi)]||0)),set:(id,vi,v)=>magDelta(id,vi,Math.max(0,parseInt(v)||0)-giac(id,vi)),
-  testo:e=>{const g=giac(e.id,e.vi),d=MAG.d[gk(e.id,e.vi)]||0;return (g?`<span class="gb">${g}</span>`:'')+(d<0?`<span class="gr">−${-d}</span>`:d>0?`<span class="gg">+${d}</span>`:'')}, // blu = giacenza salvata; verde/rosso = variazione da confermare
-  cls:e=>'mc'+(giac(e.id,e.vi)||MAG.d[gk(e.id,e.vi)]?' on':'')+(mSel===e.k?' sel':''),um:false,nomi:false,
-  hint:'In blu la giacenza attuale. Tocca la casella: con + carichi, con − scarichi, oppure scrivi la quantità finale. La variazione compare di fianco (+ verde, − rossa) finché non premi Conferma in basso.',
-  vuoto:['Tocca una casella del modulo','Poi + per caricare o − per scaricare'],
-  dett:(e,p,v)=>{const g=giac(e.id,e.vi),d=MAG.d[gk(e.id,e.vi)]||0;return 'Giacenza '+g+' ct'+(d?' · '+(d>0?'carichi +'+d:'scarichi −'+(-d))+' → '+Math.max(0,g+d)+' ct':'')+(v[2]?' · '+v[2]:'')}};
+  testo:e=>{const c=contaDi(e.id,e.vi);return (c.base?`<span class="gb">${c.base}</span>`:(c.neg||c.pos?'<span class="gb">0</span>':''))+(c.pos?`<span class="gg">+${c.pos}</span>`:'')+(c.neg?`<span class="gr">−${c.neg}</span>`:'')}, // blu = partenza; verde = caricati; rosso = venduti (confermati e da confermare)
+  cls:e=>{const c=contaDi(e.id,e.vi);return 'mc'+(c.base||c.pos||c.neg?' on':'')+(mSel===e.k?' sel':'')},um:false,nomi:false,
+  hint:'In blu la giacenza di partenza, in rosso quello che hai venduto, in verde quello che hai caricato. Tocca la casella e usa − per segnare una vendita, + per un carico, poi Conferma in basso. I numeri restano sul foglio finché non premi "Aggiorna giacenza e azzera vendite".',
+  vuoto:['Tocca una casella del modulo','Poi − per segnare una vendita, + per un carico'],
+  dett:(e,p,v)=>{const c=contaDi(e.id,e.vi);return 'Partenza '+c.base+' ct'+(c.neg?' · venduti '+c.neg:'')+(c.pos?' · caricati '+c.pos:'')+' · ora '+c.ora+' ct'+(c.pend?' ('+(c.pend>0?'+':'')+c.pend+' da confermare)':'')+(v[2]?' · '+v[2]:'')}};
 // Modulo della scorta ideale: giacenza in blu, scorta ideale in arancio; si scrive la scorta
 const MM_SC={get:(id,vi)=>scorta(id,vi),set:(id,vi,v)=>scSet(gk(id,vi),v),
   testo:e=>{const sc=scorta(e.id,e.vi);return sc?`<span class="gi">${sc}</span>`:''},
@@ -1070,7 +1095,12 @@ function giacRiga([p,vi]){const g=giac(p[0],vi),d=MAG.d[gk(p[0],vi)]||0;
 // Carico / Scarico: Modulo (come prima) oppure Elenco con le referenze in magazzino (- per scaricare) e le famiglie per caricare
 function renderCS(v){
   const testa=`<div class="seg sub" style="margin-bottom:8px"><button data-csv="el" aria-pressed="${MAG.csv!=='mod'}">Elenco</button><button data-csv="mod" aria-pressed="${MAG.csv==='mod'}">Modulo</button></div>`;
-  if(MAG.csv==='mod'){v.innerHTML=testa+'<div id="csmod"></div>';v.querySelectorAll('[data-csv]').forEach(b=>b.onclick=()=>{MAG.csv=b.dataset.csv;render()});renderMod($('#csmod'));return}
+  if(MAG.csv==='mod'){
+    if(!CONTA.ok){v.innerHTML=testa+'<div class="empty">Carico le vendite…</div>';v.querySelectorAll('[data-csv]').forEach(b=>b.onclick=()=>{MAG.csv=b.dataset.csv;render()});
+      contaCarica().then(()=>{if(view==='mag'&&MAG.tab==='mod'&&MAG.csv==='mod')render()}).catch(()=>{CONTA={dal:null,S:{},ok:true};render()});return}
+    const dal=CONTA.dal?new Date(CONTA.dal).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';const tot=contaTot();
+    v.innerHTML=testa+`<div class="contabar"><span>Vendite dal <b>${dal}</b>: <b>${tot} ct</b></span><button class="btn sm" id="caz">Aggiorna giacenza e azzera vendite</button></div><div id="csmod"></div>`;
+    v.querySelectorAll('[data-csv]').forEach(b=>b.onclick=()=>{MAG.csv=b.dataset.csv;render()});$('#caz').onclick=contaAzzera;renderMod($('#csmod'));return}
   v.innerHTML=testa+`<p class="note" style="margin:0 0 10px">Per <b>scaricare</b> premi <b>−</b> sulle referenze in magazzino; per <b>caricare</b> premi <b>+</b>, oppure apri una famiglia per le referenze che non hai ancora. Poi <b>Conferma</b> in basso.</p>
    <input class="search" id="cscerca" type="search" placeholder="Cerca una referenza oppure scegli la famiglia qui sotto…" value="${esc(MAG.csQ)}" autocomplete="off"><div id="csres"></div>`;
   v.querySelectorAll('[data-csv]').forEach(b=>b.onclick=()=>{MAG.csv=b.dataset.csv;render()});
@@ -1203,7 +1233,7 @@ async function magConferma(){
     if(oltre.length){if(!(await mChiedi({t:'Attenzione: scarichi più di quanto risulta in magazzino',s:oltre.slice(0,6).join(' · ')+(oltre.length>6?' · …':'')+'. Forse manca un carico. Se confermi, la giacenza va a zero e la parte in più resta segnata nei movimenti.',ok:'Confermo lo stesso'})))return}
     else if(!(await mChiedi({t:'Confermare le variazioni?',s:[R.pos?'+'+R.pos+' ct in carico':'',R.neg?'−'+R.neg+' ct in scarico':'',R.ns?R.ns+' rettifiche':''].filter(Boolean).join(' · '),ok:'Sì, conferma'})))return;
     const {data,error}=await sb.rpc('applica_movimento',{p_righe:righe,p_ordine:null,p_note:null});
-    if(error)throw error;MAG.d={};MAG.set={};magSave();await magCarica();render();
+    if(error)throw error;MAG.d={};MAG.set={};magSave();await magCarica();CONTA.ok=false;render();
     $('#view').prepend(Object.assign(document.createElement('div'),{className:'card',innerHTML:`<h3 style="color:var(--ok)">Magazzino aggiornato</h3><p class="note" style="margin:4px 0 0">${(data&&data.righe||[]).length} referenze aggiornate${data&&data.mancanti&&data.mancanti.length?`, <b style="color:var(--accent-txt)">${data.mancanti.length} scaricate oltre la giacenza</b>`:''}.</p>`}));
   }catch(e){alert('Operazione non riuscita: '+(e.message||e))}
   finally{go_.disabled=false;bar()}
