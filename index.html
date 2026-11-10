@@ -390,6 +390,14 @@ body.wide main{max-width:none}
 .minfo .mn small{display:block;color:var(--muted);font-size:12px}
 .minfo .mctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .minfo .mnav{display:flex;gap:6px}
+/* riquadro compatto: nome e dettaglio su una riga sola, comandi piu' bassi, cosi' il foglio ha piu' spazio */
+.minfo{padding:5px 8px;gap:4px 8px;margin-top:6px}
+.minfo .mn{flex:1 1 100%;display:flex;align-items:baseline;gap:8px;white-space:nowrap;overflow:hidden}
+.minfo .mn b{flex:0 1 auto;font-size:15px}
+.minfo .mn small{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.minfo .step button,.minfo .mnav button{width:36px;height:34px;font-size:18px;border-radius:8px}
+.minfo .step input{height:34px;font-size:16px}
+.minfo .um button{height:34px}
 .minfo .mnav button{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:16px}
 .minfo #mfatto{display:none}
 .minfo.solo .mctl{display:none}
@@ -855,7 +863,7 @@ function mVedi(){const s=$('#msheet'),b=mSel&&s&&s.querySelector(`[data-mk="${mS
   if(c.left<r.left+m)s.scrollLeft-=r.left+m-c.left;else if(c.right>r.right-m)s.scrollLeft+=Math.min(c.right-r.right+m,c.left-r.left-m)}
 // altezza del foglio: tutto lo spazio libero fino alla barra in basso
 function mAltezza(){const s=$('#msheet');if(!s||document.body.classList.contains('medit'))return;const top=s.getBoundingClientRect().top+scrollY;
-  const bar=$('#bar').hidden?0:$('#bar').offsetHeight;s.style.height=Math.max(260,innerHeight-top-$('#minfo').offsetHeight-bar-22)+'px'}
+  const bar=$('#bar').hidden?0:$('#bar').offsetHeight;s.style.height=Math.max(260,innerHeight-top-$('#minfo').offsetHeight-bar-12)+'px'}
 // al telefono, mentre si scrive, il modulo occupa lo schermo sopra la tastiera
 function mVV(){const vv=window.visualViewport;document.documentElement.style.setProperty('--vvt',(vv?vv.offsetTop:0)+'px');document.documentElement.style.setProperty('--vvh',(vv?vv.height:innerHeight)+'px')}
 // durante l'inserimento con la tastiera aperta restano visibili una striscia blu con le linguette e la riga Adatta / Pag.
