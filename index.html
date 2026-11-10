@@ -124,6 +124,12 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 @keyframes nvgo{50%{transform:translateY(-4px)}}
 .btn.svuota{color:#c4183c;border:1.5px solid #e7b3bf;background:transparent}
 .msvrow{display:flex;justify-content:flex-end;margin:0 0 10px;max-height:60px;overflow:hidden;transition:max-height .25s ease,margin .25s ease,opacity .2s ease}
+.mdol{margin:0 0 8px;padding:6px 10px;border:1px solid var(--line);border-left:4px solid #7a4a21;border-radius:8px;background:var(--surface);font-size:13px}
+.fam.dolc{border-left:4px solid #7a4a21}
+.row small.dz{display:block;font-weight:600;color:var(--ink)}
+.um .umf{display:inline-block;padding:6px 4px;font-size:12px;color:var(--muted);border:0!important;background:none!important}
+.note.doln{margin:0 0 10px}
+.sum h3 small.hdol{font-weight:500;font-size:12px;color:var(--muted);margin-left:6px}
 .msvrow.via{max-height:0;margin:0;opacity:0;pointer-events:none}
 .btn.rosso{background:#c4183c;color:#fff;border-color:#c4183c}
 .svconf{border:2px solid #c4183c}
@@ -530,12 +536,17 @@ async function caricaCatalogo(){
     sb.from('famiglie').select('*').eq('attiva',true).order('ordine'),
     sb.from('prodotti').select('*').eq('attivo',true).order('ordine')]);
   if(e1||e2){alert('Non riesco a caricare il catalogo. Controlla la connessione e riprova.');return}
-  S=f.map(x=>x.nome);SUBFAM=f.filter(x=>x.con_sottofamiglie).map(x=>x.nome);
-  const fi={};f.forEach((x,i)=>fi[x.id]=i);
-  P=p.filter(x=>fi[x.famiglia_id]!=null).map(x=>[x.id,fi[x.famiglia_id],x.nome,x.novita?1:0,x.pagina,x.y==null?null:+x.y,
-     (x.varianti||[]).map(v=>[v.etichetta||'',v.x??null,v.codice||'',v.larghezza||28,v.disponibile===false?0:1,v.nota||'',v.breve||v.etichetta||'',{pzct:+v.pzct||0,ctstr:+v.ctstr||0,ctplt:+v.ctplt||0}]),x.sezione||'',x.evidenza?1:0]);
+  // la linea dolciaria ha un foglio di carico suo: resta fuori dal catalogo dei gelati (modulo, magazzino, foto) e i concessionari non la vedono
+  const fd=f.filter(x=>x.foglio==='dolciaria'),fg=f.filter(x=>x.foglio!=='dolciaria');
+  S=fg.map(x=>x.nome);SUBFAM=fg.filter(x=>x.con_sottofamiglie).map(x=>x.nome);
+  const fi={};fg.forEach((x,i)=>fi[x.id]=i);
+  const mk=(x,fa)=>[x.id,fa,x.nome,x.novita?1:0,x.pagina,x.y==null?null:+x.y,
+     (x.varianti||[]).map(v=>[v.etichetta||'',v.x??null,v.codice||'',v.larghezza||28,v.disponibile===false?0:1,v.nota||'',v.breve||v.etichetta||'',{pzct:+v.pzct||0,ctstr:+v.ctstr||0,ctplt:+v.ctplt||0,prezzo:+v.prezzo||0,conf:v.conf||''}]),x.sezione||'',x.evidenza?1:0];
+  P=p.filter(x=>fi[x.famiglia_id]!=null).map(x=>mk(x,fi[x.famiglia_id]));
   if(!P.length)P=[];
-  byId={};P.forEach(p=>byId[p[0]]=p);
+  DOLN=fd[0]?fd[0].nome:'Linea dolciaria';
+  PD=(ME&&ME.ruolo==='concessionario')?[]:p.filter(x=>fd.some(y=>y.id===x.famiglia_id)).map(x=>mk(x,'dol'));
+  byId={};P.forEach(p=>byId[p[0]]=p);PD.forEach(p=>byId[p[0]]=p);
   byIdX={};p.forEach(x=>byIdX[x.id]=x);
   MANT=P.filter(p=>p[7]==='Vaschette Mantecato');
   PT=P.map(p=>tok(p[2]+' '));ST=P.map(p=>tok(S[p[1]]+' '+p[7]));
@@ -546,9 +557,17 @@ const save=()=>{store.set(DKEY(),st);bar()};
 const qOf=(id,vi)=>st.q[id+':'+vi]||0;
 // unita' di misura: cartone e pezzo per tutti; strato e pallet solo per i concessionari
 const UM={ct:['CT','cartone','cartoni'],pz:['PZ','pezzo','pezzi'],st:['STR','strato','strati'],pl:['PLT','pallet','pallet']};
+let PD=[],DOLN='Linea dolciaria';
+const isDol=id=>{const p=byId[id];return !!p&&p[1]==='dol'};
+const FN=f=>f==='dol'?DOLN:S[f];
+const haDol=o=>(o.righe||[]).some(r=>isDol(r.p));
+const haGel=o=>(o.righe||[]).some(r=>!isDol(r.p))||(o.extra||[]).length>0||!haDol(o);
+const euro=n=>'€ '+(+n).toFixed(2).replace('.',',');
+const dolInfo=p=>{const d=p[6][0][7];return [d.conf,d.prezzo?euro(d.prezzo):''].filter(Boolean).join(' · ')};
+function searchD(q){const w=tok(q);if(!w.length)return [];return PD.filter(p=>{const t=tok(p[2]+' '+p[7]+' '+DOLN+' '+p[6][0][2]).join(' ');return w.every(x=>t.includes(x))})}
 const UMS=()=>ME&&ME.ruolo==='concessionario'?['ct','pz','st','pl']:['ct','pz'];
 const ULAB=u=>(UM[u]||UM.ct)[0].toLowerCase();
-const uOf=id=>UMS().includes(st.u[id])?st.u[id]:'ct';
+const uOf=id=>isDol(id)?'ct':(UMS().includes(st.u[id])?st.u[id]:'ct');
 // strati e pallet convertiti in cartoni con i dati del listino (null se mancano)
 function convCt(p,vi,u,q){const d=p&&p[6][vi]&&p[6][vi][7];if(!d)return null;const k=u==='st'?d.ctstr:u==='pl'?d.ctplt:0;return k?q*k:null}
 const convTxt=c=>c?' = '+c+(c===1?' cartone':' cartoni'):'';
@@ -604,8 +623,8 @@ function rowHtml(p,showSec,o){
     <button class="plus" aria-label="Aggiungi" data-a="p" data-id="${p[0]}" data-vi="${vi}">+</button></div>`).join('');
   return `<div class="row${on?' on':''}${p[8]?' evid':''}" data-row="${p[0]}" data-o="${one?o:''}" data-sec="${showSec?1:''}">
     <div class="info"><button class="pn" data-a="p" data-id="${p[0]}" data-vi="${vis.length?vis[0][1]:0}"><b>${esc(p[2])}${p[3]?'<span class="nov">novità</span>':''}${one&&!p[6][o][4]?' <span class="so">su ordinazione</span>':''}</b>
-    <small>${showSec?esc(S[p[1]])+' · ':''}${cd||(p[4]==null||(one&&p[6][o][1]==null)?'fuori foglio: va in fondo a pagina 2, in blu su giallo':'')}</small>${notes.length?`<small class="nt">${esc(notes.join(' · '))}</small>`:''}${p[8]?'<small class="ev">Peso ridotto: g 2.600</small>':''}${(uOf(p[0])==='st'||uOf(p[0])==='pl')?(()=>{const vi=vis.length?vis[0][1]:0,c=convCt(p,vi,uOf(p[0]),1);return `<small class="cv">${c?'1 '+(uOf(p[0])==='st'?'strato':'pallet')+convTxt(c):'dati '+(uOf(p[0])==='st'?'strato':'pallet')+' mancanti: converte l\'ufficio'}</small>`})():''}</button>
-    ${UMS().length>2?`<select class="umsel" data-us="${p[0]}" aria-label="Unità di misura">${UMS().map(u=>`<option value="${u}" ${uOf(p[0])===u?'selected':''}>${UM[u][0]}</option>`).join('')}</select>`:`<div class="um" role="group" aria-label="Unità di misura">${UMS().map(u=>`<button data-u="${u}" data-id="${p[0]}" aria-pressed="${uOf(p[0])===u}">${UM[u][0]}</button>`).join('')}</div>`}</div>
+    <small>${showSec?esc(FN(p[1]))+' · ':''}${p[1]==='dol'&&cd?'cod. ':''}${cd||(p[4]==null||(one&&p[6][o][1]==null)?'fuori foglio: va in fondo a pagina 2, in blu su giallo':'')}</small>${notes.length?`<small class="nt">${esc(notes.join(' · '))}</small>`:''}${p[8]?'<small class="ev">Peso ridotto: g 2.600</small>':''}${p[1]==='dol'?`<small class="dz">${esc(dolInfo(p))}</small>`:''}${(uOf(p[0])==='st'||uOf(p[0])==='pl')?(()=>{const vi=vis.length?vis[0][1]:0,c=convCt(p,vi,uOf(p[0]),1);return `<small class="cv">${c?'1 '+(uOf(p[0])==='st'?'strato':'pallet')+convTxt(c):'dati '+(uOf(p[0])==='st'?'strato':'pallet')+' mancanti: converte l\'ufficio'}</small>`})():''}</button>
+    ${p[1]==='dol'?'<div class="um"><span class="umf">conf.</span></div>':UMS().length>2?`<select class="umsel" data-us="${p[0]}" aria-label="Unità di misura">${UMS().map(u=>`<option value="${u}" ${uOf(p[0])===u?'selected':''}>${UM[u][0]}</option>`).join('')}</select>`:`<div class="um" role="group" aria-label="Unità di misura">${UMS().map(u=>`<button data-u="${u}" data-id="${p[0]}" aria-pressed="${uOf(p[0])===u}">${UM[u][0]}</button>`).join('')}</div>`}</div>
     <div class="${multi?'vars':''}">${steps}</div></div>`;
 }
 function bindRows(root){
@@ -659,15 +678,15 @@ function avviso(t){document.querySelectorAll('.avviso').forEach(x=>x.remove());c
 /* ================= VISTA CARICO ================= */
 function renderFam(v){
   if(fam!==null){
-    const list=fam==='rec'?recent():P.filter(p=>p[1]===fam);let body='';
+    const list=fam==='rec'?recent():fam==='dol'?PD:P.filter(p=>p[1]===fam);let body='';
     if(fam==='rec')body=`<div class="list">${list.map(p=>rowHtml(p,true)).join('')}</div>`;
     else if(SUBFAM.includes(S[fam]))body=subView();
     else{const secs=[];list.forEach(p=>{let s=secs.find(x=>x[0]===p[7]);if(!s){s=[p[7],[]];secs.push(s)}s[1].push(p)});
-      const single=secs.length===1&&secs[0][0].toLowerCase()===S[fam].toLowerCase();
+      const single=secs.length===1&&secs[0][0].toLowerCase()===FN(fam).toLowerCase();
       body=secs.map(([s,ps])=>`${single?'':`<div class="lbl sub">${esc(s)}</div>`}<div class="list">${ps.map(p=>rowHtml(p,false)).join('')}</div>`).join('');}
     const inSub=fam!=='rec'&&SUBFAM.includes(S[fam])&&sub!==null;
     const conRighe=!(fam!=='rec'&&SUBFAM.includes(S[fam])&&sub===null);
-    v.innerHTML=`<div class="back fissa"><button id="bk">‹ ${inSub?esc(S[fam]):'Famiglie'}</button><h2>${fam==='rec'?'I più usati':esc(inSub?subsOf(fam)[sub].t:S[fam])}</h2></div>${body}${conRighe?'<div class="aggbar"><button class="btn main" id="agg">✓ Aggiungi e torna alle famiglie</button></div>':''}`;
+    v.innerHTML=`<div class="back fissa"><button id="bk">‹ ${inSub?esc(S[fam]):'Famiglie'}</button><h2>${fam==='rec'?'I più usati':esc(inSub?subsOf(fam)[sub].t:FN(fam))}</h2></div>${fam==='dol'?'<p class="note doln">Questi prodotti escono su un foglio di carico a parte (<b>Foglio di Carico - Linea Dolciaria</b>), inviato insieme all\'ordine. Si ordinano a confezioni intere.</p>':''}${body}${conRighe?'<div class="aggbar"><button class="btn main" id="agg">✓ Aggiungi e torna alle famiglie</button></div>':''}`;
     $('#bk').onclick=indietro;
     // le quantita' sono gia' nel carico: il pulsante conferma e riporta all'elenco delle famiglie
     if($('#agg'))$('#agg').onclick=()=>{const n=list.reduce((t,p)=>t+(p[6].some((_,vi)=>qOf(p[0],vi))?1:0),0);
@@ -681,14 +700,14 @@ function renderFam(v){
 function recent(){return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,30).map(e=>byId[e[0]]).filter(Boolean)}
 function drawRes(){
   const r=$('#res');
-  if(query.trim().length>1){const hits=search(query).slice(0,40);
+  if(query.trim().length>1){const hits=searchD(query).concat(search(query)).slice(0,40);
     r.innerHTML=hits.length?`<div class="lbl">${hits.length} risultati</div><div class="list">${hits.map(p=>rowHtml(p,true)).join('')}</div>`:`<div class="empty">Nessun prodotto trovato per “${esc(query)}”.</div>`;bindRows(r);return}
   const rec=recent();
   r.innerHTML=((rec.length||ME.magazzino)?`<div class="fams" style="margin-top:12px">${rec.length?`<button class="fam" data-f="rec"><b>I più usati</b><span>${rec.length} prodotti che ordini spesso</span></button>`:''}${ME.magazzino?`<button class="fam" id="ottim"><b>Ottimizza dal magazzino</b><span>Bozza con quello che manca rispetto alle scorte</span></button>`:''}</div>`:'')+
    `<div class="lbl">Famiglie</div><div class="fams">${S.map((s,i)=>{const c=famCount(i),n=P.filter(p=>p[1]===i).length;
-     return `<button class="fam${c?' has':''}" data-f="${i}"><b>${esc(s)}</b><span>${c?c+' nel carico · ':''}${n} prodotti</span></button>`}).join('')}</div>`;
+     return `<button class="fam${c?' has':''}" data-f="${i}"><b>${esc(s)}</b><span>${c?c+' nel carico · ':''}${n} prodotti</span></button>`}).join('')}${PD.length?(()=>{const c=famCount('dol');return `<button class="fam dolc${c?' has':''}" data-f="dol"><b>${esc(DOLN)}</b><span>${c?c+' nel carico · ':''}${PD.length} prodotti · foglio di carico a parte</span></button>`})():''}</div>`;
   if(nCarico()&&!st.mod){r.insertAdjacentHTML('beforeend','<div id="svbox" style="margin-top:22px"></div>');svuotaBox($('#svbox'))}
-  r.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{fam=b.dataset.f==='rec'?'rec':+b.dataset.f;sub=null;nav();render();window.scrollTo(0,0)});
+  r.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{fam=b.dataset.f==='rec'?'rec':b.dataset.f==='dol'?'dol':+b.dataset.f;sub=null;nav();render();window.scrollTo(0,0)});
   const ot=$('#ottim');if(ot)ot.onclick=async()=>{ot.disabled=true;try{if(!MAG.G._ok){await magCarica();MAG.G._ok=1}if(!MAG._loaded){magLoad();MAG._loaded=1}await bozzaDaScorte()}catch(e){alert('Non riesco a leggere il magazzino: '+(e.message||e))}finally{ot.disabled=false}};
 }
 
@@ -722,7 +741,7 @@ function renderMod(v){document.body.classList.add('wide');
   const nomeHtml=n=>`<button class="mnm ${n.cls}" ${n.k!==''?`data-mnm="${n.k}"`:'tabindex="-1"'} style="left:${pc(n.x0/MW)};top:${pc((MH-n.y-6.2)/MH)};width:${pc((n.x1-n.x0)/MW)};height:${pc(MRH/MH)}" aria-label="${esc(n.k!==''?'Modifica descrizione di '+byId[n.k][2]:n.t)}">${esc(n.t)}</button>`+(n.q?`<span class="mc on${n.pz?' pz':''}" style="left:${pc((n.qx-n.qw/2)/MW)};top:${pc((MH-n.y-6.2)/MH)};width:${pc(n.qw/MW)};height:${pc(MRH/MH)}">${esc(n.q)}</span>`:'');
   const pages=[0,1].map(pg=>`<div class="mpage"><img src="img/modulo-${pg+1}.webp?v=4" width="1786" height="2526" alt="Modulo, pagina ${pg+1}" draggable="false">${nomi.filter(n=>n.pg===pg).map(nomeHtml).join('')}${c.filter(e=>e.pg===pg).map(e=>`<button class="${MM.cls(e)}" data-mk="${e.k}" tabindex="-1" style="left:${pc(e.x0/MW)};top:${pc(e.top/MH)};width:${pc(e.w/MW)};height:${pc(MRH/MH)}" aria-label="${esc(byId[e.id][2]+(byId[e.id][6].length>1?' '+vLab(byId[e.id][6][e.vi]):''))}">${MM.testo(e)}</button>`).join('')}</div>`).join('');
   const um=UMS().length>2?`<select class="umsel" id="mus" aria-label="Unità di misura">${UMS().map(u=>`<option value="${u}">${UM[u][0]}</option>`).join('')}</select>`:`<div class="um" role="group" aria-label="Unità di misura">${UMS().map(u=>`<button data-mu="${u}" aria-pressed="false">${UM[u][0]}</button>`).join('')}</div>`;
-  v.innerHTML=`${MM.strumenti?`<div style="margin:2px 0 8px">${MM.strumenti()}</div>`:''}${view==='mod'&&!st.mod&&nCarico()?'<div class="msvrow"><button class="btn sm svuota" id="msv" aria-label="Svuota ordine">🗑 Svuota ordine</button></div>':''}<div class="mtool"><div class="zoom"><button class="btn sm" id="mzm" aria-label="Rimpicciolisci">−</button><button class="btn sm" id="mzf">Adatta</button><button class="btn sm" id="mzp" aria-label="Ingrandisci">+</button></div><div class="zoom"><button class="btn sm" data-mp="0">Pag. 1</button><button class="btn sm" data-mp="1">Pag. 2</button></div><p class="note">${esc(MM.hint)}</p></div>
+  v.innerHTML=`${MM.strumenti?`<div style="margin:2px 0 8px">${MM.strumenti()}</div>`:''}${view==='mod'&&!st.mod&&nCarico()?'<div class="msvrow"><button class="btn sm svuota" id="msv" aria-label="Svuota ordine">🗑 Svuota ordine</button></div>':''}${view==='mod'&&famCount('dol')?`<div class="mdol"><b>${esc(DOLN.toUpperCase())}</b>: ${famCount('dol')} ${famCount('dol')===1?'riga':'righe'} nel carico. Si ordinano dal Carico, escono su un foglio a parte.</div>`:''}<div class="mtool"><div class="zoom"><button class="btn sm" id="mzm" aria-label="Rimpicciolisci">−</button><button class="btn sm" id="mzf">Adatta</button><button class="btn sm" id="mzp" aria-label="Ingrandisci">+</button></div><div class="zoom"><button class="btn sm" data-mp="0">Pag. 1</button><button class="btn sm" data-mp="1">Pag. 2</button></div><p class="note">${esc(MM.hint)}</p></div>
   <div class="mwrap"><div class="msheet" id="msheet">${pages}</div>
   <div class="minfo${MM.solo?' solo':''}" id="minfo"><div class="mn"><b id="mnome"></b><small id="mdett"></small></div>
    <div class="mctl">${MM.um?um:''}<div class="step"><button data-ma="-1" aria-label="Togli">−</button><input id="mqty" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" autocomplete="off" placeholder="0" aria-label="Quantità"><button class="plus" data-ma="1" aria-label="Aggiungi">+</button></div>
@@ -1132,7 +1151,7 @@ async function renderCar(v){
   v.querySelectorAll('[data-co]').forEach(b=>b.onclick=()=>{const o=MAG.ordini.find(x=>x.id===+b.dataset.co);if(!o)return;MAG.ord=o.id;MAG.car=righeDaOrdine(o);magSave();render()});
 }
 // righe dell'ordine convertite in cartoni (pezzi: con i pezzi per cartone del listino, arrotondando per eccesso)
-function righeDaOrdine(o){const out=[];(o.righe||[]).forEach(r=>{const p=byId[r.p];if(!p)return;const v=p[6][r.v]||p[6][0];let q=r.q,nota='';
+function righeDaOrdine(o){const out=[];(o.righe||[]).forEach(r=>{const p=byId[r.p];if(!p||p[1]==='dol')return;const v=p[6][r.v]||p[6][0];let q=r.q,nota='';
     if(r.u==='st'||r.u==='pl'){q=r.ct||0;nota=r.ct?r.q+' '+ULAB(r.u)+' = '+r.ct+' ct':r.q+' '+ULAB(r.u)+': conversione mancante, scrivi i cartoni'}
     else if(r.u==='pz'){const pz=v[7]&&v[7].pzct;q=pz?Math.ceil(r.q/pz):0;nota=pz?r.q+' pz ≈ '+q+' ct ('+pz+' pz/ct)':r.q+' pz: scrivi i cartoni'}
     out.push({p:r.p,v:r.v,q,nota,d:r.d||''})});
@@ -1261,13 +1280,15 @@ function search(q){const w=tok(q);return P.map((p,i)=>[scoreP(w,i),p]).filter(x=
 
 /* ================= RIEPILOGO E INVIO ================= */
 function renderSum(v){
-  const keys=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).sort((a,b)=>P.indexOf(byId[a.split(':')[0]])-P.indexOf(byId[b.split(':')[0]]));
+  const keys=Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).sort((a,b)=>{const ix=k=>{const p=byId[k.split(':')[0]];return p[1]==='dol'?1e6+PD.indexOf(p):P.indexOf(p)};return ix(a)-ix(b)});
+  const nDol=keys.filter(k=>isDol(k.split(':')[0])).length,nGel=keys.length-nDol;
   const groups={};keys.forEach(k=>{const p=byId[k.split(':')[0]];(groups[p[1]]=groups[p[1]]||[]).push(k)});
   let h=`<div class="sum">`;
-  if(keys.length||st.extra.length)h+=`<button type="button" class="riepant" id="riepant" aria-label="Apri il PDF dell'ordine"><span class="pp"><i></i><i></i></span><span><b>Anteprima PDF</b><small>Tocca per aprirlo e controllarlo</small></span></button>`;
+  if(nGel||st.extra.length)h+=`<button type="button" class="riepant" id="riepant" aria-label="Apri il PDF dell'ordine"><span class="pp"><i></i><i></i></span><span><b>${nDol?'Foglio di carico':'Anteprima PDF'}</b><small>Tocca per aprirlo e controllarlo</small></span></button>`;
+  if(nDol)h+=`<button type="button" class="riepant" id="riepantd" aria-label="Apri il foglio di carico della linea dolciaria"><span class="pp"><i></i></span><span><b>Foglio di Carico - Linea Dolciaria</b><small>Foglio a parte, inviato insieme all'ordine. Tocca per aprirlo</small></span></button>`;
   if(!keys.length&&!st.extra.length)h+=`<div class="empty">Il carico è vuoto. Aggiungi prodotti da <b>Carico</b>.</div>`;
-  Object.keys(groups).sort((a,b)=>a-b).forEach(si=>{h+=`<h3>${esc(S[si])}</h3><div class="list">${groups[si].map(k=>{const [id,vi]=k.split(':').map(Number);const p=byId[id];const u=uOf(id);
-    return `<div class="sr"><span class="q">${st.q[k]}<i>${ULAB(u)}</i></span><div class="n">${st.d[id]?`<b style="color:#0d38b3;background:#fff3b0">${esc(st.d[id])}</b> <small>(era: ${esc(p[2])})</small>`:esc(p[2])}${(u==='st'||u==='pl')?` <b class="cv">${convCt(p,vi,u,st.q[k])?'= '+convCt(p,vi,u,st.q[k])+' ct':'(conversione a cura dell\'ufficio)'}</b>`:''}${p[6].length>1?' · '+esc(p[6][vi][0]):''}${p[6][vi][4]?'':' <b class="so">su ordinazione</b>'}<small>${p[6][vi][2]||(p[4]==null||p[6][vi][1]==null?'fuori foglio: in fondo a pagina 2':'')}</small></div><div class="um sm"><button data-su="ct" data-id="${id}" aria-pressed="${u==='ct'}">CT</button><button data-su="pz" data-id="${id}" aria-pressed="${u==='pz'}">PZ</button></div><button data-k="${k}" aria-label="Rimuovi">Togli</button></div>`}).join('')}</div>`});
+  Object.keys(groups).sort((a,b)=>(a==='dol')-(b==='dol')||a-b).forEach(si=>{h+=`<h3>${esc(FN(si))}${si==='dol'?' <small class="hdol">foglio di carico a parte</small>':''}</h3><div class="list">${groups[si].map(k=>{const [id,vi]=k.split(':').map(Number);const p=byId[id];const u=uOf(id);
+    return `<div class="sr"><span class="q">${st.q[k]}<i>${ULAB(u)}</i></span><div class="n">${st.d[id]?`<b style="color:#0d38b3;background:#fff3b0">${esc(st.d[id])}</b> <small>(era: ${esc(p[2])})</small>`:esc(p[2])}${(u==='st'||u==='pl')?` <b class="cv">${convCt(p,vi,u,st.q[k])?'= '+convCt(p,vi,u,st.q[k])+' ct':'(conversione a cura dell\'ufficio)'}</b>`:''}${p[6].length>1?' · '+esc(p[6][vi][0]):''}${p[6][vi][4]?'':' <b class="so">su ordinazione</b>'}<small>${si==='dol'?esc(['cod. '+p[6][vi][2],dolInfo(p)].filter(Boolean).join(' · ')):(p[6][vi][2]||(p[4]==null||p[6][vi][1]==null?'fuori foglio: in fondo a pagina 2':''))}</small></div>${si==='dol'?'':`<div class="um sm"><button data-su="ct" data-id="${id}" aria-pressed="${u==='ct'}">CT</button><button data-su="pz" data-id="${id}" aria-pressed="${u==='pz'}">PZ</button></div>`}<button data-k="${k}" aria-label="Rimuovi">Togli</button></div>`}).join('')}</div>`});
   h+=`<h3>Prodotti non presenti nel foglio</h3>`;
   if(st.extra.length)h+=`<div class="list">${st.extra.map((e,i)=>`<div class="sr"><span class="q">${e.q}<i>${ULAB(e.u)}</i></span><div class="n">${esc(e.d)}<small>andrà in fondo a pagina 2 del PDF, in blu su giallo</small></div><button data-x="${i}">Togli</button></div>`).join('')}</div>`;
   h+=`<div class="extra"><input id="xd" placeholder="Descrizione prodotto"><input id="xq" inputmode="numeric" placeholder="Q.tà"><select id="xu" aria-label="Unità">${UMS().map(u=>`<option value="${u}">${UM[u][0]}</option>`).join('')}</select><button class="btn" id="xadd">Aggiungi</button></div>`;
@@ -1279,7 +1300,8 @@ function renderSum(v){
   h+=`<div id="conf"></div><div id="svbox" style="margin-top:12px"></div><div id="smsg" class="msg"></div>
   <p class="note">La bozza resta salvata su questo telefono finché non premi “Invia ordine”. Dopo l'invio puoi modificarlo entro un'ora da I miei ordini, finché l'ufficio non lo mette in preparazione; poi per correzioni chiama l'ufficio.</p></div>`;
   v.innerHTML=h;
-  if($('#riepant')){anteprimaRiep($('#riepant'));$('#riepant').onclick=apriAnteprima}
+  if($('#riepant')){anteprimaRiep($('#riepant'),'gel');$('#riepant').onclick=()=>apriAnteprima('gel')}
+  if($('#riepantd')){anteprimaRiep($('#riepantd'),'dol');$('#riepantd').onclick=()=>apriAnteprima('dol')}
   $('#nota').oninput=e=>{st.nota=e.target.value;save()};
   v.querySelectorAll('[data-qc]').forEach(b=>b.onclick=()=>{const q=b.dataset.qc,alt=v.querySelector('.qalt'),inp=$('#qaltro');
     if(q==='*'){const on=b.getAttribute('aria-pressed')==='true';alt.hidden=on;if(on){st.quando='';inp.value=''}else{st.quando=inp.value.trim();inp.focus()}}
@@ -1302,23 +1324,23 @@ function svuotaBox(box){
     $('#svsi').onclick=()=>{st.q={};st.u={};st.d={};st.extra=[];st.nota='';st.quando='';save();fam=null;sub=null;query='';view='fam';render();window.scrollTo(0,0);avviso('Ordine svuotato: puoi ricominciare da capo')}}}
 // anteprima del PDF nel riepilogo: le due pagine in piccolo, al tocco si apre il PDF intero
 function oBozza(){return {id:st.mod?st.mod.numero:'bozza',numero:st.mod?st.mod.numero:null,data:st.data,righe:righeCarico(),extra:st.extra||[],note:st.nota||null,quando:st.quando||null,versione:st.mod?2:1,modificato_il:st.mod?new Date().toISOString():null}}
-let PDFJS=null,ANTE={f:null,pr:null},anteSeq=0;
+let PDFJS=null,ANTE={},anteSeq=0;
 function caricaPdfjs(){return PDFJS||(PDFJS=new Promise((ok,ko)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
   s.onload=()=>{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';ok(pdfjsLib)};s.onerror=()=>{PDFJS=null;ko(new Error('pdf.js'))};document.head.appendChild(s)}))}
-function pdfBozza(){const o=oBozza(),f=JSON.stringify([o.data,o.righe,o.extra,o.quando,!!st.mod,st.d]);
-  if(ANTE.f!==f){ANTE={f,o,pr:pdfOrdine(o,ME).then(b=>new File([b],nomePdf(o,ME).replace(/^Carico_bozza_/,'Bozza_carico_'),{type:'application/pdf'}))};ANTE.pr.catch(()=>{ANTE.f=null})}
-  return ANTE}
-async function anteprimaRiep(btn){const n=++anteSeq;
-  try{const a=pdfBozza();if(a.img){mostraAnte(btn,a.img);return}
-    const [file,lib]=await Promise.all([a.pr,caricaPdfjs()]);if(n!==anteSeq&&a!==ANTE)return;
+function pdfBozza(k){k=k||'gel';const o=oBozza(),f=JSON.stringify([o.data,o.righe,o.extra,o.quando,!!st.mod,st.d]);let A=ANTE[k];
+  if(!A||A.f!==f){A=ANTE[k]={f,o,pr:(k==='dol'?pdfDolce(o,ME):pdfOrdine(o,ME)).then(b=>new File([b],(k==='dol'?nomePdfD:nomePdf)(o,ME).replace(/^Carico_(dolciaria_)?bozza_/,'Bozza_carico_$1'),{type:'application/pdf'}))};A.pr.catch(()=>{A.f=null})}
+  return A}
+async function anteprimaRiep(btn,k){
+  try{const a=pdfBozza(k);if(a.img){mostraAnte(btn,a.img);return}
+    const [file,lib]=await Promise.all([a.pr,caricaPdfjs()]);if(a!==ANTE[k||'gel'])return;
     const doc=await lib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise,img=[];
     for(let i=1;i<=Math.min(2,doc.numPages);i++){const pg=await doc.getPage(i),vp=pg.getViewport({scale:240/pg.getViewport({scale:1}).width});
       const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;img.push(c.toDataURL('image/jpeg',.8))}
     a.img=img;if(btn.isConnected)mostraAnte(btn,img)}
   catch(e){if(btn.isConnected)btn.querySelector('small').textContent='Tocca per aprire il PDF'}}
 function mostraAnte(btn,img){btn.querySelectorAll('.pp i').forEach((el,i)=>{if(img[i])el.style.backgroundImage=`url(${img[i]})`})}
-async function apriAnteprima(){const w=window.open('','_blank');
-  try{const file=await pdfBozza().pr,u=URL.createObjectURL(file);if(w&&!w.closed)w.location.href=u;else location.href=u;setTimeout(()=>URL.revokeObjectURL(u),60000)}
+async function apriAnteprima(k){const w=window.open('','_blank');
+  try{const file=await pdfBozza(k).pr,u=URL.createObjectURL(file);if(w&&!w.closed)w.location.href=u;else location.href=u;setTimeout(()=>URL.revokeObjectURL(u),60000)}
   catch(e){if(w)w.close();alert('Non riesco a creare il PDF: '+(e.message||e))}}
 function confermaInvio(){
   const c=$('#conf');if(!c)return;
@@ -1427,9 +1449,10 @@ function bannerModifica(v){if(!st.mod||(view!=='fam'&&view!=='mod'&&view!=='sum'
   v.prepend(d);d.querySelector('#annmod').onclick=()=>{if(!confirm('Annullare la modifica? L\'ordine resta com\'era quando lo hai inviato.'))return;chiudiModifica();render()}}
 // mail all'ufficio con il PDF allegato (se non parte, l'ordine resta comunque nel portale)
 async function inviaMail(o,utente=ME){nonInvCache.t=0;
-  try{const bytes=await pdfOrdine(o,utente);let bin='';const u8=new Uint8Array(bytes);for(let i=0;i<u8.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
+  try{const b64=bytes=>{let bin='';const u8=new Uint8Array(bytes);for(let i=0;i<u8.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(bin)};
+    const {g,d}=await pdfDue(o,utente); // foglio dei gelati e, se serve, foglio della linea dolciaria: due allegati nella stessa mail
     const {data:{session}}=await sb.auth.getSession();
-    const r=await fetch(SB_URL+'/functions/v1/invia-ordine',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+session.access_token},body:JSON.stringify({id:o.id,pdf:btoa(bin)})});
+    const r=await fetch(SB_URL+'/functions/v1/invia-ordine',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+session.access_token},body:JSON.stringify({id:o.id,pdf:g?b64(g):null,pdf2:d?b64(d):null})});
     if(!r.ok)throw new Error(await r.text());return true}
   catch(e){console.warn('mail ordine non inviata',e);log('email_ordine_errore',String(e.message||e).slice(0,300));return String(e.message||e)}
 }
@@ -1502,6 +1525,7 @@ let MODULO=null;
 async function pdfOrdine(o,utente){
   const {PDFDocument,StandardFonts,rgb,degrees,pushGraphicsState,popGraphicsState,setCharacterSqueeze,setTextRenderingMode,TextRenderingMode,setLineWidth,setStrokingColor}=PDFLib,LARGO=1.12;
   if(!MODULO)MODULO=await fetch('modulo-presa-ordini.pdf?v=5').then(r=>{if(!r.ok)throw new Error('modulo non trovato');return r.arrayBuffer()});
+  o=Object.assign({},o,{righe:(o.righe||[]).filter(r=>!isDol(r.p))}); // la linea dolciaria va sul suo foglio (pdfDolce)
   const doc=await PDFDocument.load(MODULO.slice(0));
   const f=await doc.embedFont(StandardFonts.HelveticaBold),fr=await doc.embedFont(StandardFonts.Helvetica);
   const pages=doc.getPages(),H=pages[0].getHeight(),blue=rgb(.05,.22,.7),red=rgb(.75,.05,.15),EVID=rgb(1,.9,.25);
@@ -1562,12 +1586,34 @@ async function pdfOrdine(o,utente){
     if(false){yy-=12;pg.drawText('Note: '+String(o.note).slice(0,90),{x:40,y:yy,size:11,font:fr})}}
   return await doc.save();
 }
+// Foglio di Carico - Linea Dolciaria: foglio a parte, con le quantita' nella casella Q.ta' di ogni riga
+let MODULOD=null;
+async function pdfDolce(o,utente){
+  const {PDFDocument,StandardFonts,rgb,pushGraphicsState,popGraphicsState,setCharacterSqueeze}=PDFLib;
+  if(!MODULOD)MODULOD=await fetch('foglio-linea-dolciaria.pdf?v=1').then(r=>{if(!r.ok)throw new Error('foglio linea dolciaria non trovato');return r.arrayBuffer()});
+  const doc=await PDFDocument.load(MODULOD.slice(0)),f=await doc.embedFont(StandardFonts.HelveticaBold),pg=doc.getPages()[0],H=pg.getHeight(),blue=rgb(.05,.22,.7),red=rgb(.75,.05,.15);
+  for(const r of (o.righe||[])){const p=byId[r.p];if(!p||p[1]!=='dol'||p[5]==null)continue;const v=p[6][0];if(v[1]==null)continue;
+    const t=String(r.q);let sz=14;while(sz>7&&f.widthOfTextAtSize(t,sz)>(v[3]||27)-4)sz-=.5;
+    pg.drawText(t,{x:v[1]-f.widthOfTextAtSize(t,sz)/2,y:p[5]-sz*.36,size:sz,font:f,color:blue})}
+  { const [yy,mm,dd]=String(o.data).slice(0,10).split('-');pg.drawText(`${dd}/${mm}/${yy}`,{x:56,y:H-63.5,size:12,font:f,color:blue}); } // il campo N. resta libero, come sul foglio dei gelati
+  { const nm=(utente.nome_stampa||utente.nome||utente.username||'').trim().toUpperCase();let sz=12;while(sz>7&&f.widthOfTextAtSize(nm,sz)>222)sz-=.5;if(nm)pg.drawText(nm,{x:348,y:H-63.5,size:sz,font:f,color:blue}); }
+  if(o.versione>1)pg.drawText('Modificato entro i termini',{x:23.9,y:H-14,size:7,font:f,color:red});
+  if(o.quando){const t='CARICO: '+String(o.quando).toUpperCase().slice(0,40);let sz=11;while(sz>7&&f.widthOfTextAtSize(t,sz)>300)sz-=.5;pg.drawText(t,{x:572.6-f.widthOfTextAtSize(t,sz),y:H-15,size:sz,font:f,color:blue})}
+  return await doc.save();
+}
+const nomePdfD=(o,utente)=>nomePdf(o,utente).replace(/^Carico_/,'Carico_dolciaria_');
+// i PDF di un ordine: foglio dei gelati e, se ci sono righe della linea dolciaria, il suo foglio a parte
+async function pdfDue(o,utente){return {g:haGel(o)?await pdfOrdine(o,utente):null,d:haDol(o)?await pdfDolce(o,utente):null}}
+async function filesOrdine(o,utente){const {g,d}=await pdfDue(o,utente),fs=[],ty={type:'application/pdf'};if(g)fs.push(new File([g],nomePdf(o,utente),ty));if(d)fs.push(new File([d],nomePdfD(o,utente),ty));return fs}
+async function pdfUnito(fs){if(fs.length===1)return fs[0];const {PDFDocument}=PDFLib,doc=await PDFDocument.create();
+  for(const x of fs){const s=await PDFDocument.load(await x.arrayBuffer());(await doc.copyPages(s,s.getPageIndices())).forEach(p=>doc.addPage(p))}
+  return new File([await doc.save()],fs[0].name,{type:'application/pdf'})}
 // condivisione del PDF (WhatsApp, mail, Drive...) con il menu del telefono; il file si prepara prima, cosi' il tocco su Condividi parte subito
 const pdfPronti={};
 function nomePdf(o,utente){return `Carico_${NUM(o)}_${(utente.nome_stampa||utente.username||'').replace(/[^A-Za-z0-9]+/g,'_')}_${o.data}.pdf`}
 const pdfFatti={}; // PDF gia' pronti, leggibili subito: il telefono permette di condividere solo nell'istante del tocco
 const kPdf=o=>o.id+'_'+(o.versione||1);
-function preparaPdf(o,utente){const k=kPdf(o);return pdfPronti[k]||(pdfPronti[k]=pdfOrdine(o,utente).then(b=>pdfFatti[k]=new File([b],nomePdf(o,utente),{type:'application/pdf'})).catch(e=>{delete pdfPronti[k];throw e}))}
+function preparaPdf(o,utente){const k=kPdf(o);return pdfPronti[k]||(pdfPronti[k]=filesOrdine(o,utente).then(fs=>pdfFatti[k]=fs).catch(e=>{delete pdfPronti[k];throw e}))}
 async function condividiPdf(o,utente,btn){
   const k=kPdf(o),file=pdfFatti[k];
   if(btn&&!btn.dataset.t)btn.dataset.t=btn.textContent;
@@ -1576,8 +1622,8 @@ async function condividiPdf(o,utente,btn){
     try{await preparaPdf(o,utente);if(btn){btn.disabled=false;btn.textContent='Tocca per condividere'}}
     catch(e){if(btn){btn.disabled=false;btn.textContent=btn.dataset.t}alert('PDF non pronto: '+(e.message||e))}
     return}
-  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Ordine N. '+NUM(o)});if(btn)btn.textContent=btn.dataset.t;return true}
-    else{scaricaPdf(o,utente);alert('Da questo dispositivo non posso condividere direttamente: ho scaricato il PDF, allegalo tu nella chat.');return true}}
+  try{if(navigator.canShare&&navigator.canShare({files:file})){await navigator.share({files:file,title:'Ordine N. '+NUM(o)});if(btn)btn.textContent=btn.dataset.t;return true}
+    else{scaricaPdf(o,utente);alert('Da questo dispositivo non posso condividere direttamente: ho scaricato '+(file.length>1?'i PDF, allegali':'il PDF, allegalo')+' tu nella chat.');return true}}
   catch(e){if(e&&e.name==='AbortError'){if(btn)btn.textContent=btn.dataset.t}
     else if(e&&e.name==='NotAllowedError'){if(btn)btn.textContent='Tocca per condividere'}
     else alert('Condivisione non riuscita: '+(e.message||e))}
@@ -1585,14 +1631,13 @@ async function condividiPdf(o,utente,btn){
 // apre il PDF in una nuova scheda (su Android si apre nel visualizzatore PDF del telefono)
 async function apriPdf(o,utente){
   const w=window.open('','_blank');
-  try{const file=await preparaPdf(o,utente);const u=URL.createObjectURL(file);
+  try{const file=await pdfUnito(await preparaPdf(o,utente));const u=URL.createObjectURL(file);
     if(w&&!w.closed)w.location.href=u;else location.href=u;setTimeout(()=>URL.revokeObjectURL(u),60000)}
   catch(e){if(w)w.close();alert('Non riesco a creare il PDF: '+(e.message||e))}
 }
 async function scaricaPdf(o,utente){
-  try{const bytes=await pdfOrdine(o,utente);const blob=new Blob([bytes],{type:'application/pdf'});
-    const nome=nomePdf(o,utente);
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nome;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}
+  try{const fs=await filesOrdine(o,utente);
+    fs.forEach((blob,i)=>setTimeout(()=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=blob.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)},i*600))}
   catch(e){alert('Non riesco a creare il PDF: '+(e.message||e))}
 }
 
