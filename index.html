@@ -129,7 +129,9 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .svconf{border:2px solid #c4183c}
 #data:disabled{opacity:1;-webkit-text-fill-color:currentColor;cursor:default}
 #data:disabled::-webkit-calendar-picker-indicator{display:none}
-.contabar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:14px}
+.contabar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px;padding:4px 4px 4px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:13px;line-height:1.2;max-height:60px;overflow:hidden;transition:max-height .25s ease,margin .25s ease,padding .25s ease,opacity .2s ease}
+.contabar .btn{padding:6px 10px;font-size:13px;white-space:nowrap}
+.contabar.via{max-height:0;margin:0;padding-top:0;padding-bottom:0;opacity:0;border-width:0;pointer-events:none}
 .riepant{display:flex;align-items:center;gap:14px;width:100%;margin:0 0 16px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);text-align:left;font:inherit;cursor:pointer}
 .riepant .pp{display:flex;gap:6px;flex:0 0 auto}
 .riepant .pp i{display:block;width:58px;aspect-ratio:595/842;background:#fff center/cover no-repeat;border:1px solid var(--line);border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,.15)}
@@ -864,7 +866,7 @@ function contaTot(){let v=0;Object.values(CONTA.S).forEach(x=>v+=x.neg);Object.v
 async function contaAzzera(){
   if(magRiep().n||magRiep().ns){await mChiedi({t:'Prima conferma le variazioni',s:'Hai ancora variazioni da confermare: premi Conferma in basso, poi aggiorna la giacenza.',ok:'Ok'});return}
   const tot=contaTot();
-  if(!(await mChiedi({t:'Aggiornare la giacenza sul foglio?',s:`Le vendite segnate${tot?' ('+tot+' ct)':''} sono già tolte dal magazzino: da adesso il foglio mostra solo la giacenza attuale e il conteggio delle vendite riparte da zero.`,ok:'Sì, aggiorna'})))return;
+  if(!(await mChiedi({t:'Aggiornare la giacenza e azzerare le vendite?',s:`Le vendite segnate${tot?' ('+tot+' ct)':''} sono già tolte dal magazzino: da adesso il foglio mostra solo la giacenza attuale e il conteggio delle vendite riparte da zero.`,ok:'Sì, aggiorna'})))return;
   store.set(CKEY(),new Date().toISOString());CONTA.ok=false;render()}
 function magSave(){store.set(MKEY(),{d:MAG.d,set:MAG.set,ord:MAG.ord,car:MAG.car,sc:MAG.sc,inv:MAG.inv})}
 function magLoad(){const m=store.get(MKEY(),null);if(m){MAG.d=m.d||{};MAG.set=m.set||{};MAG.ord=m.ord||null;MAG.car=m.car||null;MAG.sc=m.sc||{};MAG.inv=m.inv||null}}
@@ -918,7 +920,7 @@ function magAggRiga(k){document.querySelectorAll(`.mr[data-k="${k}"]`).forEach(r
 const MM_MAG={get:(id,vi)=>Math.max(0,giac(id,vi)+(MAG.d[gk(id,vi)]||0)),set:(id,vi,v)=>magDelta(id,vi,Math.max(0,parseInt(v)||0)-giac(id,vi)),
   testo:e=>{const c=contaDi(e.id,e.vi);return (c.base?`<span class="gb">${c.base}</span>`:(c.neg||c.pos?'<span class="gb">0</span>':''))+(c.pos?`<span class="gg">+${c.pos}</span>`:'')+(c.neg?`<span class="gr">−${c.neg}</span>`:'')}, // blu = partenza; verde = caricati; rosso = venduti (confermati e da confermare)
   cls:e=>{const c=contaDi(e.id,e.vi);return 'mc'+(c.base||c.pos||c.neg?' on':'')+(mSel===e.k?' sel':'')},um:false,nomi:false,
-  hint:'In blu la giacenza di partenza, in rosso quello che hai venduto, in verde quello che hai caricato. Tocca la casella e usa − per segnare una vendita, + per un carico, poi Conferma in basso. I numeri restano sul foglio finché non premi "Aggiorna giacenza e azzera vendite".',
+  hint:'In blu la giacenza di partenza, in rosso quello che hai venduto, in verde quello che hai caricato. Tocca la casella e usa − per segnare una vendita, + per un carico, poi Conferma in basso. I numeri restano sul foglio finché non premi "Aggiorna giacenza": allora le vendite si azzerano e resta la giacenza attuale.',
   vuoto:['Tocca una casella del modulo','Poi − per segnare una vendita, + per un carico'],
   dett:(e,p,v)=>{const c=contaDi(e.id,e.vi);return 'Partenza '+c.base+' ct'+(c.neg?' · venduti '+c.neg:'')+(c.pos?' · caricati '+c.pos:'')+' · ora '+c.ora+' ct'+(c.pend?' ('+(c.pend>0?'+':'')+c.pend+' da confermare)':'')+(v[2]?' · '+v[2]:'')}};
 // Modulo della scorta ideale: giacenza in blu, scorta ideale in arancio; si scrive la scorta
@@ -1099,8 +1101,10 @@ function renderCS(v){
     if(!CONTA.ok){v.innerHTML=testa+'<div class="empty">Carico le vendite…</div>';v.querySelectorAll('[data-csv]').forEach(b=>b.onclick=()=>{MAG.csv=b.dataset.csv;render()});
       contaCarica().then(()=>{if(view==='mag'&&MAG.tab==='mod'&&MAG.csv==='mod')render()}).catch(()=>{CONTA={dal:null,S:{},ok:true};render()});return}
     const dal=CONTA.dal?new Date(CONTA.dal).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';const tot=contaTot();
-    v.innerHTML=testa+`<div class="contabar"><span>Vendite dal <b>${dal}</b>: <b>${tot} ct</b></span><button class="btn sm" id="caz">Aggiorna giacenza e azzera vendite</button></div><div id="csmod"></div>`;
-    v.querySelectorAll('[data-csv]').forEach(b=>b.onclick=()=>{MAG.csv=b.dataset.csv;render()});$('#caz').onclick=contaAzzera;renderMod($('#csmod'));return}
+    v.innerHTML=testa+`<div class="contabar"><span>Vendite dal ${dal}: <b>${tot} ct</b></span><button class="btn sm" id="caz">↻ Aggiorna giacenza</button></div><div id="csmod"></div>`;
+    v.querySelectorAll('[data-csv]').forEach(b=>b.onclick=()=>{MAG.csv=b.dataset.csv;render()});$('#caz').onclick=contaAzzera;renderMod($('#csmod'));
+    {const row=v.querySelector('.contabar'),sh=$('#msheet');if(row&&sh)sh.addEventListener('scroll',()=>{const giu=sh.scrollTop>30;if(giu!==row.classList.contains('via'))row.classList.toggle('via',giu)},{passive:true})}
+    return}
   v.innerHTML=testa+`<p class="note" style="margin:0 0 10px">Per <b>scaricare</b> premi <b>−</b> sulle referenze in magazzino; per <b>caricare</b> premi <b>+</b>, oppure apri una famiglia per le referenze che non hai ancora. Poi <b>Conferma</b> in basso.</p>
    <input class="search" id="cscerca" type="search" placeholder="Cerca una referenza oppure scegli la famiglia qui sotto…" value="${esc(MAG.csQ)}" autocomplete="off"><div id="csres"></div>`;
   v.querySelectorAll('[data-csv]').forEach(b=>b.onclick=()=>{MAG.csv=b.dataset.csv;render()});
