@@ -1298,7 +1298,7 @@ function renderSum(v){
   h+=`<div class="field qbox"><label>Quando carichi? (facoltativo)</label><div class="chips elenco"><button type="button" data-qc="" aria-pressed="${!st.quando}">Lascio vuoto</button>${QS.map(q=>`<button type="button" data-qc="${esc(q)}" aria-pressed="${st.quando===q}">${esc(q)}</button>`).join('')}<button type="button" data-qc="*" aria-pressed="${!!qAltro}">Altro</button></div><div class="qalt" ${qAltro?'':'hidden'}><input id="qaltro" placeholder="Scrivi quando carichi, es. giovedì mattina" value="${esc(qAltro?st.quando:'')}" maxlength="40"></div></div>`;
   h+=`<div class="field" style="margin-top:16px"><label for="nota">Note per l'ufficio (facoltative, arrivano nella mail e non sul PDF)</label><input id="nota" value="${esc(st.nota||'')}" placeholder="es. carico per domenica"></div>`;
   h+=`<div id="conf"></div><div id="svbox" style="margin-top:12px"></div><div id="smsg" class="msg"></div>
-  <p class="note">La bozza resta salvata su questo telefono finché non premi “Invia ordine”. Dopo l'invio puoi modificarlo entro un'ora da I miei ordini, finché l'ufficio non lo mette in preparazione; poi per correzioni chiama l'ufficio.</p></div>`;
+  <p class="note">La bozza resta salvata su questo telefono finché non premi “Invia ordine”. Dopo l'invio puoi riaprirlo entro un'ora da I miei ordini, finché l'ufficio non lo mette in preparazione; da quando lo riapri hai 30 minuti per inviare la modifica. Poi per correzioni chiama l'ufficio.</p></div>`;
   v.innerHTML=h;
   if($('#riepant')){anteprimaRiep($('#riepant'),'gel');$('#riepant').onclick=()=>apriAnteprima('gel')}
   if($('#riepantd')){anteprimaRiep($('#riepantd'),'dol');$('#riepantd').onclick=()=>apriAnteprima('dol')}
@@ -1414,12 +1414,16 @@ async function nuvoletta(dopo){if(dopo.dataset.nv||dopo.dataset.doppio)return;do
 // righe del carico nel formato salvato nell'ordine
 function righeCarico(){return Object.keys(st.q).filter(k=>byId[k.split(':')[0]]).map(k=>{const [id,vi]=k.split(':').map(Number);const u=uOf(id),r={p:id,v:vi,q:st.q[k],u};if(st.d&&st.d[id])r.d=st.d[id];if(u==='st'||u==='pl'){const c=convCt(byId[id],vi,u,st.q[k]);if(c)r.ct=c}return r})}
 const MOD_MIN=60; // minuti per modificare un ordine dopo il primo invio
-const scadenzaMod=o=>new Date(o.inviato_il||o.creato_il).getTime()+MOD_MIN*60000;
+const MOD_APERTA=30; // chi apre la modifica entro l'ora ha comunque 30 minuti dall'apertura per inviarla
+const scadBase=o=>new Date(o.inviato_il||o.creato_il).getTime()+MOD_MIN*60000;
+const scadenzaMod=o=>Math.max(scadBase(o),o.modifica_aperta_il?new Date(o.modifica_aperta_il).getTime()+MOD_APERTA*60000:0);
 const modificabile=o=>o.stato==='inviato'&&Date.now()<scadenzaMod(o);
 const oraIt=t=>new Date(t).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
 // riapre un ordine inviato nel foglio di carico; un eventuale carico in corso viene messo da parte e ripristinato dopo
-function modificaOrdine(o){
+async function modificaOrdine(o){
   if(!modificabile(o))return alert('Il tempo per modificare questo ordine è scaduto oppure l\'ufficio lo ha già messo in preparazione: per correzioni chiama l\'ufficio.');
+  // segno l'apertura: da adesso ci sono 30 minuti per inviare la modifica, anche se l'ora dall'invio scade nel frattempo
+  if(Date.now()<scadBase(o)){try{const {data,error}=await sb.from('ordini').update({modifica_aperta_il:new Date().toISOString()}).eq('id',o.id).select('modifica_aperta_il').single();if(!error&&data&&data.modifica_aperta_il)o.modifica_aperta_il=data.modifica_aperta_il}catch(e){}}
   if(!st.mod&&(Object.keys(st.q).length||st.extra.length))store.set(DKEY()+'_sospesa',st);
   const q={},u={},dd={};(o.righe||[]).forEach(r=>{if(byId[r.p]){q[r.p+':'+r.v]=r.q;if(r.u&&r.u!=='ct')u[r.p]=r.u;if(r.d)dd[r.p]=r.d}});
   st={q,u,d:dd,extra:JSON.parse(JSON.stringify(o.extra||[])),data:o.data,nota:o.note||'',quando:o.quando||'',mod:{id:o.id,numero:NUM(o),scade:scadenzaMod(o)}};save();
