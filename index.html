@@ -883,13 +883,15 @@ const CKEY=()=>'mc_conta_'+ME.id;
 let CONTA={dal:null,S:{},ok:false};
 async function contaCarica(){
   let dal=store.get(CKEY(),null);
-  const {data:inv}=await sb.from('movimenti').select('creato_il').eq('utente_id',ME.id).eq('tipo','rettifica').order('creato_il',{ascending:false}).limit(1);
-  const ultInv=inv&&inv[0]?inv[0].creato_il:null;
   if(!dal){const d=new Date();d.setHours(0,0,0,0);dal=d.toISOString()}
-  if(ultInv&&ultInv>dal)dal=ultInv; // dopo un inventario si riparte da li'
-  const {data,error}=await sb.from('movimenti').select('tipo,righe,creato_il').eq('utente_id',ME.id).gt('creato_il',dal).neq('tipo','rettifica').limit(500);
+  // le due letture partono insieme (prima erano una dopo l'altra)
+  const [{data:inv},{data,error}]=await Promise.all([
+    sb.from('movimenti').select('creato_il').eq('utente_id',ME.id).eq('tipo','rettifica').order('creato_il',{ascending:false}).limit(1),
+    sb.from('movimenti').select('tipo,righe,creato_il').eq('utente_id',ME.id).gt('creato_il',dal).neq('tipo','rettifica').limit(500)]);
   if(error)throw error;
-  const S={};(data||[]).forEach(m=>(m.righe||[]).forEach(r=>{const d=+r.delta||0;if(!d)return;const k=gk(r.p,r.v);const x=S[k]||(S[k]={pos:0,neg:0});if(d>0)x.pos+=d;else x.neg-=d}));
+  const ultInv=inv&&inv[0]?inv[0].creato_il:null;
+  if(ultInv&&ultInv>dal)dal=ultInv; // dopo un inventario si riparte da li'
+  const S={};(data||[]).filter(m=>m.creato_il>dal).forEach(m=>(m.righe||[]).forEach(r=>{const d=+r.delta||0;if(!d)return;const k=gk(r.p,r.v);const x=S[k]||(S[k]={pos:0,neg:0});if(d>0)x.pos+=d;else x.neg-=d}));
   CONTA={dal,S,ok:true}}
 const contaDi=(id,vi)=>{const x=CONTA.S[gk(id,vi)]||{pos:0,neg:0},d=MAG.d[gk(id,vi)]||0;
   const base=Math.max(0,giac(id,vi)-x.pos+x.neg);return {base,pos:x.pos+(d>0?d:0),neg:x.neg+(d<0?-d:0),pend:d,ora:Math.max(0,giac(id,vi)+d)}};
@@ -898,7 +900,7 @@ async function contaAzzera(){
   if(magRiep().n||magRiep().ns){await mChiedi({t:'Prima conferma le variazioni',s:'Hai ancora variazioni da confermare: premi Conferma in basso, poi aggiorna la giacenza.',ok:'Ok'});return}
   const tot=contaTot();
   if(!(await mChiedi({t:'Aggiornare la giacenza e azzerare le vendite?',s:`Le vendite segnate${tot?' ('+tot+' ct)':''} sono già tolte dal magazzino: da adesso il foglio mostra solo la giacenza attuale e il conteggio delle vendite riparte da zero.`,ok:'Sì, aggiorna'})))return;
-  store.set(CKEY(),new Date().toISOString());CONTA.ok=false;render()}
+  const ora=new Date().toISOString();store.set(CKEY(),ora);CONTA={dal:ora,S:{},ok:true};render()} // riparte da zero: non serve rileggere il database
 function magSave(){store.set(MKEY(),{d:MAG.d,set:MAG.set,ord:MAG.ord,car:MAG.car,sc:MAG.sc,inv:MAG.inv})}
 function magLoad(){const m=store.get(MKEY(),null);if(m){MAG.d=m.d||{};MAG.set=m.set||{};MAG.ord=m.ord||null;MAG.car=m.car||null;MAG.sc=m.sc||{};MAG.inv=m.inv||null}}
 const gk=(id,vi)=>id+':'+(vi||0);
@@ -1266,7 +1268,14 @@ async function magConferma(){
     if(oltre.length){if(!(await mChiedi({t:'Attenzione: scarichi più di quanto risulta in magazzino',s:oltre.slice(0,6).join(' · ')+(oltre.length>6?' · …':'')+'. Forse manca un carico. Se confermi, la giacenza va a zero e la parte in più resta segnata nei movimenti.',ok:'Confermo lo stesso'})))return}
     // una sola conferma: il pulsante Conferma in basso (resta solo l'avviso qui sopra, quando si scarica piu' della giacenza)
     const {data,error}=await sb.rpc('applica_movimento',{p_righe:righe,p_ordine:null,p_note:null});
-    if(error)throw error;MAG.d={};MAG.set={};magSave();await magCarica();CONTA.ok=false;render();
+    if(error)throw error;MAG.d={};MAG.set={};magSave();
+    // giacenza e vendite aggiornate sul telefono con i numeri appena registrati, senza rileggere tutto (piu' veloce);
+    // dopo una rettifica o se la risposta non e' completa si rilegge dal database come prima
+    if(data&&Array.isArray(data.righe)&&data.tipo!=='rettifica'&&data.righe.every(r=>r.dopo!=null)){
+      data.righe.forEach(r=>{const k=gk(r.p,r.v);if(r.dopo)MAG.G[k]=r.dopo;else delete MAG.G[k];
+        if(CONTA.ok){const d=+r.delta||0;if(d){const x=CONTA.S[k]||(CONTA.S[k]={pos:0,neg:0});if(d>0)x.pos+=d;else x.neg-=d}}})}
+    else{await magCarica();CONTA.ok=false}
+    render();
     $('#view').prepend(Object.assign(document.createElement('div'),{className:'card',innerHTML:`<h3 style="color:var(--ok)">Magazzino aggiornato</h3><p class="note" style="margin:4px 0 0">${(data&&data.righe||[]).length} referenze aggiornate${data&&data.mancanti&&data.mancanti.length?`, <b style="color:var(--accent-txt)">${data.mancanti.length} scaricate oltre la giacenza</b>`:''}.</p>`}));
   }catch(e){alert('Operazione non riuscita: '+(e.message||e))}
   finally{go_.disabled=false;bar()}
