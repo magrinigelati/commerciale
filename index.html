@@ -392,9 +392,9 @@ body.wide main{max-width:none}
 .minfo .mnav{display:flex;gap:6px}
 /* riquadro compatto: nome e dettaglio su una riga sola, comandi piu' bassi, cosi' il foglio ha piu' spazio */
 .minfo{padding:5px 8px;gap:4px 8px;margin-top:6px}
-.minfo .mn{flex:1 1 100%;display:flex;align-items:baseline;gap:8px;white-space:nowrap;overflow:hidden}
-.minfo .mn b{flex:0 1 auto;font-size:15px}
-.minfo .mn small{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.minfo .mn{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:baseline;gap:0 8px}
+.minfo .mn b{flex:0 1 auto;max-width:100%;font-size:15px}
+.minfo .mn small{flex:0 1 auto;white-space:normal} /* il dettaglio non viene mai tagliato: se non entra accanto al nome va a capo intero */
 .minfo .step button,.minfo .mnav button{width:36px;height:34px;font-size:18px;border-radius:8px}
 .minfo .step input{height:34px;font-size:16px}
 .minfo .um button{height:34px}
