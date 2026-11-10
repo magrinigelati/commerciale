@@ -1264,7 +1264,7 @@ async function magConferma(){
     const oltre=righe.filter(r=>r.delta<0&&-r.delta>giac(r.p,r.v)).map(r=>nomeV(byId[r.p],r.v)+': scarichi '+(-r.delta)+', in magazzino '+giac(r.p,r.v));
     const R=magRiep();
     if(oltre.length){if(!(await mChiedi({t:'Attenzione: scarichi più di quanto risulta in magazzino',s:oltre.slice(0,6).join(' · ')+(oltre.length>6?' · …':'')+'. Forse manca un carico. Se confermi, la giacenza va a zero e la parte in più resta segnata nei movimenti.',ok:'Confermo lo stesso'})))return}
-    else if(!(await mChiedi({t:'Confermare le variazioni?',s:[R.pos?'+'+R.pos+' ct in carico':'',R.neg?'−'+R.neg+' ct in scarico':'',R.ns?R.ns+' rettifiche':''].filter(Boolean).join(' · '),ok:'Sì, conferma'})))return;
+    // una sola conferma: il pulsante Conferma in basso (resta solo l'avviso qui sopra, quando si scarica piu' della giacenza)
     const {data,error}=await sb.rpc('applica_movimento',{p_righe:righe,p_ordine:null,p_note:null});
     if(error)throw error;MAG.d={};MAG.set={};magSave();await magCarica();CONTA.ok=false;render();
     $('#view').prepend(Object.assign(document.createElement('div'),{className:'card',innerHTML:`<h3 style="color:var(--ok)">Magazzino aggiornato</h3><p class="note" style="margin:4px 0 0">${(data&&data.righe||[]).length} referenze aggiornate${data&&data.mancanti&&data.mancanti.length?`, <b style="color:var(--accent-txt)">${data.mancanti.length} scaricate oltre la giacenza</b>`:''}.</p>`}));
