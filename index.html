@@ -1636,7 +1636,7 @@ async function pdfDolce(o,utente){
     const t=String(r.q);let sz=14;while(sz>7&&f.widthOfTextAtSize(t,sz)>(v[3]||27)-4)sz-=.5;
     pg.drawText(t,{x:v[1]-f.widthOfTextAtSize(t,sz)/2,y:p[5]-sz*.36,size:sz,font:f,color:blue})}
   { const [yy,mm,dd]=String(o.data).slice(0,10).split('-');pg.drawText(`${dd}/${mm}/${yy}`,{x:56,y:H-63.5,size:12,font:f,color:blue}); }
-  if(o.numero!=null){const t=String(o.numero);let sz=12;while(sz>7&&f.widthOfTextAtSize(t,sz)>36)sz-=.5;pg.drawText(t,{x:274.3-f.widthOfTextAtSize(t,sz)/2,y:H-63.5,size:sz,font:f,color:blue})} // N.: lo stesso numero dell'ordine (nella bozza non c'e' ancora)
+  // il campo N. resta libero, come sul foglio dei gelati (serve all'ufficio per il numero di Mexal)
   { const nm=(utente.nome_stampa||utente.nome||utente.username||'').trim().toUpperCase();let sz=12;while(sz>7&&f.widthOfTextAtSize(nm,sz)>222)sz-=.5;if(nm)pg.drawText(nm,{x:348,y:H-63.5,size:sz,font:f,color:blue}); }
   if(o.versione>1)pg.drawText('Modificato entro i termini',{x:23.9,y:H-14,size:7,font:f,color:red});
   if(o.quando){const t='CARICO: '+String(o.quando).toUpperCase().slice(0,40);let sz=11;while(sz>7&&f.widthOfTextAtSize(t,sz)>300)sz-=.5;pg.drawText(t,{x:572.6-f.widthOfTextAtSize(t,sz),y:H-15,size:sz,font:f,color:blue})}
