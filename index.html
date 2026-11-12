@@ -130,6 +130,8 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .um .umf{display:inline-block;padding:6px 4px;font-size:12px;color:var(--muted);border:0!important;background:none!important}
 .note.doln{margin:0 0 10px}
 .sum h3 small.hdol{font-weight:500;font-size:12px;color:var(--muted);margin-left:6px}
+.scaricato{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:70;width:min(92vw,420px);display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:12px;background:#1f7a3f;color:#fff;font-size:14px;line-height:1.35;box-shadow:0 8px 24px rgba(0,0,0,.3);transition:opacity .5s}
+.scaricato b{color:#fff}.scaricato span{word-break:break-word}.scaricato.via{opacity:0}
 .msvrow.via{max-height:0;margin:0;opacity:0;pointer-events:none}
 .btn.rosso{background:#c4183c;color:#fff;border-color:#c4183c}
 .svconf{border:2px solid #c4183c}
@@ -2039,8 +2041,14 @@ async function linkDoc(d,btn){
 const fileDoc={};
 function nomeDoc(d){const ext=(d.percorso.match(/\.[a-z0-9]{2,5}$/i)||[''])[0].toLowerCase();return slug(d.titolo).replace(/\.[a-z0-9]{2,5}$/i,'')+ext}
 function prendiDoc(d){return fileDoc[d.id]||(fileDoc[d.id]=fetch(d.url).then(r=>{if(!r.ok)throw new Error('file non raggiungibile');return r.blob()}).then(b=>new File([b],nomeDoc(d),{type:b.type||'application/octet-stream'})).catch(e=>{delete fileDoc[d.id];throw e}))}
+// dopo Scarica: messaggio che dice dove trovare il file (resta qualche secondo, si chiude toccandolo)
+function msgScaricato(nome){document.querySelectorAll('.scaricato').forEach(x=>x.remove());
+  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const d=document.createElement('div');d.className='scaricato';d.setAttribute('role','status');
+  d.innerHTML=`<b>✓ File scaricato</b><span>${esc(nome)}</span><span>${ios?'Lo trovi nell\'app <b>File</b>, cartella <b>Download</b>.':'Lo trovi nella cartella <b>Download</b> del telefono (app <b>File</b> o <b>Download</b>).'}</span>`;
+  d.onclick=()=>d.remove();document.body.appendChild(d);setTimeout(()=>d.classList.add('via'),6000);setTimeout(()=>d.remove(),6600)}
 async function scaricaDoc(d,btn){const t=btn.textContent;btn.disabled=true;btn.textContent='Preparo…';
-  try{const file=await prendiDoc(d);const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000);log('scarica_documento',d.titolo)}
+  try{const file=await prendiDoc(d);const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000);log('scarica_documento',d.titolo);msgScaricato(file.name)}
   catch(e){alert('Non riesco a scaricare il file: '+(e.message||e))}finally{btn.disabled=false;btn.textContent=t}}
 async function condividiDoc(d,btn){
   const pronto=btn.dataset.pronto==='1';btn.disabled=true;if(!pronto)btn.textContent='Preparo…';
