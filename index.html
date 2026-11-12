@@ -1367,12 +1367,12 @@ async function apriAnteprima(k){const w=window.open('','_blank');
 // scelte con la data di oggi e di domani (es. "Questa mattina 21 ott")
 function quandoScelte(){const gg=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toLocaleDateString('it-IT',{day:'numeric',month:'short'}).replace('.','')};
   return ['Questa mattina '+gg(0),'Questo pomeriggio '+gg(0),'Domani mattina '+gg(1),'Domani pomeriggio '+gg(1)]}
-// conferma dell'invio: qui si sceglie anche "Quando carichi?", obbligatorio (c'e' "Non lo so ancora" per non restare bloccati)
+// conferma dell'invio: qui si sceglie anche "Quando carichi?", obbligatorio (c'e' "Lascio vuoto" per non restare bloccati)
 function confermaInvio(){
   const c=$('#conf');if(!c)return;const QS=quandoScelte();
   let sc=st.quando?(QS.includes(st.quando)?st.quando:'*'):null; // null = non ha ancora scelto
   c.innerHTML=`<div class="card confinvio"><h3>${st.mod?'Inviare la modifica dell\'ordine N. '+st.mod.numero+'?':'Inviare l\'ordine?'}</h3><p style="margin:0 0 10px;color:var(--muted)">Carico del ${dataIt(st.data)} · ${$('#tot').textContent}. ${st.mod?'L\'ufficio riceverà una nuova mail con le differenze.':'Potrai modificarlo entro un\'ora dall\'invio, finché l\'ufficio non lo mette in preparazione.'}</p>
-   <div class="qbox qconf"><label>Quando carichi?</label><div class="chips elenco">${QS.map(q=>`<button type="button" data-qc="${esc(q)}">${esc(q)}</button>`).join('')}<button type="button" data-qc="*">Altro</button><button type="button" data-qc="">Non lo so ancora</button></div>
+   <div class="qbox qconf"><label>Quando carichi?</label><div class="chips elenco">${QS.map(q=>`<button type="button" data-qc="${esc(q)}">${esc(q)}</button>`).join('')}<button type="button" data-qc="*">Altro</button><button type="button" data-qc="">Lascio vuoto</button></div>
      <div class="qalt" hidden><input id="qaltro" placeholder="Scrivi quando carichi, es. giovedì mattina" value="${esc(sc==='*'?st.quando:'')}" maxlength="40"></div>
      <p class="qobb" id="qobb">Scegli una voce per poter inviare.</p></div>
    <div class="btns"><button class="btn main" id="si">Sì, invia</button><button class="btn" id="no">Annulla</button></div></div>`;
