@@ -865,7 +865,7 @@ function mInfo(){const box=$('#minfo');if(!box)return;const e=mSel&&MC.by[mSel];
   $('#mnome').textContent=p[2]+(p[6].length>1?' · '+vLab(v):'');
   $('#mdett').textContent=MM.dett?MM.dett(e,p,v):[S[p[1]],v[2],v[4]?'':'su ordinazione',(u==='st'||u==='pl')?(convCt(p,e.vi,u,1)?'1 '+UM[u][1]+convTxt(convCt(p,e.vi,u,1)):'conversione a cura dell\'ufficio'):''].filter(Boolean).join(' · ');
   {const q=MM.get(e.id,e.vi)||0,f=MM.pz?fU(e.id,gk(e.id,e.vi)):1,sv=f>1?Math.trunc(q/f):q;if(document.activeElement!==inp||String(sv||'')!==inp.value)inp.value=sv||''}
-  {const xu=$('#mxu');if(xu){const on=MM.pz&&NX(e.id);xu.hidden=!on;if(on)xu.querySelectorAll('[data-mxu]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mxu===puK(gk(e.id,e.vi))))}}
+  {const xu=$('#mxu');if(xu){const on=MM.pz&&NX(e.id);xu.hidden=!on;if(on)xu.querySelectorAll('[data-mxu]').forEach(b=>{b.setAttribute('aria-pressed',b.dataset.mxu===puK(gk(e.id,e.vi)));if(b.dataset.mxu==='pz')b.textContent=PZL(e.id)})}}
   box.querySelectorAll('[data-mu]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mu===u));const us=$('#mus');if(us)us.value=u}
 function mSeleziona(k,fuoco){const old=mSel&&document.querySelector(`#msheet [data-mk="${mSel}"]`);if(old)old.classList.remove('sel');
   mSel=k;const b=document.querySelector(`#msheet [data-mk="${k}"]`);if(b)b.classList.add('sel');mInfo();mVedi();
@@ -934,17 +934,18 @@ const giac=(id,vi)=>MAG.G[gk(id,vi)]||0;
 // Per questi giacenza, variazioni e movimenti (anche nel database) sono in PEZZI; N = pezzi per cartone = numero dopo la x.
 const NXC={};
 function NX(id){if(NXC[id]!==undefined)return NXC[id];const p=byId[id];const m=p&&String(p[2]).match(/\bx\s*(?:pz\.?\s*)?(\d+)/i);return NXC[id]=(m&&+m[1]>1)?+m[1]:0}
-function fq(id,q,seg){const n=NX(id);const s=q<0?'−':(seg&&q>0?'+':'');q=Math.abs(q);if(!n)return s+q+' ct';const a=Math.floor(q/n),b=q%n;return s+(a&&b?a+' ct + '+b+' pz':b?b+' pz':a+' ct')}
-function fqH(id,q){const n=NX(id);if(!n)return q+'<i>ct</i>';const a=Math.floor(q/n),b=q%n;return (a||!b?a+'<i>ct</i>':'')+(b?(a?' ':'')+b+'<i>pz</i>':'')}
-function fqC(id,q){const n=NX(id);if(!n)return String(q);const a=Math.floor(q/n),b=q%n;return b?(a?a+'+':'')+b+'p':String(a)} // forma corta per le caselle del Modulo: 1+4p
+const PZL=id=>/conf/i.test((byId[id]||[])[2]||'')?'conf':'pz'; // nome dell'unita' sciolta: "conf" per i prodotti a confezioni (muffin)
+function fq(id,q,seg){const n=NX(id);const s=q<0?'−':(seg&&q>0?'+':'');q=Math.abs(q);if(!n)return s+q+' ct';const a=Math.floor(q/n),b=q%n;return s+(a&&b?a+' ct + '+b+' '+PZL(id):b?b+' '+PZL(id):a+' ct')}
+function fqH(id,q){const n=NX(id);if(!n)return q+'<i>ct</i>';const a=Math.floor(q/n),b=q%n;return (a||!b?a+'<i>ct</i>':'')+(b?(a?' ':'')+b+'<i>'+PZL(id)+'</i>':'')}
+function fqC(id,q){const n=NX(id);if(!n)return String(q);const a=Math.floor(q/n),b=q%n;return b?(a?a+'+':'')+b+(PZL(id)==='conf'?'c':'p'):String(a)} // forma corta per le caselle del Modulo: 1+4p
 const ctEq=(id,q)=>{const n=NX(id);return n?Math.floor(q/n):q}; // cartoni interi (scorte, totali)
 // unita' con cui si scrive per i prodotti con la x (ct o pz): fattore = pezzi per unita'
 const puK=k=>(MAG.pu&&MAG.pu[k])||'ct';
 const fU=(id,k)=>NX(id)&&puK(k)!=='pz'?NX(id):1;
 const inV=(id,k,q)=>{const f=fU(id,k);return f>1?Math.trunc(q/f):q}; // valore da mostrare nel campo
 const daV=(id,k,v,old)=>{const f=fU(id,k);v=parseInt(v)||0;return f>1?v*f+(old-Math.trunc(old/f)*f):v}; // dal campo al valore in pezzi (in ct tiene i pezzi sciolti)
-function xuBtn(id,k){return NX(id)?`<button class="xu" data-xu="${k}" title="Tocca per scrivere in ${puK(k)==='pz'?'cartoni':'pezzi'}">${puK(k)}</button>`:''}
-function somma(list){let c=0,z=0;list.forEach(r=>{const n=NX(r.p),q=Math.abs(+r.q||0);if(n){c+=Math.floor(q/n);z+=q%n}else c+=q});return (c||!z?c+' ct':'')+(z?(c?' + ':'')+z+' pz':'')}
+function xuBtn(id,k){return NX(id)?`<button class="xu" data-xu="${k}" title="Tocca per scrivere in ${puK(k)==='pz'?'cartoni':(PZL(id)==='conf'?'confezioni':'pezzi')}">${puK(k)==='pz'?PZL(id):'ct'}</button>`:''}
+function somma(list){let c=0,z=0;list.forEach(r=>{const n=NX(r.p),q=Math.abs(+r.q||0);if(n){c+=Math.floor(q/n);z+=q%n}else c+=q});const sol=list.every(r=>!NX(r.p)||PZL(r.p)==='conf')&&list.some(r=>NX(r.p));return (c||!z?c+' ct':'')+(z?(c?' + ':'')+z+(sol?' conf':' pz'):'')}
 document.addEventListener('click',ev=>{const b=ev.target.closest('.xu');if(!b)return;ev.preventDefault();const k=b.dataset.xu;MAG.pu=MAG.pu||{};MAG.pu[k]=puK(k)==='pz'?'ct':'pz';
   const row=b.closest('[data-k],[data-ik]');if(row&&row.dataset.ik)invAgg(row.dataset.ik);else if(row&&row.matches('.mr[data-k]'))magAggRiga(row.dataset.k);else render()});
 const nomeV=(p,vi)=>p[2]+(p[6].length>1?' · '+vLab(p[6][vi]||p[6][0]):'');
@@ -985,7 +986,7 @@ function magBind(root){
   root.querySelectorAll('[data-md]').forEach(b=>b.onclick=()=>{const k=b.dataset.k,[id,vi]=k.split(':').map(Number);magDelta(id,vi,(MAG.d[k]||0)+(+b.dataset.md)*fU(id,k));magAggRiga(k)});
   root.querySelectorAll('[data-mdi]').forEach(i=>{i.onfocus=()=>i.select();i.onchange=()=>{const k=i.dataset.mdi,[id,vi]=k.split(':').map(Number);magDelta(id,vi,daV(id,k,i.value,MAG.d[k]||0));magAggRiga(k)}});
   root.querySelectorAll('[data-rett]').forEach(b=>b.onclick=async()=>{const k=b.dataset.rett,[id,vi]=k.split(':').map(Number),p=byId[id];const g=giac(id,vi);
-    const nx=NX(id);const n=await mChiedi({t:'Giacenza reale di "'+nomeV(p,vi)+'"',s:'Oggi risulta '+fq(id,g)+'. Scrivi quanti '+(nx?'PEZZI (cartone da '+nx+' pz)':'cartoni')+' hai davvero (rettifica da inventario). Lascia vuoto per annullare la rettifica.',input:MAG.set[k]!=null?String(MAG.set[k]):String(g),ok:'Imposta'});
+    const nx=NX(id);const n=await mChiedi({t:'Giacenza reale di "'+nomeV(p,vi)+'"',s:'Oggi risulta '+fq(id,g)+'. Scrivi quanti '+(nx?(PZL(id)==='conf'?'CONFEZIONI':'PEZZI')+' (cartone da '+nx+' '+PZL(id)+')':'cartoni')+' hai davvero (rettifica da inventario). Lascia vuoto per annullare la rettifica.',input:MAG.set[k]!=null?String(MAG.set[k]):String(g),ok:'Imposta'});
     if(n===null)return;const v=n.trim();if(v===''){delete MAG.set[k]}else{MAG.set[k]=Math.max(0,Math.min(9999,parseInt(v)||0));delete MAG.d[k]}magSave();bar();magAggRiga(k)});
 }
 function magAggRiga(k){document.querySelectorAll(`.mr[data-k="${k}"]`).forEach(r=>{const [id,vi]=k.split(':').map(Number);const t=document.createElement('div');t.innerHTML=magRiga([byId[id],vi]);const n=t.firstElementChild;r.replaceWith(n);magBind(n)})}
@@ -997,7 +998,7 @@ const MM_MAG={pz:true,get:(id,vi)=>Math.max(0,giac(id,vi)+(MAG.d[gk(id,vi)]||0))
   cls:e=>{const c=contaDi(e.id,e.vi);return 'mc'+(c.base||c.pos||c.neg?' on':'')+(mSel===e.k?' sel':'')},um:false,nomi:false,
   hint:'In blu la giacenza di partenza, in rosso quello che hai venduto, in verde quello che hai caricato. Tocca la casella e usa − per segnare una vendita, + per un carico, poi Conferma in basso. I numeri restano sul foglio finché non premi "Aggiorna giacenza": allora le vendite si azzerano e resta la giacenza attuale.',
   vuoto:['Tocca una casella del modulo','Poi − per segnare una vendita, + per un carico'],
-  dett:(e,p,v)=>{const c=contaDi(e.id,e.vi),F=q=>fq(e.id,q);return 'Partenza '+F(c.base)+(c.neg?' · venduti '+F(c.neg):'')+(c.pos?' · caricati '+F(c.pos):'')+' · ora '+F(c.ora)+(c.pend?' ('+fq(e.id,c.pend,1)+' da confermare)':'')+(NX(e.id)?' · cartone da '+NX(e.id)+' pz':'')+(v[2]?' · '+v[2]:'')}};
+  dett:(e,p,v)=>{const c=contaDi(e.id,e.vi),F=q=>fq(e.id,q);return 'Partenza '+F(c.base)+(c.neg?' · venduti '+F(c.neg):'')+(c.pos?' · caricati '+F(c.pos):'')+' · ora '+F(c.ora)+(c.pend?' ('+fq(e.id,c.pend,1)+' da confermare)':'')+(NX(e.id)?' · cartone da '+NX(e.id)+' '+PZL(e.id):'')+(v[2]?' · '+v[2]:'')}};
 // Modulo della scorta ideale: giacenza in blu, scorta ideale in arancio; si scrive la scorta
 const MM_SC={get:(id,vi)=>scorta(id,vi),set:(id,vi,v)=>scSet(gk(id,vi),v),
   testo:e=>{const sc=scorta(e.id,e.vi);return sc?`<span class="gi">${sc}</span>`:''},
@@ -1013,7 +1014,7 @@ const MM_CAR={pz:true,get:(id,vi)=>{const r=carRiga(id,vi);return r?r.q||0:0},
   cls:e=>{const r=carRiga(e.id,e.vi);return 'mc'+(r&&r.q?' on':'')+(mSel===e.k?' sel':'')},um:false,nomi:false,
   hint:'In verde i cartoni che stai caricando da questo ordine. Correggi le quantità o aggiungine di nuove toccando le caselle; poi Conferma carico in basso.',
   vuoto:['Tocca una casella del modulo','Scrivi i cartoni ritirati'],
-  dett:(e,p,v)=>'In magazzino '+fq(e.id,giac(e.id,e.vi))+(NX(e.id)?' · cartone da '+NX(e.id)+' pz':'')+(v[2]?' · '+v[2]:'')};
+  dett:(e,p,v)=>'In magazzino '+fq(e.id,giac(e.id,e.vi))+(NX(e.id)?' · cartone da '+NX(e.id)+' '+PZL(e.id):'')+(v[2]?' · '+v[2]:'')};
 // stampa della giacenza a bordo: PDF semplice con agente, targa (facoltativa), data e ora, elenco per famiglia, totale e firma
 async function pdfGiacenza(targa,opz){opz=opz||{};
   const {PDFDocument,StandardFonts,rgb}=PDFLib;const doc=await PDFDocument.create();const f=await doc.embedFont(StandardFonts.HelveticaBold),fr=await doc.embedFont(StandardFonts.Helvetica);
@@ -1088,7 +1089,7 @@ const MM_INV={pz:true,get:(id,vi)=>invQ(id,vi),set:(id,vi,v)=>invSet(id,vi,v),
   cls:e=>'mc'+(invQ(e.id,e.vi)?' on':'')+(mSel===e.k?' sel':''),um:false,nomi:false,
   hint:'Inventario da zero: scrivi in ogni casella i cartoni contati. Le referenze lasciate vuote andranno a zero. Poi Conferma inventario in basso.',
   vuoto:['Tocca una casella del modulo','Scrivi i cartoni contati'],
-  dett:(e,p,v)=>'Prima dell\'inventario: '+fq(e.id,giac(e.id,e.vi))+(invQ(e.id,e.vi)&&NX(e.id)?' · contati '+fq(e.id,invQ(e.id,e.vi)):'')+(NX(e.id)?' · cartone da '+NX(e.id)+' pz':'')+(v[2]?' · '+v[2]:'')};
+  dett:(e,p,v)=>'Prima dell\'inventario: '+fq(e.id,giac(e.id,e.vi))+(invQ(e.id,e.vi)&&NX(e.id)?' · contati '+fq(e.id,invQ(e.id,e.vi)):'')+(NX(e.id)?' · cartone da '+NX(e.id)+' '+PZL(e.id):'')+(v[2]?' · '+v[2]:'')};
 function invRiga([p,vi]){const k=gk(p[0],vi),q=invQ(p[0],vi),g=giac(p[0],vi),id=p[0];
   return `<div class="mr" data-ik="${k}"><div class="mn"><b>${esc(nomeV(p,vi))}</b><small>${esc(S[p[1]])}${p[6][vi]&&p[6][vi][2]?' · '+esc(p[6][vi][2]):''} · prima ${fq(id,g)}${NX(id)&&q?' · contati <b>'+fq(id,q)+'</b>':''}</small></div>
    <div class="step"><button data-id1="-1" data-k="${k}" aria-label="Meno">−</button><input inputmode="numeric" pattern="[0-9]*" value="${inV(id,k,q)||''}" placeholder="0" data-idi="${k}" aria-label="Contati"><button class="plus" data-id1="1" data-k="${k}" aria-label="Più">+</button></div>${xuBtn(id,k)}</div>`}
