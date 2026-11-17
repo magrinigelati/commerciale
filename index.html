@@ -1896,7 +1896,7 @@ async function uffCatalogo(v){
 let fotoFam=null,FOTO=null,fotoQ='';
 const SITO='https://www.magrinigelati.it/';
 const nk=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
-async function caricaFoto(){if(FOTO)return FOTO;try{FOTO=await fetch('foto.json?v=2').then(r=>r.json())}catch(e){FOTO={prodotti:{},sezioni:{}}}return FOTO}
+async function caricaFoto(){if(FOTO)return FOTO;try{FOTO=await fetch('foto.json?v=3').then(r=>r.json())}catch(e){FOTO={prodotti:{},sezioni:{}}}return FOTO}
 // foto di un prodotto: prima quella caricata dall'ufficio, poi quella del sito abbinata per nome
 function fotoDi(p){const px=byIdX[p[0]];if(px&&px.foto)return {img:px.foto,nome:p[2],propria:true};
   const e=FOTO.prodotti[nk(p[2])+'@'+nk(p[7])]||FOTO.prodotti[nk(p[2])];return e?{...e,img:SITO+e.img,thumb:SITO+e.img.replace(/\.webp$/,'-t.webp')}:null}
