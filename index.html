@@ -239,6 +239,9 @@ html,body{margin:0}
 a.btn{text-decoration:none}
 .oi.cart .n{flex:1 1 160px}
 .oi.cart .btn{padding:10px 14px}
+.oi.cart .dg{flex:0 0 auto;width:34px;height:40px;display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1;color:var(--muted,#6b7a99);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:8px;background:#eef2fb}
+.oi.cart.trasc{background:#e8eeff;box-shadow:0 4px 14px rgba(13,56,179,.25);position:relative;z-index:2}
+.oi.cart.trasc .dg{cursor:grabbing}
 .home{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:left;display:flex;flex-direction:column;gap:6px;min-height:96px}
 .tile b{font-family:var(--f-display);font-weight:700;font-size:21px;line-height:1.1;text-transform:uppercase;letter-spacing:.02em}
@@ -2144,9 +2147,23 @@ async function uffDocumenti(v){
     uffDocumenti(v)};
   const dl=$('#dl');
   if(!docs.length){dl.innerHTML='<div class="empty">Nessun documento caricato.</div>';return}
-  dl.innerHTML=G.map(([c,ds],gi)=>`<div class="lbl sub">${esc(c)}</div><div class="list">${ds.map((d,j)=>`<div class="oi cart" style="flex-wrap:wrap"><div class="n"><b>${esc(d.titolo)}</b><small>${icona(d.percorso)} · visibile a: ${d.ruoli.map(r=>(RUOLI_DOC.find(x=>x[0]===r)||[r,r])[1]).join(', ')} · ${new Date(d.caricato_il).toLocaleDateString('it-IT')}</small></div>
+  dl.innerHTML=G.map(([c,ds],gi)=>`<div class="lbl sub">${esc(c)}</div><div class="list">${ds.map((d,j)=>`<div class="oi cart" data-id="${d.id}" style="flex-wrap:wrap"><span class="dg" aria-label="Trascina per spostare" title="Trascina per spostare">⠿</span><div class="n"><b>${esc(d.titolo)}</b><small>${icona(d.percorso)} · visibile a: ${d.ruoli.map(r=>(RUOLI_DOC.find(x=>x[0]===r)||[r,r])[1]).join(', ')} · ${new Date(d.caricato_il).toLocaleDateString('it-IT')}</small></div>
     <div class="btns" style="width:100%;margin-top:6px"><button class="btn" data-dsu="${gi}:${j}" ${j===0?'disabled':''} aria-label="Sposta su">▲</button><button class="btn" data-dgiu="${gi}:${j}" ${j===ds.length-1?'disabled':''} aria-label="Sposta giù">▼</button><button class="btn" data-dren="${d.id}">Rinomina</button><a class="btn" href="${esc(d.url||'#')}" target="_blank" rel="noopener">Apri</a><button class="btn" data-del="${d.id}">Elimina</button></div><div id="dr${d.id}" style="width:100%"></div></div>`).join('')}</div>`).join('');
   const sposta=async(gi,j,k)=>{const L=G.map(([c,ds])=>[c,[...ds]]);const a=L[gi][1];[a[j],a[k]]=[a[k],a[j]];try{await riscrivi(L)}catch(e){alert(e.message)}uffDocumenti(v)};
+  // trascinamento: si tiene premuta la maniglia e si sposta il documento nella sua cartella (dito o mouse), il nuovo ordine si salva al rilascio
+  dl.querySelectorAll('.dg').forEach(h=>h.addEventListener('pointerdown',e=>{
+    if(e.button>0)return;e.preventDefault();const row=h.closest('.oi'),list=row.parentElement;
+    try{h.setPointerCapture(e.pointerId)}catch(_){}row.classList.add('trasc');
+    const prima=[...list.children].map(r=>r.dataset.id).join(',');
+    const mv=ev=>{for(const r of [...list.children]){if(r===row)continue;const bb=r.getBoundingClientRect();
+        if(ev.clientY>=bb.top&&ev.clientY<=bb.bottom){const dopo=row.compareDocumentPosition(r)&Node.DOCUMENT_POSITION_FOLLOWING;list.insertBefore(row,dopo?r.nextElementSibling:r);break}}
+      if(ev.clientY<90)window.scrollBy(0,-14);else if(ev.clientY>innerHeight-90)window.scrollBy(0,14)};
+    const fine=async()=>{h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',fine);h.removeEventListener('pointercancel',fine);row.classList.remove('trasc');
+      const ids=[...list.children].map(r=>r.dataset.id);if(ids.join(',')===prima)return;
+      const gi=[...dl.querySelectorAll('.list')].indexOf(list),L=G.map(([c,ds])=>[c,[...ds]]);
+      L[gi][1]=ids.map(i=>L[gi][1].find(d=>String(d.id)===i));
+      try{await riscrivi(L)}catch(er){alert(er.message)}uffDocumenti(v)};
+    h.addEventListener('pointermove',mv);h.addEventListener('pointerup',fine);h.addEventListener('pointercancel',fine)}));
   dl.querySelectorAll('[data-dsu]').forEach(b=>b.onclick=()=>{const [gi,j]=b.dataset.dsu.split(':').map(Number);b.disabled=true;sposta(gi,j,j-1)});
   dl.querySelectorAll('[data-dgiu]').forEach(b=>b.onclick=()=>{const [gi,j]=b.dataset.dgiu.split(':').map(Number);b.disabled=true;sposta(gi,j,j+1)});
   dl.querySelectorAll('[data-dren]').forEach(b=>b.onclick=()=>{const d=docs.find(x=>x.id==b.dataset.dren),box=$('#dr'+d.id);
