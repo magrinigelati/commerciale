@@ -100,6 +100,8 @@ main{padding:14px 16px;max-width:720px;margin:0 auto}
 .cpbig{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;gap:8px}
 .cpbig img{max-width:100%;max-height:calc(100% - 80px);border-radius:6px}
 .cpbig .btn{flex:none}
+.cpbig.molte{background:#101a33;gap:14px;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.cpbig.molte img{max-height:none;width:100%;max-width:560px;flex:none;background:#fff}
 .aggbar{position:sticky;bottom:calc(98px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;margin:14px 0 4px;z-index:3}
 .aggbar .btn{width:100%;max-width:480px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
 .avviso{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(104px + env(safe-area-inset-bottom,0px));z-index:30;background:#14213d;color:#fff;padding:10px 16px;border-radius:999px;font-size:15px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.25);transition:opacity .4s;max-width:92vw;text-align:center}
@@ -2223,7 +2225,7 @@ function catTocca(){CAT.sporco=true;CAT.uscite=null;store.set(catBozzaK(),CAT.c)
 // anteprima piccola della prima pagina, sempre visibile mentre si scelgono stile, colori, logo e prodotti
 let catMiniT=null,catMiniN=0;
 async function catMini(){const box=$('#cprev');if(!box||!CAT.c)return;const n=++catMiniN;box.classList.add('car');
-  try{const cv=(await catDisegna(CAT.c,null,{prima:true}))[0];if(n!==catMiniN||!box.isConnected)return;
+  try{const rr=await catDisegna(CAT.c,null,{prima:true}),cv=rr[0];if(n!==catMiniN||!box.isConnected)return;CAT.npag=rr.n||1;CAT.tutte=null;box.querySelector('span').textContent=CAT.npag>1?`1 di ${CAT.npag} pagine ⤢`:'Anteprima ⤢';box.classList.toggle('molte',CAT.npag>1);
     const sm=document.createElement('canvas');sm.width=414;sm.height=585;sm.getContext('2d').drawImage(cv,0,0,414,585);box.querySelector('img').src=sm.toDataURL('image/jpeg',.82);box.hidden=false;CAT.grande=cv}
   catch(e){}finally{if(n===catMiniN)box.classList.remove('car')}}
 async function catSalva(msg){const c=CAT.c;
@@ -2293,7 +2295,15 @@ function catEditor(v){const c=CAT.c,d=c.dati;
     el.querySelectorAll('[data-vd]').forEach(x=>x.onclick=()=>{const i=+x.dataset.vd;[d.voci[i+1],d.voci[i]]=[d.voci[i],d.voci[i+1]];catTocca();voci()});
     el.querySelectorAll('[data-vx]').forEach(x=>x.onclick=()=>{d.voci.splice(+x.dataset.vx,1);catTocca();voci()})}
   voci();catMini();
-  $('#cprev').onclick=()=>{if(!CAT.grande)return;const o=document.createElement('div');o.className='cpbig';o.innerHTML=`<img src="${CAT.grande.toDataURL('image/jpeg',.85)}" alt="Anteprima della prima pagina"><button type="button" class="btn main">‹ Torna indietro e continua a creare</button>`;o.onclick=e=>{if(e.target===o||e.target.tagName==='BUTTON')o.remove()};document.body.appendChild(o)};
+  $('#cprev').onclick=async()=>{if(!CAT.grande)return;const o=document.createElement('div');o.className='cpbig';
+    const chiudi=`<button type="button" class="btn main">‹ Torna indietro e continua a creare</button>`;
+    o.onclick=e=>{if(e.target===o||e.target.tagName==='BUTTON')o.remove()};
+    if((CAT.npag||1)<2){o.innerHTML=`<img src="${CAT.grande.toDataURL('image/jpeg',.85)}" alt="Anteprima della prima pagina">${chiudi}`;document.body.appendChild(o);return}
+    // più pagine: si preparano al tocco (le foto delle pagine successive) e si scorrono una sotto l'altra
+    o.classList.add('molte');o.innerHTML=`${chiudi}<div class="msg" style="color:#fff">Preparo le pagine…</div>`;document.body.appendChild(o);
+    try{if(!CAT.tutte)CAT.tutte=(await catDisegna(CAT.c,null)).map(cv=>cv.toDataURL('image/jpeg',.82));
+      if(!o.isConnected)return;o.innerHTML=`${chiudi}${CAT.tutte.map((u,k)=>`<img src="${u}" alt="Pagina ${k+1} di ${CAT.tutte.length}">`).join('')}${chiudi}`}
+    catch(e){o.innerHTML=`${chiudi}<div class="msg err">Non riesco a preparare le pagine: riprova.</div>`}};
 }
 // sfondo personalizzato: ritagliato in verticale A4 (1240x1754) e salvato in JPEG
 async function catSfondoFile(file){const bm=await createImageBitmap(file);const cv=document.createElement('canvas');cv.width=1240;cv.height=1754;const x=cv.getContext('2d');
@@ -2426,7 +2436,7 @@ async function catDisegna(c,prog,opz={}){const d=c.dati,col=d.colore||'#1d3f9e',
     if(mag){const h=118,w=h*mag.width/mag.height;x.save();x.shadowColor='rgba(0,0,0,.12)';x.shadowBlur=14;catRR(x,CW-M-w-12,py+22,w+24,h+20,16);x.fillStyle='#fff';x.fill();x.restore();x.drawImage(mag,CW-M-w,py+32,w,h)}
     if(pagine.length>1){x.fillStyle='#8a92a3';x.textAlign='left';x.font='500 24px '+FB;x.fillText(`pagina ${pi+1} di ${pagine.length}`,M,py+52+nr.length*36+10)}
     out.push(cv)});
-  return out}
+  out.n=pagine.length;return out}
 // toglie lo sfondo bianco delle foto (riempimento dai bordi, cosi' il bianco dentro il prodotto resta) e taglia i margini vuoti
 function catScontorna(im){if(!im)return null;try{
   const k=Math.min(1,800/Math.max(im.width,im.height)),w=Math.max(1,Math.round(im.width*k)),h=Math.max(1,Math.round(im.height*k));
