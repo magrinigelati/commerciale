@@ -905,20 +905,21 @@ const MKEY=()=>'mc_mag_'+ME.id;
 // e accanto i venduti (rosso) e i caricati (verde), anche dopo la conferma, su qualsiasi telefono o PC.
 // Il conteggio e' PER PRODOTTO: le vendite di un prodotto restano segnate finche' quel prodotto non viene
 // ricaricato da un ordine (Carico ordine) o ricontato (inventario / rettifica). L'invio di un ordine non azzera piu' niente.
-// "Azzera tutte le vendite" (utenti.vendite_dal, salvato nel database) e l'inventario completo azzerano tutto.
-// Un carico a mano (+ nel modulo) NON azzera: resta in verde.
+// "Aggiorna giacenza" (utenti.vendite_dal, salvato nel database) toglie solo i verdi: i carichi a mano fatti fino a quel
+// momento entrano nel numero blu; i rossi restano. L'inventario completo azzera tutto.
+// Un carico a mano (+ nel modulo) NON azzera: resta in verde fino ad "Aggiorna giacenza".
 let CONTA={dal:null,S:{},ok:false};
 async function contaCarica(){
   const {data:u}=await sb.from('utenti').select('vendite_dal').eq('id',ME.id).maybeSingle();
   const dal=u&&u.vendite_dal?new Date(u.vendite_dal).toISOString():null;
-  let q=sb.from('movimenti').select('tipo,righe,creato_il,ordine_id,note').eq('utente_id',ME.id).order('creato_il',{ascending:false}).limit(1000); // i piu' recenti (il database ne restituisce al massimo 1000), poi in ordine di tempo
-  if(dal)q=q.gt('creato_il',dal);
+  const q=sb.from('movimenti').select('tipo,righe,creato_il,ordine_id,note').eq('utente_id',ME.id).order('creato_il',{ascending:false}).limit(1000); // i piu' recenti (il database ne restituisce al massimo 1000), poi in ordine di tempo
   const {data,error}=await q;if(error)throw error;
   let S={};(data||[]).slice().reverse().forEach(m=>{
     if(m.tipo==='rettifica'&&(m.note||'')==='Inventario'){S={};return} // inventario completo: si riparte da zero per tutto
     const azzera=m.tipo==='rettifica'||(m.tipo==='carico'&&m.ordine_id!=null); // ricarico da ordine o rettifica: riparte quel prodotto
     (m.righe||[]).forEach(r=>{if(r.p==null)return;const k=gk(r.p,r.v);if(azzera){delete S[k];return}
-      const d=+r.delta||0;if(!d)return;const x=S[k]||(S[k]={pos:0,neg:0});if(d>0)x.pos+=d;else x.neg-=d})});
+      const d=+r.delta||0;if(!d||(d>0&&dal&&m.creato_il&&new Date(m.creato_il)<=new Date(dal)))return; // verdi gia' assorbiti da "Aggiorna giacenza"
+      const x=S[k]||(S[k]={pos:0,neg:0});if(d>0)x.pos+=d;else x.neg-=d})});
   CONTA={dal,S,ok:true}}
 const contaDi=(id,vi)=>{const x=CONTA.S[gk(id,vi)]||{pos:0,neg:0},d=MAG.d[gk(id,vi)]||0;
   const base=Math.max(0,giac(id,vi)-x.pos+x.neg);return {base,pos:x.pos+(d>0?d:0),neg:x.neg+(d<0?-d:0),pend:d,ora:Math.max(0,giac(id,vi)+d)}};
@@ -926,9 +927,9 @@ function contaTot(){const L=[];Object.entries(CONTA.S).forEach(([k,x])=>{if(x.ne
 async function contaAzzera(){
   if(magRiep().n||magRiep().ns){await mChiedi({t:'Prima conferma le variazioni',s:'Hai ancora variazioni da confermare: premi Conferma in basso, poi aggiorna la giacenza.',ok:'Ok'});return}
   const tot=contaTot();
-  if(!(await mChiedi({t:'Azzerare tutte le vendite?',s:`Di solito non serve: le vendite di ogni prodotto si azzerano da sole quando lo ricarichi da un ordine. Se confermi, spariscono tutti i numeri rossi e verdi${tot?' ('+tot+' venduti)':''}, anche dei prodotti che non hai ancora ricaricato. La giacenza non cambia.`,ok:'Sì, azzera tutto',rosso:true})))return;
+  if(!(await mChiedi({t:'Aggiornare la giacenza?',s:`I carichi fatti a mano (in verde) entrano nella giacenza in blu. Le vendite in rosso${tot?' ('+tot+')':''} restano segnate finché non ricarichi quei prodotti da un ordine.`,ok:'Sì, aggiorna'})))return;
   const {data,error}=await sb.rpc('azzera_vendite');if(error){alert('Aggiornamento non riuscito: '+(error.message||error));return}
-  CONTA={dal:data||new Date().toISOString(),S:{},ok:true};render()} // partenza salvata nel database: vale su ogni telefono o PC
+  const dal=data||new Date().toISOString();Object.keys(CONTA.S).forEach(k=>{const x=CONTA.S[k];x.pos=0;if(!x.neg)delete CONTA.S[k]});CONTA.dal=dal;render()} // partenza salvata nel database: vale su ogni telefono o PC
 function magSave(){store.set(MKEY(),{d:MAG.d,set:MAG.set,ord:MAG.ord,car:MAG.car,sc:MAG.sc,inv:MAG.inv,pzv:1})}
 function magLoad(){const m=store.get(MKEY(),null);if(m){MAG.d=m.d||{};MAG.set=m.set||{};MAG.ord=m.ord||null;MAG.car=m.car||null;MAG.sc=m.sc||{};MAG.inv=m.inv||null;
   if(!m.pzv){const cv=o=>{if(o)Object.keys(o).forEach(k=>{const n=NX(+k.split(':')[0]);if(n)o[k]*=n})};cv(MAG.d);cv(MAG.set);cv(MAG.inv);(MAG.car||[]).forEach(r=>{if(!r.x&&NX(r.p))r.q*=NX(r.p)});magSave()}}} // variazioni salvate prima dei pezzi: da cartoni a pezzi
@@ -1000,7 +1001,7 @@ function magAggRiga(k){document.querySelectorAll(`.mr[data-k="${k}"]`).forEach(r
 const MM_MAG={pz:true,get:(id,vi)=>Math.max(0,giac(id,vi)+(MAG.d[gk(id,vi)]||0)),set:(id,vi,v)=>magDelta(id,vi,Math.max(0,parseInt(v)||0)-giac(id,vi)),
   testo:e=>{const c=contaDi(e.id,e.vi);return (c.base?`<span class="gb">${fqC(e.id,c.base)}</span>`:(c.neg||c.pos?'<span class="gb">0</span>':''))+(c.pos?`<span class="gg">+${fqC(e.id,c.pos)}</span>`:'')+(c.neg?`<span class="gr">−${fqC(e.id,c.neg)}</span>`:'')}, // blu = partenza; verde = caricati; rosso = venduti (confermati e da confermare)
   cls:e=>{const c=contaDi(e.id,e.vi);return 'mc'+(c.base||c.pos||c.neg?' on':'')+(mSel===e.k?' sel':'')},um:false,nomi:false,
-  hint:'In blu la giacenza di partenza, in rosso quello che hai venduto, in verde quello che hai caricato. Tocca la casella e usa − per segnare una vendita, + per un carico, poi Conferma in basso. Le vendite di un prodotto restano sul foglio finché non lo ricarichi da un ordine (Carico ordine): allora per quel prodotto si riparte da zero.',
+  hint:'In blu la giacenza di partenza, in rosso quello che hai venduto, in verde quello che hai caricato. Tocca la casella e usa − per segnare una vendita, + per un carico, poi Conferma in basso. Le vendite di un prodotto restano sul foglio finché non lo ricarichi da un ordine (Carico ordine): allora per quel prodotto si riparte da zero. "Aggiorna giacenza" porta nel blu i carichi fatti a mano (verdi); i rossi restano.',
   vuoto:['Tocca una casella del modulo','Poi − per segnare una vendita, + per un carico'],
   dett:(e,p,v)=>{const c=contaDi(e.id,e.vi),F=q=>fq(e.id,q);return 'Partenza '+F(c.base)+(c.neg?' · venduti '+F(c.neg):'')+(c.pos?' · caricati '+F(c.pos):'')+' · ora '+F(c.ora)+(c.pend?' ('+fq(e.id,c.pend,1)+' da confermare)':'')+(NX(e.id)?' · cartone da '+NX(e.id)+' '+PZL(e.id):'')+(v[2]?' · '+v[2]:'')}};
 // Modulo della scorta ideale: giacenza in blu, scorta ideale in arancio; si scrive la scorta
@@ -1182,7 +1183,7 @@ function renderCS(v){
     if(!CONTA.ok){v.innerHTML=testa+'<div class="empty">Carico le vendite…</div>';v.querySelectorAll('[data-csv]').forEach(b=>b.onclick=()=>{MAG.csv=b.dataset.csv;render()});
       contaCarica().then(()=>{if(view==='mag'&&MAG.tab==='mod'&&MAG.csv==='mod')render()}).catch(()=>{CONTA={dal:null,S:{},ok:true};render()});return}
     const tot=contaTot();
-    v.innerHTML=testa+`<div class="contabar"><span>Vendite da ricaricare: <b>${tot||'0 ct'}</b></span><button class="btn sm" id="caz">Azzera tutto</button></div><div id="csmod"></div>`;
+    v.innerHTML=testa+`<div class="contabar"><span>Vendite da ricaricare: <b>${tot||'0 ct'}</b></span><button class="btn sm" id="caz">↻ Aggiorna giacenza</button></div><div id="csmod"></div>`;
     v.querySelectorAll('[data-csv]').forEach(b=>b.onclick=()=>{MAG.csv=b.dataset.csv;render()});$('#caz').onclick=contaAzzera;renderMod($('#csmod'));return}
   v.innerHTML=testa+`<p class="note" style="margin:0 0 10px">Per <b>scaricare</b> premi <b>−</b> sulle referenze in magazzino; per <b>caricare</b> premi <b>+</b>, oppure apri una famiglia per le referenze che non hai ancora. Poi <b>Conferma</b> in basso.</p>
    <input class="search" id="cscerca" type="search" placeholder="Cerca una referenza oppure scegli la famiglia qui sotto…" value="${esc(MAG.csQ)}" autocomplete="off"><div id="csres"></div>`;
